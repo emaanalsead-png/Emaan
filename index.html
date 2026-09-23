@@ -22,14 +22,14 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 
-<!-- Firebase SDK (سيُستبدل تدريجياً بـ Supabase) -->
+<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<!-- ⭐ Supabase SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>   
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <!-- ═══ CSS الرئيسي ═══ -->
 <link rel="stylesheet" href="styles.css?v=37">
@@ -40,7 +40,7 @@
 <link rel="stylesheet" href="dice.css?v=37">
 <link rel="stylesheet" href="qamar-glass.css?v=37">
 
-<!-- ⭐ v40: CSS الـ Boot Loader — inline ليظهر فوراً -->
+<!-- CSS الـ Boot Loader — inline -->
 <style id="qamar-boot-css">
 #qamar-boot-loader {
     position: fixed;
@@ -118,10 +118,6 @@
 </style>
 
 <style>
-/* ═══════════════════════════════════════════ */
-/* تنسيقات حرجة يجب أن تكون inline            */
-/* ═══════════════════════════════════════════ */
-
 body.keyboard-open .bottom-nav,
 body.keyboard-open .floating-toolbar {
     display: none !important;
@@ -429,7 +425,7 @@ input, textarea, select { font-size: 16px !important; }
 </head>
 <body>
 
-<!-- ⭐ Boot Loader -->
+<!-- Boot Loader -->
 <div id="qamar-boot-loader">
     <div id="qamar-boot-moon">🌙</div>
     <div id="qamar-boot-title">قمر الشام</div>
@@ -642,6 +638,8 @@ input, textarea, select { font-size: 16px !important; }
 
 <!-- ═══ الموجة الحرجة (sync) ═══ -->
 <script src="config.js?v=38"></script>
+<script src="supabase-config.js?v=1"></script>
+<script src="supabase-adapter.js?v=1"></script>
 <script src="ranks.js?v=38"></script>
 <script src="utils.js?v=38"></script>
 <script src="name-effects.js?v=38"></script>
@@ -1040,6 +1038,30 @@ if ('serviceWorker' in navigator) {
             .catch(function(err) { console.warn('SW failed:', err); });
     });
 }
+</script>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- ⭐ اختبار Supabase — مؤقت                      -->
+<!-- ═══════════════════════════════════════════ -->
+<script>
+setTimeout(function() {
+    if (typeof window.supabaseClient === 'undefined') {
+        alert('❌ Supabase client MISSING\n(supabase-config.js لم يُحمَّل)');
+        return;
+    }
+    console.log('Testing Supabase connection...');
+    window.supabaseClient.from('kv_store').select('path').limit(1)
+        .then(function(r) {
+            if (r.error) {
+                alert('❌ Supabase ERROR:\n' + r.error.message);
+            } else {
+                alert('✅ Supabase WORKS!\nrows: ' + (r.data ? r.data.length : 0));
+            }
+        })
+        .catch(function(e) {
+            alert('❌ Supabase FAILED:\n' + (e && e.message ? e.message : String(e)));
+        });
+}, 3000);
 </script>
 
 </body>
