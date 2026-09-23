@@ -1,0 +1,441 @@
+/* ==============================================
+   room-alerts.css — نظام التنبيهات المنبثقة
+   ============================================== */
+
+/* ─────────────────────────────────────── */
+/* Overlay كامل الشاشة                        */
+/* ─────────────────────────────────────── */
+#ra-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 99997;
+    padding: 20px;
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+    animation: raFadeIn 0.3s ease-out;
+}
+#ra-overlay.active { display: flex; }
+#ra-overlay.closing {
+    animation: raFadeOut 0.3s ease-in forwards;
+}
+
+@keyframes raFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes raFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* ─────────────────────────────────────── */
+/* الصندوق الرئيسي                            */
+/* ─────────────────────────────────────── */
+#ra-box {
+    max-width: 560px;
+    width: 100%;
+    border-radius: 20px;
+    padding: 28px 24px;
+    text-align: center;
+    border: 3px solid #ffd700;
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.9),
+        0 0 60px rgba(255, 215, 0, 0.4);
+    animation: raPulseIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes raPulseIn {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    60% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* شريط علوي متحرك */
+#ra-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #ffd700, transparent);
+    animation: raSweep 2s linear infinite;
+}
+@keyframes raSweep {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* ─────────────────────────────────────── */
+/* حجم الرسالة                                */
+/* ─────────────────────────────────────── */
+.ra-size-small #ra-text { font-size: 16px; }
+.ra-size-medium #ra-text { font-size: 20px; }
+.ra-size-large #ra-text { font-size: 26px; }
+.ra-size-huge #ra-text { font-size: 34px; }
+
+/* ─────────────────────────────────────── */
+/* محتويات الصندوق                            */
+/* ─────────────────────────────────────── */
+#ra-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    line-height: 1;
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+    animation: raIconBounce 2s ease-in-out infinite;
+}
+@keyframes raIconBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+#ra-title {
+    font-weight: 900;
+    font-size: 14px;
+    margin-bottom: 12px;
+    opacity: 0.9;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+#ra-text {
+    font-weight: 900;
+    line-height: 1.4;
+    margin-bottom: 20px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+#ra-sender {
+    font-size: 12px;
+    margin-bottom: 18px;
+    opacity: 0.75;
+    font-weight: 700;
+    font-style: italic;
+}
+
+#ra-close-btn {
+    padding: 12px 32px;
+    border-radius: 30px;
+    border: 2px solid currentColor;
+    background: rgba(0, 0, 0, 0.3);
+    color: inherit;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+}
+#ra-close-btn:hover {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.1);
+}
+#ra-close-btn:active {
+    transform: scale(0.95);
+}
+
+/* ─────────────────────────────────────── */
+/* موضع التنبيه                               */
+/* ─────────────────────────────────────── */
+#ra-overlay.ra-pos-top { align-items: flex-start; padding-top: 40px; }
+#ra-overlay.ra-pos-bottom { align-items: flex-end; padding-bottom: 40px; }
+#ra-overlay.ra-pos-center { align-items: center; }
+
+/* ─────────────────────────────────────── */
+/* حجم صغير على الموبايل                      */
+/* ─────────────────────────────────────── */
+@media (max-width: 480px) {
+    #ra-box { padding: 22px 18px; border-radius: 16px; }
+    #ra-icon { font-size: 38px; }
+    #ra-text { line-height: 1.35; }
+    .ra-size-huge #ra-text { font-size: 26px; }
+    .ra-size-large #ra-text { font-size: 20px; }
+    .ra-size-medium #ra-text { font-size: 17px; }
+    .ra-size-small #ra-text { font-size: 14px; }
+    #ra-close-btn { padding: 10px 26px; font-size: 14px; }
+}
+
+/* ─────────────────────────────────────── */
+/* زر الإرسال (في Header الغرفة)              */
+/* ─────────────────────────────────────── */
+#ra-send-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #ffd700, #ff9800);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    gap: 6px;
+    animation: raSendPulse 2.5s ease-in-out infinite;
+}
+@keyframes raSendPulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.9); }
+}
+#ra-send-btn:active { transform: scale(0.95); }
+
+/* ─────────────────────────────────────── */
+/* Dialog إنشاء التنبيه                       */
+/* ─────────────────────────────────────── */
+#ra-compose {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 999998;
+    padding: 16px;
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+}
+#ra-compose.active { display: flex; }
+#ra-compose-box {
+    background: #0a0616;
+    border: 2px solid #ffd700;
+    border-radius: 18px;
+    padding: 20px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+#ra-compose-title {
+    color: #ffd700;
+    font-size: 16px;
+    font-weight: 900;
+    text-align: center;
+    margin: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+}
+.ra-field { display: flex; flex-direction: column; gap: 6px; }
+.ra-field label {
+    color: #ffd700;
+    font-size: 12px;
+    font-weight: 900;
+}
+.ra-field input,
+.ra-field textarea,
+.ra-field select {
+    width: 100%;
+    padding: 11px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 10px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+    text-align: right;
+}
+.ra-field textarea { min-height: 90px; resize: vertical; line-height: 1.5; }
+.ra-field input:focus,
+.ra-field textarea:focus,
+.ra-field select:focus {
+    border-color: #ffd700;
+    background: rgba(255, 255, 255, 0.09);
+}
+.ra-field select option { background: #110724; color: #fff; }
+
+/* معاينة */
+#ra-preview {
+    border: 2px dashed rgba(255, 215, 0, 0.4);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.4);
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+}
+#ra-preview-icon { font-size: 28px; line-height: 1; }
+#ra-preview-text {
+    font-weight: 900;
+    line-height: 1.4;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+/* Color picker */
+.ra-colors {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.ra-color-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.ra-color-btn.active {
+    border-color: #fff;
+    transform: scale(1.15);
+    box-shadow: 0 0 12px currentColor;
+}
+
+/* Size buttons */
+.ra-sizes {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.ra-size-btn {
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 20px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.ra-size-btn.active {
+    background: rgba(255, 215, 0, 0.25);
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+/* Position buttons */
+.ra-positions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.ra-pos-btn {
+    flex: 1;
+    min-width: 70px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 10px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.ra-pos-btn.active {
+    background: rgba(255, 215, 0, 0.25);
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+/* Target buttons */
+.ra-targets {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.ra-target-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 10px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.ra-target-btn.active {
+    background: rgba(255, 215, 0, 0.25);
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+/* Checkboxes */
+.ra-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+}
+.ra-checkbox-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: #ffd700;
+    cursor: pointer;
+}
+.ra-checkbox-row label {
+    flex: 1;
+    color: #ddd;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* Actions */
+#ra-compose-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+#ra-compose-actions button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+}
+#ra-compose-send { background: #ffd700; color: #000; }
+#ra-compose-cancel {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+}
+#ra-compose-actions button:active { transform: scale(0.97); }
+
+/* char counter */
+.ra-char-count {
+    color: #888;
+    font-size: 11px;
+    text-align: left;
+    margin-top: -4px;
+}
+.ra-char-count.near-limit { color: #ff9800; }
+.ra-char-count.at-limit { color: #ff4444; font-weight: 900; }
