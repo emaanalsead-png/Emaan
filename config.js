@@ -1,24 +1,18 @@
 // ==============================================
-// قمر الشام - الإعدادات المشتركة (v4)
-// Qamar Al Sham - Shared Configuration v4
+// قمر الشام — TEST — config.js
 // ==============================================
-// ✅ v4:
-//   1. IDENTITY_FIELDS: +coverType +cinemaTextStyle +cinemaBgStyle
-//   2. STORAGE_KEYS: كل المفاتيح
-//   3. DEFAULT_BIO + DEFAULT_NAME_SIZE + AVATAR_SIZE
-//   4. DEFAULT_AVATAR_FRAMES
-//   5. PROFILE_GLOWS + NAME_BG_COLORS
-//   6. window.getRankLevel موحّد
+// ⚠️ هذا الملف للمستودع الجديد فقط (بيئة اختبار)
+// ⚠️ لا تنقله للمستودع القديم
 // ==============================================
 
 const firebaseConfig = {
-    apiKey: "AIzaSyDOBWW4uACUSShJjwzfpnEzcL3KONZ-6FI",
-    authDomain: "qamaralsham.firebaseapp.com",
-    databaseURL: "https://qamaralsham-default-rtdb.firebaseio.com",
-    projectId: "qamaralsham",
-    storageBucket: "qamaralsham.firebasestorage.app",
-    messagingSenderId: "1059424590289",
-    appId: "1:1059424590289:web:176e82c30c8c7ec4c028f0"
+    apiKey: "AIzaSyCWh4rv__7DKqXUHXaPbNv4xGqJdoMbsCg",
+    authDomain: "qamaralshamtest.firebaseapp.com",
+    databaseURL: "https://qamaralshamtest-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "qamaralshamtest",
+    storageBucket: "qamaralshamtest.firebasestorage.app",
+    messagingSenderId: "204010808393",
+    appId: "1:204010808393:web:6a83f5b179dcff44120b98"
 };
 
 let auth = null;
@@ -31,7 +25,7 @@ try {
         auth = firebase.auth();
         db = firebase.database();
         storage = firebase.storage();
-        console.log('Firebase initialized');
+        console.log('🔥 Firebase TEST initialized');
     } else if (firebase.apps.length) {
         auth = firebase.auth();
         db = firebase.database();
@@ -131,29 +125,13 @@ const QAMAR = {
         'User':         'gray'
     },
 
-    // ⭐ v4: حقول الهوية الكاملة
     IDENTITY_FIELDS: [
-        'avatar',
-        'cover',
-        'coverType',
-        'name',
-        'bio',
-        'nameColor',
-        'nameGradient',
-        'nameBgColor',
-        'nameBgGradient',
-        'cinemaTextStyle',
-        'cinemaBgStyle',
-        'avatarFrame',
-        'profileGlow',
-        'profileBgType',
-        'profileBgValue',
-        'musicURL',
-        'poetry',
-        'poetryBg',
-        'poetryAttachment',
-        'country',
-        'family'
+        'avatar', 'cover', 'coverType', 'name', 'bio',
+        'nameColor', 'nameGradient', 'nameBgColor', 'nameBgGradient',
+        'cinemaTextStyle', 'cinemaBgStyle',
+        'avatarFrame', 'profileGlow', 'profileBgType', 'profileBgValue',
+        'musicURL', 'poetry', 'poetryBg', 'poetryAttachment',
+        'country', 'family'
     ],
 
     PROFILE_GLOWS: [
@@ -191,10 +169,10 @@ const QAMAR = {
     },
 
     BOTS: {
-        GUARDIAN: { id:'guardian',  name:'السجان',      icon:'🚔', color:'#ff4444', description:'يحرس المكان — يكتشف الكلمات الممنوعة ويعاقب المخالفين تلقائياً.' },
-        ISLAMIC:  { id:'islamic',   name:'قمر الشام',   icon:'🌙', color:'#d4af37', intervalMs: 5*60*1000, description:'ينشر الأدعية والأذكار والاستغفار والصلاة على النبي ﷺ كل 5 دقائق.' },
-        QUIZ:     { id:'quiz',      name:'الشاطر',      icon:'🎯', color:'#FF9800', intervalMs: 5*60*1000, revealDelayMs: 60*1000, description:'يطرح الأسئلة كل 5 دقائق — من يجيب أولاً يكسب نقاطاً.' },
-        HAKAWATI: { id:'hakawati',  name:'حكواتي الشام', icon:'📖', color:'#9C27B0', description:'يساعدك على فهم الموقع — نادِه بـ "حكواتي" + سؤالك.' }
+        GUARDIAN: { id:'guardian',  name:'السجان',      icon:'🚔', color:'#ff4444', description:'يحرس المكان.' },
+        ISLAMIC:  { id:'islamic',   name:'قمر الشام',   icon:'🌙', color:'#d4af37', intervalMs: 5*60*1000, description:'أدعية وأذكار.' },
+        QUIZ:     { id:'quiz',      name:'الشاطر',      icon:'🎯', color:'#FF9800', intervalMs: 5*60*1000, revealDelayMs: 60*1000, description:'أسئلة كل 5 دقائق.' },
+        HAKAWATI: { id:'hakawati',  name:'حكواتي الشام', icon:'📖', color:'#9C27B0', description:'مساعد الموقع.' }
     },
 
     STORAGE_KEYS: {
@@ -233,12 +211,8 @@ window.getRankLevel = function (rank) {
     return QAMAR.getRankLevel(rank);
 };
 
-console.log('Qamar Config v4 loaded:', {
-    rooms:            Object.keys(QAMAR.ROOMS).length,
-    ranks:            QAMAR.RANKS_ORDERED.length,
-    bots:             Object.keys(QAMAR.BOTS).length,
-    identityFields:   QAMAR.IDENTITY_FIELDS.length,
-    profileGlows:     QAMAR.PROFILE_GLOWS.length,
-    nameBgColors:     QAMAR.NAME_BG_COLORS.length,
-    storageKeys:      Object.keys(QAMAR.STORAGE_KEYS).length
+console.log('🔥 Qamar Config (TEST) loaded:', {
+    project: firebaseConfig.projectId,
+    rooms:   Object.keys(QAMAR.ROOMS).length,
+    ranks:   QAMAR.RANKS_ORDERED.length
 });
