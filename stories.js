@@ -1,26 +1,23 @@
 // ==============================================
-// stories.js v1 — الحالة اليومية (Stories)
+// stories.js v2 — فيديو 8MB + صوت مفعّل
 // ==============================================
-// ✅ الميزات:
-//   • نشر نص (بخلفيات جاهزة) أو صورة
-//   • خصوصية: عام / أصدقاء / متواجدون / خاص
-//   • مدة 24 ساعة
-//   • عرض: overlay داخل الشات (بدون مغادرة)
-//   • تمرير تلقائي: 5s نص / 15s صورة
-//   • تفاعلات: 👍 ❤️ 😂 😮 😢
-//   • ردود نصية (تُخزَّن في الحالة فقط)
-//   • قائمة المشاهدين (لصاحب الحالة)
-//   • عرض أعلى users-sidebar
+// ✅ v2:
+//   1. فيديو (8MB, litterbox 24h)
+//   2. صوت مفعّل افتراضياً
+//   3. progress bar = مدة الفيديو الفعلية
+//   4. بدون أزرار إضافية
+//   5. باقي المنطق كما v1
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__storiesV1) return;
-    window.__storiesV1 = true;
+    if (window.__storiesV2) return;
+    window.__storiesV2 = true;
 
     var STORY_LIFETIME_MS = 24 * 60 * 60 * 1000;
     var TEXT_DURATION_MS = 5000;
     var IMAGE_DURATION_MS = 15000;
+    var VIDEO_MAX_MB = 8;
     var MAX_TEXT_LEN = 200;
     var IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
 
@@ -40,15 +37,17 @@
     var REACTIONS = ['👍','❤️','😂','😮','😢'];
 
     var St = {
-        currentViewer: null,      // فتح قائمة الحالات
-        currentList: [],          // قائمة الحالات المعروضة
+        currentViewer: null,
+        currentList: [],
         currentIndex: 0,
         progressTimer: null,
         progressStart: 0,
         progressElapsed: 0,
+        currentDuration: TEXT_DURATION_MS,
         isPaused: false,
         overlay: null,
-        publishing: false
+        publishing: false,
+        _pubState: null
     };
 
     function getMe() { return (typeof getCurrentUser === 'function') ? getCurrentUser() : null; }
@@ -267,6 +266,14 @@
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+}
+.story-content-video {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
 }
 
 .story-tap-zone {
@@ -500,7 +507,8 @@
     color: #000;
 }
 
-#story-image-preview {
+#story-image-preview,
+#story-video-preview {
     max-width: 100%;
     max-height: 200px;
     border-radius: 12px;
@@ -509,7 +517,6 @@
     margin: 0 auto;
 }
 
-/* ═══ قسم "حالتي" في البروفايل ═══ */
 .story-mine-card {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,215,0,0.2);
@@ -544,7 +551,6 @@
     text-align: center;
     overflow: hidden;
     padding: 2px;
-    font-size: 12px;
 }
 .story-mine-info { flex: 1; min-width: 0; }
 .story-mine-info .time { font-size: 10px; color: #888; }
@@ -575,18 +581,8 @@
     })();
 
     /* ═══════════════════════════════════════════ */
-    /* Core: publish / list / view                  */
+    /* Core: fetchStories / canView                 */
     /* ═══════════════════════════════════════════ */
-
-    async function _getFriendsList(uid) {
-        try {
-            var s = await db.ref('users/' + uid + '/friends').once('value');
-            var data = s.val() || {};
-            return Object.keys(data).filter(function(k) {
-                return !data[k].status || data[k].status === 'accepted';
-            });
-        } catch(e) { return []; }
-    }
 
     async function _canViewStory(story, myUid) {
         if (!story) return false;
@@ -619,7 +615,6 @@
         return false;
     }
 
-    /* ⭐ جلب قائمة الحالات المتاحة لـ users-sidebar */
     async function fetchStoriesForSidebar() {
         var me = getMe();
         if (!me) return { my: [], others: [] };
@@ -652,12 +647,10 @@
                     continue;
                 }
 
-                // فحص الخصوصية لأول حالة (كافٍ للعرض المختصر)
                 var sampleStory = storyItems[0];
                 var visible = await _canViewStory(sampleStory, me.uid);
                 if (!visible) continue;
 
-                // فحص أن المستخدم ليس محظوراً
                 try {
                     var b1 = await db.ref('user_private_blocks/' + me.uid + '/' + uid).once('value');
                     if (b1.exists()) continue;
@@ -674,7 +667,6 @@
         }
     }
 
-    /* ⭐ عرض قسم الحالات في users-sidebar */
     async function renderStoriesSection() {
         var content = document.getElementById('users-list-content');
         if (!content) return;
@@ -692,13 +684,11 @@
         var h = '<h4>📸 الحالات اليومية</h4>';
         h += '<div id="stories-row">';
 
-        // زر "أضف"
         h += '<div class="story-circle" id="story-add-btn">' +
                 '<div class="story-avatar-wrap is-add"><div class="story-avatar">+</div></div>' +
                 '<div class="story-name">حالتي</div>' +
               '</div>';
 
-        // حالتي (إن وجدت)
         if (data.my && data.my.stories.length) {
             var av1 = me.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(me.name) + '&background=333&color=fff';
             h += '<div class="story-circle" data-story-mine="1">' +
@@ -710,7 +700,6 @@
                  '</div>';
         }
 
-        // الآخرون
         data.others.forEach(function(item) {
             var u = item.stories[0] || {};
             var name = u.userName || '—';
@@ -730,7 +719,6 @@
 
         content.insertBefore(section, content.firstChild);
 
-        // أحداث
         var addBtn = section.querySelector('#story-add-btn');
         if (addBtn) addBtn.onclick = function() { openPublishModal(); };
 
@@ -811,7 +799,6 @@
         St.currentIndex = 0;
         St.currentViewer = { ownerUid: ownerUid, isMine: !!isMine };
 
-        // تسجيل المشاهدة فوراً لكل الحالات (يمكن تحسينه لاحقاً)
         _markViews();
 
         var v = ensureViewer();
@@ -858,14 +845,23 @@
         var holder = document.getElementById('story-content-holder');
         holder.innerHTML = '';
 
-        // Header
         var av = story.userAvatar || 'https://ui-avatars.com/api/?name=U&background=333&color=fff';
         document.getElementById('story-viewer-avatar').src = av;
         document.getElementById('story-viewer-name').textContent = story.userName || '—';
         document.getElementById('story-viewer-time').textContent = timeAgo(story.createdAt);
 
-        // المحتوى
-        if (story.type === 'image' && story.imageUrl) {
+        // ⭐ Text
+        if (story.type === 'text' || (!story.type && story.text && !story.imageUrl && !story.videoUrl)) {
+            var div = document.createElement('div');
+            div.className = 'story-content-text';
+            div.style.background = story.bgColor || STORY_BGS[0].css;
+            div.textContent = story.text || '';
+            holder.appendChild(div);
+            St.currentDuration = TEXT_DURATION_MS;
+            startProgress();
+
+        // ⭐ Image
+        } else if (story.type === 'image' && story.imageUrl) {
             var img = document.createElement('img');
             img.className = 'story-content-image';
             img.src = story.imageUrl;
@@ -876,15 +872,65 @@
                 ov.textContent = story.text;
                 holder.appendChild(ov);
             }
-        } else {
-            var div = document.createElement('div');
-            div.className = 'story-content-text';
-            div.style.background = story.bgColor || STORY_BGS[0].css;
-            div.textContent = story.text || '';
-            holder.appendChild(div);
+            St.currentDuration = IMAGE_DURATION_MS;
+            startProgress();
+
+        // ⭐ Video
+        } else if (story.type === 'video' && story.videoUrl) {
+            var vid = document.createElement('video');
+            vid.className = 'story-content-video';
+            vid.src = story.videoUrl;
+            vid.autoplay = true;
+            vid.playsInline = true;
+            vid.setAttribute('playsinline', '');
+            vid.setAttribute('webkit-playsinline', '');
+            vid.controls = false;
+            vid.loop = false;
+            vid.muted = false; // ⭐ صوت مفعّل
+            vid.volume = 1;
+
+            vid.onloadedmetadata = function() {
+                var dur = (vid.duration && isFinite(vid.duration)) ? vid.duration * 1000 : 15000;
+                St.currentDuration = Math.min(dur, 60000); // حد أقصى دقيقة للعرض
+                startProgress();
+            };
+
+            vid.onended = function() {
+                stopProgress();
+                goNext();
+            };
+
+            vid.onerror = function() {
+                console.warn('video load error');
+                stopProgress();
+                St.currentDuration = 5000;
+                startProgress();
+            };
+
+            holder.appendChild(vid);
+
+            // ملاحظة: إذا فشل autoplay، نحاول عند اللمس
+            var playAttempt = vid.play();
+            if (playAttempt && playAttempt.catch) {
+                playAttempt.catch(function() {
+                    // autoplay منع → ننتظر نقرة
+                    vid.muted = true;
+                    var retry = vid.play();
+                    if (retry && retry.catch) {
+                        retry.catch(function(){});
+                    }
+                });
+            }
+
+            if (story.text) {
+                var ov2 = document.createElement('div');
+                ov2.style.cssText = 'position:absolute;bottom:150px;left:20px;right:20px;color:#fff;font-size:16px;font-weight:900;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,0.9);padding:10px;background:rgba(0,0,0,0.5);border-radius:12px;pointer-events:none;';
+                ov2.textContent = story.text;
+                holder.appendChild(ov2);
+            }
         }
 
-        // Meta (عدد المشاهدات/التفاعلات لصاحب الحالة)
+        // Meta
         var meta = document.getElementById('story-meta');
         meta.innerHTML = '';
         if (St.currentViewer.isMine) {
@@ -903,23 +949,20 @@
                 '<span class="story-meta-badge">💬 ' + repCount + '</span>';
         }
 
-        // Footer (input للرد + reactions) — يظهر فقط لو ليس حالتي
         var footer = document.getElementById('story-viewer-footer');
         if (St.currentViewer.isMine) {
             footer.style.display = 'none';
         } else {
             footer.style.display = 'flex';
         }
-
-        // تشغيل التمرير التلقائي
-        startProgress();
     }
 
     function startProgress() {
         stopProgress();
         var story = St.currentList[St.currentIndex];
         if (!story) return;
-        var duration = (story.type === 'image') ? IMAGE_DURATION_MS : TEXT_DURATION_MS;
+
+        var duration = St.currentDuration || TEXT_DURATION_MS;
         St.progressStart = Date.now();
         St.progressElapsed = 0;
 
@@ -945,6 +988,14 @@
     }
 
     function goNext() {
+        stopProgress();
+        // أوقف أي فيديو يعمل
+        var holder = document.getElementById('story-content-holder');
+        if (holder) {
+            holder.querySelectorAll('video').forEach(function(v) {
+                try { v.pause(); v.removeAttribute('src'); v.load(); } catch(e){}
+            });
+        }
         if (St.currentIndex < St.currentList.length - 1) {
             var fill = document.getElementById('story-fill-' + St.currentIndex);
             if (fill) fill.style.width = '100%';
@@ -956,11 +1007,17 @@
     }
 
     function goPrev() {
+        stopProgress();
+        var holder = document.getElementById('story-content-holder');
+        if (holder) {
+            holder.querySelectorAll('video').forEach(function(v) {
+                try { v.pause(); v.removeAttribute('src'); v.load(); } catch(e){}
+            });
+        }
         if (St.currentIndex > 0) {
             St.currentIndex--;
             renderCurrentStory();
         } else {
-            // إعادة تشغيل الحالية
             renderCurrentStory();
         }
     }
@@ -969,6 +1026,13 @@
         stopProgress();
         var v = document.getElementById('story-viewer');
         if (v) v.classList.remove('active');
+        // أوقف الفيديو
+        var holder = document.getElementById('story-content-holder');
+        if (holder) {
+            holder.querySelectorAll('video').forEach(function(vid) {
+                try { vid.pause(); vid.removeAttribute('src'); vid.load(); } catch(e){}
+            });
+        }
         St.currentViewer = null;
         St.currentList = [];
         St.currentIndex = 0;
@@ -1009,7 +1073,7 @@
     }
 
     /* ═══════════════════════════════════════════ */
-    /* Modal النشر                                  */
+    /* Modal النشر — مع فيديو                       */
     /* ═══════════════════════════════════════════ */
     function ensurePublishModal() {
         var m = document.getElementById('story-publish-modal');
@@ -1040,6 +1104,9 @@
             imageFile: null,
             imagePreview: null,
             imageUrl: null,
+            videoFile: null,
+            videoPreview: null,
+            videoUrl: null,
             privacy: defaultPrivacy
         };
 
@@ -1048,7 +1115,7 @@
             '<div class="story-tabs">' +
                 '<button class="story-tab active" data-t="text">📝 نص</button>' +
                 '<button class="story-tab" data-t="image">🖼️ صورة</button>' +
-                '<button class="story-tab" data-t="video" disabled style="opacity:0.4;">🎥 قريباً</button>' +
+                '<button class="story-tab" data-t="video">🎥 فيديو</button>' +
             '</div>' +
             '<div id="story-pub-body"></div>' +
             '<div class="story-privacy-grid" id="story-privacy-grid">' +
@@ -1058,6 +1125,7 @@
                 '<button class="story-privacy-btn" data-p="private">🔒<br>أنا فقط</button>' +
             '</div>' +
             '<input type="file" id="story-file-input" accept="image/*" style="display:none;">' +
+            '<input type="file" id="story-video-input" accept="video/*" style="display:none;">' +
             '<div class="story-publish-actions">' +
                 '<button class="story-publish-cancel" id="story-pub-cancel" type="button">إلغاء</button>' +
                 '<button class="story-publish-go" id="story-pub-go" type="button">📤 نشر</button>' +
@@ -1066,9 +1134,7 @@
         _renderPublishBody(box);
 
         box.querySelectorAll('.story-tab').forEach(function(t) {
-            if (t.disabled) return;
             t.onclick = function() {
-                if (t.disabled) return;
                 box.querySelectorAll('.story-tab').forEach(function(x) { x.classList.remove('active'); });
                 t.classList.add('active');
                 St._pubState.type = t.getAttribute('data-t');
@@ -1147,7 +1213,7 @@
                 var pick = document.createElement('button');
                 pick.type = 'button';
                 pick.className = 'story-publish-go';
-                pick.textContent = '📤 اختر صورة';
+                pick.textContent = '🖼️ اختر صورة';
                 pick.style.padding = '20px';
                 pick.onclick = function() {
                     var fi = document.getElementById('story-file-input');
@@ -1176,12 +1242,79 @@
                     rd.readAsDataURL(f);
                 };
             }
+
+        } else if (st.type === 'video') {
+            var wrapV = document.createElement('div');
+            wrapV.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+
+            if (st.videoPreview) {
+                var vid = document.createElement('video');
+                vid.id = 'story-video-preview';
+                vid.src = st.videoPreview;
+                vid.controls = true;
+                vid.muted = false;
+                vid.playsInline = true;
+                vid.setAttribute('playsinline', '');
+                wrapV.appendChild(vid);
+
+                var info = document.createElement('div');
+                info.style.cssText = 'color:#888;font-size:11px;text-align:center;';
+                info.textContent = 'الحجم: ' + (st.videoFile ? (st.videoFile.size / (1024*1024)).toFixed(2) : '0') + ' MB';
+                wrapV.appendChild(info);
+
+                var ta3 = document.createElement('textarea');
+                ta3.id = 'story-text-area';
+                ta3.maxLength = MAX_TEXT_LEN;
+                ta3.placeholder = 'أضف تعليقاً (اختياري)...';
+                ta3.value = st.text || '';
+                ta3.style.minHeight = '70px';
+                ta3.style.fontSize = '14px';
+                ta3.oninput = function() { st.text = this.value; };
+                wrapV.appendChild(ta3);
+            } else {
+                var pickV = document.createElement('button');
+                pickV.type = 'button';
+                pickV.className = 'story-publish-go';
+                pickV.textContent = '🎥 اختر فيديو (8MB كحد أقصى)';
+                pickV.style.padding = '20px';
+                pickV.onclick = function() {
+                    var fi = document.getElementById('story-video-input');
+                    if (fi) fi.click();
+                };
+                wrapV.appendChild(pickV);
+
+                var hint = document.createElement('div');
+                hint.style.cssText = 'color:#888;font-size:11px;text-align:center;';
+                hint.textContent = '💡 الحد الأقصى 8MB — الصوت مفعّل تلقائياً';
+                wrapV.appendChild(hint);
+            }
+
+            holder.appendChild(wrapV);
+
+            var fiv = document.getElementById('story-video-input');
+            if (fiv) {
+                fiv.onchange = function() {
+                    var f = this.files && this.files[0];
+                    if (!f) return;
+                    if (f.size / (1024*1024) > VIDEO_MAX_MB) {
+                        if (typeof showToast === 'function') showToast('fa-exclamation-triangle', '⚠️ الحد ' + VIDEO_MAX_MB + 'MB');
+                        return;
+                    }
+                    St._pubState.videoFile = f;
+                    St._pubState.videoPreview = URL.createObjectURL(f);
+                    _renderPublishBody(box);
+                };
+            }
         }
     }
 
     function closePublishModal() {
         var m = document.getElementById('story-publish-modal');
         if (m) m.classList.remove('active');
+        // نظّف Blob URL
+        if (St._pubState && St._pubState.videoPreview) {
+            try { URL.revokeObjectURL(St._pubState.videoPreview); } catch(e){}
+        }
     }
 
     async function publishStory() {
@@ -1198,6 +1331,10 @@
             if (typeof showToast === 'function') showToast('fa-exclamation', '⚠️ اختر صورة');
             return;
         }
+        if (st.type === 'video' && !st.videoFile && !st.videoUrl) {
+            if (typeof showToast === 'function') showToast('fa-exclamation', '⚠️ اختر فيديو');
+            return;
+        }
 
         St.publishing = true;
         var goBtn = document.getElementById('story-pub-go');
@@ -1205,15 +1342,19 @@
 
         try {
             var imageUrl = null;
+            var videoUrl = null;
+
             if (st.type === 'image' && st.imageFile && !st.imageUrl) {
-                var fd = new FormData();
-                fd.append('key', IMGBB_KEY);
-                fd.append('image', st.imageFile);
-                var r = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
-                var d = await r.json();
-                if (!d.success || !d.data || !d.data.url) throw new Error('فشل رفع الصورة');
-                imageUrl = d.data.url;
+                if (!window.UploadService) throw new Error('UploadService غير محمّل');
+                imageUrl = await window.UploadService.upload(st.imageFile);
                 st.imageUrl = imageUrl;
+            }
+
+            if (st.type === 'video' && st.videoFile && !st.videoUrl) {
+                if (!window.UploadService) throw new Error('UploadService غير محمّل');
+                // ⭐ فيديو → litterbox (24h، نفس عمر الحالة)
+                videoUrl = await window.UploadService.uploadLitterbox(st.videoFile, 24);
+                st.videoUrl = videoUrl;
             }
 
             var now = Date.now();
@@ -1225,6 +1366,7 @@
                 text: (st.text || '').substring(0, MAX_TEXT_LEN),
                 bgColor: st.type === 'text' ? (STORY_BGS.find(function(b){return b.id===st.bgId;}) || STORY_BGS[0]).css : null,
                 imageUrl: imageUrl,
+                videoUrl: videoUrl,
                 privacy: st.privacy,
                 createdAt: now,
                 expiresAt: now + STORY_LIFETIME_MS,
@@ -1237,9 +1379,9 @@
 
             if (typeof showToast === 'function') showToast('fa-check', '✅ نُشرت الحالة');
             closePublishModal();
-            // تحديث القسم
             renderStoriesSection();
         } catch(e) {
+            console.error('publishStory failed:', e);
             if (typeof showToast === 'function') showToast('fa-times', '⚠️ فشل: ' + (e.message || ''));
         }
 
@@ -1317,19 +1459,27 @@
                     });
                     var repCount = st.replies ? Object.keys(st.replies).length : 0;
 
-                    var thumbStyle = st.type === 'image' && st.imageUrl
-                        ? 'background-image:url(' + esc(st.imageUrl) + ');'
-                        : 'background:' + esc(st.bgColor || '#333') + ';';
+                    var thumbStyle = '';
+                    if (st.type === 'image' && st.imageUrl) {
+                        thumbStyle = 'background-image:url(' + esc(st.imageUrl) + ');';
+                    } else if (st.type === 'video') {
+                        thumbStyle = 'background:linear-gradient(135deg,#1a1a2e,#4a148c);';
+                    } else {
+                        thumbStyle = 'background:' + esc(st.bgColor || '#333') + ';';
+                    }
 
-                    var shortText = st.text || (st.type === 'image' ? '🖼️ صورة' : '—');
+                    var shortText = st.text || (st.type === 'image' ? '🖼️ صورة' : (st.type === 'video' ? '🎥 فيديو' : '—'));
                     if (shortText.length > 30) shortText = shortText.substring(0, 30) + '...';
+
+                    var typeIcon = st.type === 'image' ? '🖼️ صورة' : (st.type === 'video' ? '🎥 فيديو' : '📝 نص');
+                    var thumbContent = st.type === 'video' ? '🎥' : (st.type === 'image' ? '' : esc(shortText.substring(0, 20)));
 
                     card.innerHTML =
                         '<div class="story-mine-header">' +
                             '<div class="story-mine-preview">' +
-                                '<div class="story-mine-thumb" style="' + thumbStyle + '">' + (st.type === 'image' ? '' : esc(shortText.substring(0, 20))) + '</div>' +
+                                '<div class="story-mine-thumb" style="' + thumbStyle + '">' + thumbContent + '</div>' +
                                 '<div class="story-mine-info">' +
-                                    '<div style="color:#fff;font-size:12px;font-weight:900;">' + esc(st.type === 'image' ? '🖼️ صورة' : '📝 نص') + '</div>' +
+                                    '<div style="color:#fff;font-size:12px;font-weight:900;">' + typeIcon + '</div>' +
                                     '<div class="time">' + timeAgo(st.createdAt) + ' · ينتهي ' + timeAgo(st.expiresAt) + '</div>' +
                                     '<div class="stats">👁️ ' + vCount + ' · ❤️ ' + rCount + ' · 💬 ' + repCount + '</div>' +
                                 '</div>' +
@@ -1337,7 +1487,6 @@
                             '<button class="story-publish-cancel" data-del="' + esc(st._id) + '" type="button" style="padding:6px 10px;font-size:11px;">🗑️</button>' +
                         '</div>';
 
-                    // تفاصيل المشاهدين
                     if (st.views && Object.keys(st.views).length > 0) {
                         var vh = '<div style="color:#ffd700;font-size:11px;font-weight:900;margin-top:8px;">👁️ المشاهدون:</div>';
                         vh += '<div class="story-viewers-list">';
@@ -1355,7 +1504,6 @@
                         card.appendChild(vdiv);
                     }
 
-                    // الردود
                     if (st.replies && Object.keys(st.replies).length > 0) {
                         var rh = '<div style="color:#ffd700;font-size:11px;font-weight:900;margin-top:8px;">💬 الردود:</div>';
                         rh += '<div class="story-viewers-list">';
@@ -1404,7 +1552,6 @@
         var me = getMe();
         if (!me) { setTimeout(setupStoriesListener, 1500); return; }
 
-        // تنظيف Stories المنتهية في الخلفية (مرة كل 30 دقيقة)
         setInterval(function() {
             var cutoff = Date.now();
             db.ref('stories').once('value').then(function(snap) {
@@ -1421,12 +1568,9 @@
             }).catch(function(){});
         }, 30 * 60 * 1000);
 
-        console.log('📸 stories.js: ready');
+        console.log('📸 stories.js v2: ready');
     }
 
-    /* ═══════════════════════════════════════════ */
-    /* Patch users-sidebar render                   */
-    /* ═══════════════════════════════════════════ */
     function patchUsersSidebar() {
         if (typeof window.showOnlineUsers !== 'function') { setTimeout(patchUsersSidebar, 500); return; }
         if (window.__storiesPatchedShowUsers) return;
@@ -1435,10 +1579,9 @@
         var _orig = window.showOnlineUsers;
         window.showOnlineUsers = async function() {
             await _orig.apply(this, arguments);
-            // بعد العرض، نضيف قسم الحالات فوق القائمة
             setTimeout(function() { renderStoriesSection(); }, 100);
         };
-        console.log('📸 stories.js: users-sidebar patched');
+        console.log('📸 stories.js v2: users-sidebar patched');
     }
 
     /* ═══════════════════════════════════════════ */
@@ -1458,7 +1601,6 @@
         document.addEventListener('DOMContentLoaded', init);
     } else { init(); }
 
-    // تصدير
     window.Stories = {
         publish: openPublishModal,
         renderMyTab: renderMyStoryTab,
@@ -1468,5 +1610,5 @@
     window.renderStoriesSection = renderStoriesSection;
     window.openStoryPublish = openPublishModal;
 
-    console.log('📸 stories.js v1 loaded — 24h stories + text/image + 4 privacy levels');
+    console.log('📸 stories.js v2 loaded — 24h stories + text/image/video + 4 privacy');
 })();
