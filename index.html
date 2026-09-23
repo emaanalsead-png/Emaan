@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="google-site-verification" content="googledef67db6e90c3077">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="قمر الشام">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="قمر الشام">
+<meta name="theme-color" content="#050508">
+<title>شات قمر الشام 👑</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🌙%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com">
+<link rel="preconnect" href="https://qamaralsham-default-rtdb.firebaseio.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="dns-prefetch" href="https://ui-avatars.com">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+<!-- ═══ CSS الرئيسي ═══ -->
+<link rel="stylesheet" href="styles.css?v=37">
+<link rel="stylesheet" href="frames-engine.css?v=37">
+<link rel="stylesheet" href="name-effects.css?v=37">
+<link rel="stylesheet" href="king-room.css?v=37">
+<link rel="stylesheet" href="room-alerts.css?v=37">
+<link rel="stylesheet" href="dice.css?v=37">
+<link rel="stylesheet" href="qamar-glass.css?v=37">
+
+<!-- ⭐ v40: CSS الـ Boot Loader — inline ليظهر فوراً -->
+<style id="qamar-boot-css">
+#qamar-boot-loader {
+    position: fixed;
+    inset: 0;
+    background:
+        radial-gradient(ellipse at top, rgba(212, 175, 55, 0.15) 0%, transparent 55%),
+        radial-gradient(ellipse at bottom, rgba(100, 50, 150, 0.2) 0%, transparent 55%),
+        linear-gradient(to bottom, #050508, #0a0a15);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999999;
+    color: #ffd700;
+    font-family: 'Cairo', system-ui, sans-serif;
+    gap: 22px;
+    transition: opacity 0.4s ease;
+    padding: 20px;
+    text-align: center;
+}
+#qamar-boot-loader.qamar-boot-hide {
+    opacity: 0;
+    pointer-events: none;
+}
+#qamar-boot-moon {
+    font-size: 72px;
+    line-height: 1;
+    filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.7));
+    animation: qamarBootPulse 1.6s ease-in-out infinite;
+}
+#qamar-boot-title {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: #ffd700;
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+#qamar-boot-status {
+    font-size: 13px;
+    color: #9ca3af;
+    font-weight: 700;
+    min-height: 18px;
+    transition: color 0.2s;
+}
+#qamar-boot-status.ready {
+    color: #84cc16;
+    font-weight: 900;
+}
+#qamar-boot-bar-track {
+    width: 220px;
+    max-width: 70vw;
+    height: 3px;
+    background: rgba(255, 215, 0, 0.12);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+#qamar-boot-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 35%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, #ffd700, transparent);
+    animation: qamarBootBar 1.6s linear infinite;
+}
+@keyframes qamarBootPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.08); opacity: 0.85; }
+}
+@keyframes qamarBootBar {
+    0%   { transform: translateX(-120%); }
+    100% { transform: translateX(380%); }
+}
+</style>
+
+<style>
+/* ═══════════════════════════════════════════ */
+/* تنسيقات حرجة يجب أن تكون inline            */
+/* ═══════════════════════════════════════════ */
+
+/* keyboard-open — إخفاء الأشرطة عند فتح الكيبورد */
+body.keyboard-open .bottom-nav,
+body.keyboard-open .floating-toolbar {
+    display: none !important;
+}
+
+/* background base */
+html {
+    background:
+        radial-gradient(ellipse at top, rgba(212, 175, 55, 0.1) 0%, transparent 55%),
+        radial-gradient(ellipse at bottom, rgba(100, 50, 150, 0.15) 0%, transparent 55%),
+        linear-gradient(to bottom, #050508, #0a0a15) !important;
+    min-height: 100% !important;
+}
+body { background: transparent !important; }
+
+.starfield {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+}
+.background-glow { display: none !important; }
+
+.container,
+.container.background-type-stars,
+.container.background-type-nebula,
+.container.background-type-moon,
+.container.background-type-dust,
+.container.background-type-waves {
+    background: transparent !important;
+    background-image: none !important;
+    z-index: 2 !important;
+}
+.messages { background: transparent !important; }
+
+.header,
+.bottom-nav,
+.input-area,
+.mics-bar,
+.sidebar,
+.sidebar-header {
+    background: rgba(5, 5, 12, 0.25) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+.header { border-bottom: 1px solid rgba(255, 215, 0, 0.6) !important; }
+.bottom-nav { border-top: 1px solid rgba(255, 215, 0, 0.6) !important; }
+.input-area { border-top: 1px solid rgba(255, 215, 0, 0.6) !important; }
+.mics-bar { border-bottom: 1px solid rgba(255, 215, 0, 0.45) !important; }
+
+.overlay { background: rgba(0, 0, 0, 0.05) !important; }
+.overlay.show { background: rgba(0, 0, 0, 0.05) !important; opacity: 1 !important; }
+
+.sidebar {
+    border: 1px solid rgba(255, 215, 0, 0.65) !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(255, 215, 0, 0.18) !important;
+    width: 45vw !important;
+    min-width: 0 !important;
+    max-width: 400px !important;
+    z-index: 400 !important;
+}
+@media (max-width: 480px) { .sidebar { width: 55vw !important; } }
+.sidebar-item {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 215, 0, 0.3) !important;
+}
+.sidebar-item:hover,
+.sidebar-item.active {
+    background: rgba(255, 215, 0, 0.35) !important;
+    border-color: rgba(255, 215, 0, 0.9) !important;
+}
+
+#btn-name-frame { display: none !important; }
+
+.minimized-chat-avatar {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.floating-toolbar {
+    position: fixed !important;
+    bottom: 100px !important;
+    left: 12px !important;
+    right: 12px !important;
+    padding: 12px !important;
+    border-radius: 20px !important;
+    display: none !important;
+    justify-content: space-around !important;
+    gap: 10px !important;
+    z-index: 9500 !important;
+    background: rgba(5, 5, 12, 0.85) !important;
+    border: 1px solid rgba(255, 215, 0, 0.4) !important;
+}
+.floating-toolbar.open { display: flex !important; }
+
+.upgrade-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(0, 0, 0, 0.85) !important;
+    display: none !important;
+    justify-content: center !important;
+    align-items: center !important;
+    z-index: 9999 !important;
+    padding: 20px !important;
+}
+.upgrade-modal.active { display: flex !important; }
+.upgrade-content {
+    background: rgba(17, 7, 36, 0.95) !important;
+    border: 2px solid #ffd700 !important;
+    padding: 25px !important;
+    border-radius: 16px !important;
+    width: 100% !important;
+    max-width: 400px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    direction: rtl !important;
+}
+.upgrade-content h3 { color: #ffd700 !important; text-align: center !important; margin-bottom: 8px !important; }
+.upgrade-content input {
+    padding: 12px !important;
+    border-radius: 8px !important;
+    border: 1px solid #ffd700 !important;
+    background: rgba(255,255,255,0.08) !important;
+    color: #fff !important;
+    font-size: 14px !important;
+    text-align: right !important;
+    outline: none !important;
+}
+.upgrade-content .upgrade-btn {
+    padding: 12px !important;
+    border-radius: 8px !important;
+    border: none !important;
+    background: #ffd700 !important;
+    color: #000 !important;
+    font-weight: 900 !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+}
+.upgrade-content .upgrade-btn.cancel { background: rgba(255,255,255,0.15) !important; color: #fff !important; }
+
+.private-chat-modal {
+    top: auto !important;
+    bottom: 0 !important;
+    height: 50vh !important;
+    max-height: 50vh !important;
+    border-radius: 20px 20px 0 0 !important;
+    border-bottom: none !important;
+    border-top: 2px solid #ffd700 !important;
+    background: rgba(5, 5, 12, 0.75) !important;
+}
+.private-chat-header {
+    background: rgba(5, 5, 12, 0.75) !important;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.5) !important;
+}
+.private-chat-input {
+    background: rgba(5, 5, 12, 0.75) !important;
+    border-top: 1px solid rgba(255, 215, 0, 0.5) !important;
+}
+
+body.pm-open .input-area,
+body.pm-open .bottom-nav,
+body.pm-open .mics-bar-wrapper,
+body.pm-open .floating-toolbar {
+    display: none !important;
+}
+
+/* nav-pm-slot */
+.nav-pm-slot {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex: 1;
+    padding: 2px;
+}
+.nav-pm-slot .pm-slot-img {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #ffd700;
+    object-fit: cover;
+    display: none;
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
+}
+.nav-pm-slot.has-chat .pm-slot-img {
+    display: block;
+    animation: pmSlotPulse 1.8s ease-in-out infinite;
+}
+.nav-pm-slot .pm-slot-badge {
+    position: absolute;
+    top: 2px;
+    right: 50%;
+    transform: translateX(16px);
+    background: #ff4444;
+    color: #fff;
+    border-radius: 50%;
+    min-width: 14px;
+    height: 14px;
+    font-size: 8px;
+    font-weight: 900;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid #050508;
+    padding: 0 3px;
+}
+.nav-pm-slot.has-chat.has-unread .pm-slot-badge { display: flex; }
+@keyframes pmSlotPulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.7); transform: scale(1); }
+    50% { box-shadow: 0 0 22px rgba(255, 215, 0, 1); transform: scale(1.08); }
+}
+
+/* message background */
+.message:not(.system):not(.bot) {
+    background: rgba(5, 5, 12, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* header compact */
+.header {
+    height: 42px !important;
+    padding: 0 10px !important;
+}
+.header-btn {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 13px !important;
+    border-radius: 6px !important;
+}
+.room-title { font-size: 13px !important; }
+.header-actions { gap: 4px !important; }
+.notif-badge {
+    min-width: 15px !important;
+    height: 15px !important;
+    font-size: 9px !important;
+    top: -3px !important;
+    right: -3px !important;
+}
+
+/* input area */
+.input-area { padding: 6px 10px !important; gap: 6px !important; }
+.input-area input[type="text"] {
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    border-radius: 20px !important;
+}
+.send-btn { width: 34px !important; height: 34px !important; font-size: 14px !important; }
+.emoji-btn, .plus-btn { width: 30px !important; height: 30px !important; font-size: 16px !important; }
+
+/* bottom-nav compact */
+.bottom-nav { height: 46px !important; }
+.nav-item { padding: 2px !important; gap: 0 !important; font-size: 9px !important; }
+.nav-item i { font-size: 15px !important; }
+.nav-item span { font-size: 9px !important; }
+.nav-badge {
+    min-width: 12px !important;
+    height: 12px !important;
+    font-size: 8px !important;
+}
+
+/* mics */
+.mics-bar { padding: 6px 10px !important; }
+.mic-btn { width: 34px !important; height: 34px !important; font-size: 13px !important; }
+.mics-toggle-btn {
+    width: 26px !important;
+    height: 16px !important;
+    font-size: 9px !important;
+    bottom: -14px !important;
+}
+
+.reply-preview { padding: 6px 12px !important; }
+
+/* text-size-adjust */
+html, body {
+    -webkit-text-size-adjust: 100% !important;
+    -moz-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+}
+input, textarea, select { font-size: 16px !important; }
+@media (min-width: 481px) {
+    input, textarea, select { font-size: 13px !important; }
+}
+
+/* room-settings-btn + reports-btn */
+#room-settings-btn { display: none !important; }
+#room-settings-btn.visible { display: flex !important; }
+#reports-btn { display: none !important; position: relative !important; }
+#reports-btn.visible { display: flex !important; }
+
+/* ra-send-btn */
+#ra-send-btn {
+    animation: none !important;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.35) !important;
+}
+
+/* ⭐ v40: Login button loading state */
+.login-btn:disabled,
+.upgrade-btn:disabled {
+    opacity: 0.75 !important;
+    cursor: wait !important;
+}
+.login-btn:disabled i.fa-spinner,
+.upgrade-btn:disabled i.fa-spinner {
+    margin-left: 6px;
+}
+</style>
+
+</head>
+<body>
+
+<!-- ⭐ v40: Boot Loader — يظهر فوراً قبل تحميل Firebase -->
+<div id="qamar-boot-loader">
+    <div id="qamar-boot-moon">🌙</div>
+    <div id="qamar-boot-title">قمر الشام</div>
+    <div id="qamar-boot-status">جاري التحميل...</div>
+    <div id="qamar-boot-bar-track"><div id="qamar-boot-bar"></div></div>
+</div>
+
+<div class="starfield" id="starfield"></div>
+
+<!-- ═══ شاشة الدخول ═══ -->
+<div class="login-screen" id="login-screen">
+<div class="login-card">
+<div class="login-logo">
+<i class="fas fa-moon"></i>
+<h1>قمر الشام 👑</h1>
+<p>منصة الدردشة الملكية الفاخرة</p>
+</div>
+<div class="login-tabs">
+<button type="button" class="login-tab active" id="tab-guest" onclick="switchLoginTab('guest')"><i class="fas fa-user-secret"></i> زائر</button>
+<button type="button" class="login-tab" id="tab-member" onclick="switchLoginTab('member')"><i class="fas fa-user"></i> عضو</button>
+</div>
+<div id="guest-form">
+<input type="text" class="login-input" id="guest-name" placeholder="اسمك..." maxlength="20" style="margin-bottom:10px;">
+<input type="number" class="login-input" id="guest-age" placeholder="عمرك..." min="13" max="120" style="margin-bottom:10px;">
+<div class="gender-group" style="margin-bottom:10px;">
+<button type="button" class="gender-btn active" id="gender-male" onclick="selectGender('male')">👦 ذكر</button>
+<button type="button" class="gender-btn" id="gender-female" onclick="selectGender('female')">👧 أنثى</button>
+</div>
+<button type="button" class="login-btn" onclick="handleGuestLogin(this)"><i class="fas fa-user-secret"></i> دخول كزائر</button>
+</div>
+<div id="member-form" style="display:none;">
+<input type="email" class="login-input" id="member-email" placeholder="الإيميل..." style="margin-bottom:10px;">
+<input type="password" class="login-input" id="member-password" placeholder="كلمة السر..." style="margin-bottom:10px;">
+<button type="button" class="login-btn" onclick="handleMemberLogin(this)" style="margin-bottom:10px;"><i class="fas fa-sign-in-alt"></i> تسجيل دخول</button>
+<div class="link-text" onclick="switchToRegister()">ليس لديك حساب؟ سجّل الآن</div>
+</div>
+<div id="register-form" style="display:none;">
+<input type="text" class="login-input" id="register-name" placeholder="اسمك..." maxlength="20" style="margin-bottom:10px;">
+<input type="number" class="login-input" id="register-age" placeholder="عمرك..." min="13" max="120" style="margin-bottom:10px;">
+<div class="gender-group" style="margin-bottom:10px;">
+<button type="button" class="gender-btn active" id="reg-gender-male" onclick="selectRegGender('male')">👦 ذكر</button>
+<button type="button" class="gender-btn" id="reg-gender-female" onclick="selectRegGender('female')">👧 أنثى</button>
+</div>
+<input type="email" class="login-input" id="register-email" placeholder="الإيميل..." style="margin-bottom:10px;">
+<input type="password" class="login-input" id="register-password" placeholder="كلمة السر..." style="margin-bottom:10px;">
+<input type="password" class="login-input" id="register-password-confirm" placeholder="تأكيد كلمة السر..." style="margin-bottom:10px;">
+<button type="button" class="login-btn" onclick="handleRegister(this)"><i class="fas fa-user-plus"></i> إنشاء الحساب</button>
+<div class="link-text" onclick="switchToLogin()" style="margin-top:10px;">لديك حساب؟ سجّل دخول</div>
+</div>
+</div>
+</div>
+
+<!-- ═══ حاوية الشات ═══ -->
+<div class="container" id="chat-container" style="display:none;">
+
+<div class="header">
+<button type="button" class="header-btn" onclick="toggleRooms()"><i class="fas fa-door-open"></i></button>
+<div class="room-title" id="room-title">🌍 الروم العام</div>
+<div class="header-actions">
+<button type="button" class="header-btn" onclick="toggleNotifications()" id="notif-btn"><i class="fas fa-bell"></i><span class="notif-badge" id="notif-badge" style="display:none;">0</span></button>
+<button type="button" class="header-btn" onclick="togglePrivateMessages()" id="pm-btn"><i class="fas fa-comments"></i><span class="notif-badge" id="pm-badge" style="display:none;">0</span></button>
+<button type="button" class="header-btn" onclick="toggleInvisible()" id="invisible-btn" style="display:none;"><i class="fas fa-eye"></i></button>
+<button type="button" class="header-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i></button>
+<button type="button" class="header-btn" onclick="toggleSettings()"><i class="fas fa-bars"></i></button>
+<button type="button" class="header-btn" id="room-settings-btn" onclick="openRoomSettings()" title="إعدادات الغرفة"><i class="fas fa-cog"></i></button>
+<button type="button" class="header-btn" id="reports-btn" onclick="openReportsPanel()" title="الإبلاغات"><i class="fas fa-exclamation-triangle"></i><span class="report-badge" id="reports-badge" style="display:none;">0</span></button>
+</div>
+</div>
+
+<div class="mics-bar-wrapper">
+<div class="mics-bar" id="mics-bar"><div class="mics"></div></div>
+<button type="button" class="mics-toggle-btn" id="mics-toggle-btn" onclick="toggleMicsBar()"><i class="fas fa-chevron-up"></i></button>
+</div>
+
+<div class="messages" id="messages"></div>
+
+<div class="reply-preview" id="reply-preview">
+<span class="reply-preview-close" onclick="cancelReply()">✕</span>
+<div style="font-size:11px;color:var(--gold);">💬 الرد على: <strong id="reply-name"></strong></div>
+<div id="reply-text-preview" style="font-size:10px;color:var(--text-dim);"></div>
+</div>
+
+<div class="floating-toolbar" id="floating-toolbar">
+<button type="button" class="tool-btn" onclick="alert('📁 رفع ملفات — قريباً')"><i class="fas fa-folder"></i></button>
+<button type="button" class="tool-btn" onclick="alert('🎵 صوتيات — قريباً')"><i class="fas fa-music"></i></button>
+<button type="button" class="tool-btn" onclick="rollDice()"><i class="fas fa-dice"></i></button>
+<button type="button" class="tool-btn" onclick="searchYouTube()"><i class="fas fa-play"></i></button>
+</div>
+
+<div class="input-area">
+<button type="button" class="send-btn" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+<button type="button" class="emoji-btn" onclick="insertEmoji()"><i class="fas fa-smile"></i></button>
+<input type="text" id="message-input" placeholder="اكتب رسالتك هنا..." onkeydown="handleKeyPress(event)" maxlength="2000">
+<button type="button" class="plus-btn" id="plus-btn" onclick="toggleToolbar()"><i class="fas fa-plus"></i></button>
+</div>
+
+<div class="bottom-nav">
+<button type="button" class="nav-item" onclick="openProfile()"><i class="fas fa-id-card"></i><span>بروفايلي</span></button>
+<button type="button" class="nav-item" onclick="showOnlineUsers()"><i class="fas fa-users"></i><span>المتواجدين</span></button>
+<button type="button" class="nav-item" id="upgrade-nav-btn" onclick="openUpgradeModal()"><i class="fas fa-key"></i><span>عضوية</span></button>
+<button type="button" class="nav-item" onclick="showFriends()"><i class="fas fa-user-friends"></i><span>الأصدقاء</span></button>
+<button type="button" class="nav-item" onclick="showStore()"><i class="fas fa-store"></i><span>المتجر</span></button>
+<div class="nav-item nav-pm-slot" id="nav-pm-slot" onclick="openMinimizedChat()">
+    <img class="pm-slot-img" id="pm-slot-img" src="" alt="chat">
+    <span class="pm-slot-badge" id="pm-slot-badge">0</span>
+</div>
+</div>
+
+</div>
+
+<!-- ═══ السيدبارات ═══ -->
+
+<div class="sidebar right-sidebar" id="rooms-sidebar">
+<div class="sidebar-header"><h3><i class="fas fa-door-open"></i> الغرف</h3><button type="button" class="sidebar-close" onclick="closeAllPanels()"><i class="fas fa-times"></i></button></div>
+<div class="sidebar-content" id="rooms-list"></div>
+</div>
+
+<div class="sidebar right-sidebar" id="notif-sidebar">
+<div class="sidebar-header"><h3><i class="fas fa-bell"></i> الإشعارات</h3><button type="button" class="sidebar-close" onclick="closeAllPanels()"><i class="fas fa-times"></i></button></div>
+<div class="sidebar-content" id="notif-list"><div style="text-align:center;color:var(--text-dim);font-size:12px;padding:20px;">لا توجد إشعارات</div></div>
+</div>
+
+<div class="sidebar right-sidebar" id="pm-sidebar">
+<div class="sidebar-header"><h3><i class="fas fa-comments"></i> الرسائل الخاصة</h3><button type="button" class="sidebar-close" onclick="closeAllPanels()"><i class="fas fa-times"></i></button></div>
+<div class="sidebar-content" id="pm-list"><div style="text-align:center;color:var(--text-dim);font-size:12px;padding:20px;">لا توجد محادثات</div></div>
+</div>
+
+<div class="sidebar left-sidebar" id="settings-sidebar">
+<div class="sidebar-header"><h3><i class="fas fa-cog"></i> الإعدادات</h3><button type="button" class="sidebar-close" onclick="closeAllPanels()"><i class="fas fa-times"></i></button></div>
+<div class="sidebar-content">
+<h4 style="color:var(--gold);font-size:12px;margin-bottom:8px;">🎨 خلفيات المنصة</h4>
+<div style="display:flex;gap:8px;flex-wrap:wrap;" id="bg-options"></div>
+<div id="admin-settings" style="display:none;margin-top:20px;">
+<h4 style="color:var(--gold);font-size:12px;margin-bottom:8px;">⚙️ إعدادات إدارية</h4>
+<button type="button" class="btn-outline" onclick="openBotTraining()" style="width:100%;padding:10px;margin-bottom:6px;cursor:pointer;"><i class="fas fa-robot"></i> غرفة تدريب البوت</button>
+<button type="button" class="btn-outline" onclick="alert('قريباً')" style="width:100%;padding:10px;cursor:pointer;"><i class="fas fa-user-shield"></i> إدارة الكلمات الممنوعة</button>
+</div>
+</div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+<!-- ═══ الخاص ═══ -->
+<div class="private-chat-modal" id="private-chat-modal">
+<div class="private-chat-header">
+<div class="private-chat-user">
+<img id="pc-avatar" src="" alt="avatar">
+<div class="private-chat-user-info"><div id="pc-name">المستخدم</div><div id="pc-status">نشط</div></div>
+</div>
+<div class="private-chat-actions">
+<button type="button" id="pc-minimize"><i class="fas fa-minus"></i></button>
+<button type="button" id="pc-close"><i class="fas fa-times"></i></button>
+</div>
+</div>
+<div class="private-chat-messages" id="pc-messages"></div>
+<div class="private-chat-input">
+<input type="text" id="pc-input" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendPrivateMsg()" maxlength="2000">
+<button type="button" onclick="sendPrivateMsg()"><i class="fas fa-paper-plane"></i></button>
+</div>
+</div>
+
+<!-- ═══ نافذة الترقية ═══ -->
+<div class="upgrade-modal" id="upgrade-modal">
+<div class="upgrade-content">
+<h3>🔑 ترقية لعضوية</h3>
+<p style="color:#ccc;font-size:13px;text-align:center;">احصل على حساب دائم</p>
+<input type="email" id="upgrade-email" placeholder="الإيميل...">
+<input type="password" id="upgrade-password" placeholder="كلمة السر...">
+<input type="password" id="upgrade-password-confirm" placeholder="تأكيد كلمة السر...">
+<div style="display:flex;gap:10px;">
+<button type="button" class="upgrade-btn" onclick="handleUpgrade(this)" style="flex:1;">إنشاء الحساب</button>
+<button type="button" class="upgrade-btn cancel" onclick="closeUpgradeModal()" style="flex:1;">إلغاء</button>
+</div>
+</div>
+</div>
+
+<!-- ═══ نافذة بوت ═══ -->
+<div class="bot-profile-modal" id="bot-profile-modal">
+<div class="bot-profile-content">
+<button type="button" class="bot-profile-close" onclick="closeBotProfile()">✕</button>
+<div class="bot-profile-avatar" id="bp-avatar">🤖</div>
+<div class="bot-profile-name" id="bp-name">البوت</div>
+<div class="bot-profile-badge">🤖 بوت رسمي</div>
+<div class="bot-profile-desc" id="bp-desc">وصف البوت</div>
+</div>
+</div>
+
+<!-- ═══ iframe البروفايل ═══ -->
+<div id="profile-frame-container" style="
+    position: fixed;
+    top: 6%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 5%);
+    max-width: 480px;
+    bottom: 0;
+    z-index: 9999;
+    background: transparent;
+    display: none;
+    border-radius: 28px 28px 0 0;
+    overflow: hidden;
+    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 215, 0, 0.2);
+">
+<iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- السكربتات                                    -->
+<!-- ═══════════════════════════════════════════ -->
+
+<!-- ═══ الموجة الحرجة (sync) ═══ -->
+<script src="config.js?v=38"></script>
+<script src="ranks.js?v=38"></script>
+<script src="utils.js?v=38"></script>
+<script src="name-effects.js?v=38"></script>
+<script src="frames-engine.js?v=38"></script>
+<script src="connection-optimizer.js?v=1"></script>
+<script src="firebase-persistence.js?v=2"></script>
+<script src="chat-optimizer.js?v=1"></script>
+<script src="connection-resilience.js?v=1"></script>
+
+<!-- ═══ inline script — تهيئة سريعة ═══ -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('private-chat-modal');
+    if (modal) {
+        new MutationObserver(function() {
+            document.body.classList.toggle('pm-open', modal.classList.contains('open'));
+        }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+    }
+
+    var floatingAvatar = document.getElementById('minimized-chat-avatar');
+    if (floatingAvatar) {
+        floatingAvatar.style.display = 'none';
+        var obs = new MutationObserver(function() {
+            floatingAvatar.style.display = 'none';
+            floatingAvatar.classList.remove('show');
+        });
+        obs.observe(floatingAvatar, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+
+    setTimeout(function() {
+        var targets = [
+            '.header', '.bottom-nav', '.input-area', '.mics-bar',
+            '.sidebar', '.sidebar-header'
+        ];
+        targets.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+                el.style.setProperty('background', 'rgba(5, 5, 12, 0.25)', 'important');
+                el.style.setProperty('backdrop-filter', 'none', 'important');
+                el.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+            });
+        });
+    }, 500);
+
+    setInterval(syncPMSlot, 3000);
+    setTimeout(syncPMSlot, 2000);
+
+    setInterval(_updateHeaderButtons, 2000);
+    setTimeout(_updateHeaderButtons, 1000);
+});
+
+function _updateHeaderButtons() {
+    var user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+    if (!user) return;
+    var lvl = user.rankLevel || (typeof getRankLevel === 'function' ? getRankLevel(user.rank) : 0);
+
+    var roomBtn = document.getElementById('room-settings-btn');
+    if (roomBtn) {
+        if (lvl >= 80) roomBtn.classList.add('visible');
+        else roomBtn.classList.remove('visible');
+    }
+
+    var repBtn = document.getElementById('reports-btn');
+    if (repBtn) {
+        if (lvl >= 90) repBtn.classList.add('visible');
+        else repBtn.classList.remove('visible');
+    }
+}
+
+function openRoomSettings() {
+    var user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+    if (!user) return;
+    var lvl = user.rankLevel || (typeof getRankLevel === 'function' ? getRankLevel(user.rank) : 0);
+    if (lvl < 80) {
+        if (typeof showToast === 'function') showToast('fa-lock', '🔒 Grand Owner+ فقط');
+        return;
+    }
+    if (typeof openWelcomeEditor === 'function') {
+        openWelcomeEditor((typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general');
+    } else if (typeof showToast === 'function') {
+        showToast('fa-cog', '⚙️ قريباً');
+    }
+}
+
+function openReportsPanel() {
+    if (typeof KingRoom !== 'undefined' && KingRoom.open) {
+        if (typeof window.__krSetTab === 'function') window.__krSetTab('reports');
+        KingRoom.open();
+    } else if (typeof showToast === 'function') {
+        showToast('fa-exclamation-triangle', '🚨 قريباً');
+    }
+}
+
+function showFriends() { if (typeof showToast === 'function') showToast('fa-user-friends', '👥 قريباً'); }
+
+function openMinimizedChat() {
+    if (typeof ChatState !== 'undefined' && ChatState.minimizedChat) {
+        if (typeof restorePrivateChat === 'function') restorePrivateChat();
+    } else if (typeof ChatState !== 'undefined' && ChatState.currentPrivateChat) {
+        var m = document.getElementById('private-chat-modal');
+        if (m) m.classList.add('open');
+    } else if (typeof togglePrivateMessages === 'function') {
+        togglePrivateMessages();
+    }
+}
+
+function syncPMSlot() {
+    var slot = document.getElementById('nav-pm-slot');
+    var img = document.getElementById('pm-slot-img');
+    var badge = document.getElementById('pm-slot-badge');
+    if (!slot || !img || !badge) return;
+    if (typeof ChatState === 'undefined') return;
+    var chat = ChatState.currentPrivateChat || ChatState.minimizedChat;
+    var unread = ChatState.unreadPrivate || 0;
+    if (chat && chat.otherAvatar) {
+        slot.classList.add('has-chat');
+        if (img.src !== chat.otherAvatar) img.src = chat.otherAvatar;
+        if (unread > 0) {
+            slot.classList.add('has-unread');
+            badge.textContent = unread > 9 ? '9+' : unread;
+        } else slot.classList.remove('has-unread');
+    } else {
+        slot.classList.remove('has-chat', 'has-unread');
+        img.src = '';
+    }
+}
+
+window.showFriends = showFriends;
+window.openMinimizedChat = openMinimizedChat;
+window.syncPMSlot = syncPMSlot;
+window.openRoomSettings = openRoomSettings;
+window.openReportsPanel = openReportsPanel;
+window._updateHeaderButtons = _updateHeaderButtons;
+</script>
+
+<!-- ═══ الأساسي (sync) ═══ -->
+<script src="auth.js?v=39"></script>
+<script src="chat.js?v=38"></script>
+
+<!-- ═══ الثانوي (defer) ═══ -->
+<script defer src="islamic-library.js?v=37"></script>
+<script defer src="pm-enhanced.js?v=38"></script>
+<script defer src="media-picker.js?v=37"></script>
+<script defer src="bots.js?v=37"></script>
+<script defer src="guardian-hide.js?v=37"></script>
+<script defer src="king-room.js?v=37"></script>
+<script defer src="room-alerts.js?v=37"></script>
+<script defer src="dice.js?v=37"></script>
+<script defer src="invisible-mode.js?v=38"></script>
+<script defer src="room-picker.js?v=37"></script>
+<script defer src="stories.js?v=37"></script>
+<script defer src="user-data-optimizer.js?v=2"></script>
+
+<!-- ═══ Login Scripts ═══ -->
+<script>
+let selectedGender = 'male';
+let regSelectedGender = 'male';
+
+function switchLoginTab(tab) {
+    document.getElementById('tab-guest').classList.remove('active');
+    document.getElementById('tab-member').classList.remove('active');
+    document.getElementById('guest-form').style.display = 'none';
+    document.getElementById('member-form').style.display = 'none';
+    document.getElementById('register-form').style.display = 'none';
+    if (tab === 'guest') {
+        document.getElementById('tab-guest').classList.add('active');
+        document.getElementById('guest-form').style.display = 'block';
+    } else {
+        document.getElementById('tab-member').classList.add('active');
+        document.getElementById('member-form').style.display = 'block';
+    }
+}
+
+function switchToRegister() {
+    document.getElementById('member-form').style.display = 'none';
+    document.getElementById('register-form').style.display = 'block';
+}
+
+function switchToLogin() {
+    document.getElementById('register-form').style.display = 'none';
+    document.getElementById('member-form').style.display = 'block';
+}
+
+function selectGender(g) {
+    selectedGender = g;
+    document.getElementById('gender-male').classList.remove('active');
+    document.getElementById('gender-female').classList.remove('active');
+    document.getElementById(g === 'male' ? 'gender-male' : 'gender-female').classList.add('active');
+}
+
+function selectRegGender(g) {
+    regSelectedGender = g;
+    document.getElementById('reg-gender-male').classList.remove('active');
+    document.getElementById('reg-gender-female').classList.remove('active');
+    document.getElementById(g === 'male' ? 'reg-gender-male' : 'reg-gender-female').classList.add('active');
+}
+
+function _setBtnLoading(btn, loadingText) {
+    if (!btn) return null;
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + loadingText;
+    return orig;
+}
+function _resetBtn(btn, orig) {
+    if (!btn) return;
+    btn.disabled = false;
+    if (orig !== null && orig !== undefined) btn.innerHTML = orig;
+}
+
+async function handleGuestLogin(btn) {
+    if (btn && btn.disabled) return;
+    const name = document.getElementById('guest-name').value.trim();
+    const age = document.getElementById('guest-age').value.trim();
+    if (!name || name.length < 2) { alert('⚠️ الرجاء إدخال اسم صحيح'); return; }
+    const ageNum = parseInt(age, 10);
+    if (!age || isNaN(ageNum) || ageNum < 13 || ageNum > 120) { alert('⚠️ الرجاء إدخال عمر صحيح'); return; }
+
+    var orig = _setBtnLoading(btn, 'جاري الدخول...');
+    try {
+        const result = await registerGuest(name, ageNum, selectedGender);
+        if (result && result.success) {
+            if (typeof initChat === 'function') await initChat();
+        } else {
+            alert('⚠️ ' + (result?.error || 'حدث خطأ'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('⚠️ خطأ: ' + (e.message || 'غير معروف'));
+    } finally {
+        _resetBtn(btn, orig);
+    }
+}
+
+async function handleMemberLogin(btn) {
+    if (btn && btn.disabled) return;
+    const email = document.getElementById('member-email').value.trim();
+    const password = document.getElementById('member-password').value;
+    if (!email || !password) { alert('⚠️ الرجاء إدخال البيانات'); return; }
+
+    var orig = _setBtnLoading(btn, 'جاري الدخول...');
+    try {
+        const result = await login(email, password);
+        if (result && result.success) {
+            if (typeof initChat === 'function') await initChat();
+        } else {
+            alert('⚠️ ' + (result?.error || 'فشل'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('⚠️ خطأ: ' + (e.message || 'غير معروف'));
+    } finally {
+        _resetBtn(btn, orig);
+    }
+}
+
+async function handleRegister(btn) {
+    if (btn && btn.disabled) return;
+    const name = document.getElementById('register-name').value.trim();
+    const age = document.getElementById('register-age').value.trim();
+    const email = document.getElementById('register-email').value.trim();
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('register-password-confirm').value;
+    if (!name || name.length < 2) { alert('⚠️ اسم غير صحيح'); return; }
+    const ageNum = parseInt(age, 10);
+    if (!age || isNaN(ageNum) || ageNum < 13 || ageNum > 120) { alert('⚠️ عمر غير صحيح'); return; }
+    if (!email) { alert('⚠️ الرجاء إدخال الإيميل'); return; }
+    if (!password || password.length < 6) { alert('⚠️ كلمة السر 6 أحرف'); return; }
+    if (password !== confirmPassword) { alert('⚠️ كلمات السر غير متطابقة'); return; }
+
+    var orig = _setBtnLoading(btn, 'جاري التسجيل...');
+    try {
+        const result = await registerMember(name, ageNum, regSelectedGender, email, password);
+        if (result && result.success) {
+            if (typeof initChat === 'function') await initChat();
+        } else {
+            alert('⚠️ ' + (result?.error || 'فشل'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('⚠️ خطأ: ' + (e.message || 'غير معروف'));
+    } finally {
+        _resetBtn(btn, orig);
+    }
+}
+
+async function handleUpgrade(btn) {
+    if (btn && btn.disabled) return;
+    const email = document.getElementById('upgrade-email').value.trim();
+    const password = document.getElementById('upgrade-password').value;
+    const confirmPassword = document.getElementById('upgrade-password-confirm').value;
+    if (!email || !password) { alert('⚠️ أدخل البيانات'); return; }
+    if (password.length < 6) { alert('⚠️ كلمة السر 6 أحرف'); return; }
+    if (password !== confirmPassword) { alert('⚠️ غير متطابقة'); return; }
+    const user = getCurrentUser();
+    if (!user) { alert('⚠️ لا يوجد مستخدم'); return; }
+
+    var orig = _setBtnLoading(btn, 'جاري الترقية...');
+    try {
+        const result = await registerMember(user.name, user.age, user.gender, email, password);
+        if (result && result.success) {
+            closeUpgradeModal();
+            document.getElementById('upgrade-email').value = '';
+            document.getElementById('upgrade-password').value = '';
+            document.getElementById('upgrade-password-confirm').value = '';
+            if (typeof showToast === 'function') showToast('fa-crown', '🎉 تم ترقيتك');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            alert('⚠️ ' + (result?.error || 'فشل'));
+        }
+    } catch (e) {
+        console.error(e);
+        alert('⚠️ خطأ: ' + (e.message || 'غير معروف'));
+    } finally {
+        _resetBtn(btn, orig);
+    }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const user = getCurrentUser();
+    if (user) setTimeout(async () => { if (typeof initChat === 'function') await initChat(); }, 150);
+});
+</script>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- ⭐ v40: إخفاء Boot Loader + فحص الحالة       -->
+<!-- ═══════════════════════════════════════════ -->
+<script>
+(function () {
+    var loader = document.getElementById('qamar-boot-loader');
+    var statusEl = document.getElementById('qamar-boot-status');
+    if (!loader) return;
+
+    var startTime = Date.now();
+    var MIN_SHOW = 400;
+    var MAX_WAIT = 8000;
+    var hidden = false;
+
+    function _updateStatus(text, ready) {
+        if (!statusEl) return;
+        statusEl.textContent = text;
+        if (ready) statusEl.classList.add('ready');
+        else statusEl.classList.remove('ready');
+    }
+
+    function _hide() {
+        if (hidden) return;
+        hidden = true;
+        loader.classList.add('qamar-boot-hide');
+        setTimeout(function () {
+            if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
+        }, 450);
+    }
+
+    var waitCheck = setInterval(function () {
+        var elapsed = Date.now() - startTime;
+
+        if (typeof auth !== 'undefined' && auth && typeof db !== 'undefined' && db) {
+            _updateStatus('جاهز ✨', true);
+            clearInterval(waitCheck);
+            var remain = Math.max(0, MIN_SHOW - elapsed);
+            setTimeout(_hide, remain + 150);
+            return;
+        }
+
+        if (typeof QAMAR !== 'undefined') {
+            _updateStatus('جاري تهيئة Firebase...', false);
+        } else if (elapsed > 1500) {
+            _updateStatus('جاري تجهيز الواجهة...', false);
+        }
+
+        if (elapsed >= MAX_WAIT) {
+            _updateStatus('استمرار بدون Firebase...', false);
+            clearInterval(waitCheck);
+            setTimeout(_hide, 300);
+        }
+    }, 200);
+
+    window.addEventListener('load', function () {
+        var elapsed = Date.now() - startTime;
+        if (elapsed < MIN_SHOW) {
+            setTimeout(function () {
+                if (typeof auth !== 'undefined' && auth) _updateStatus('جاهز ✨', true);
+                _hide();
+            }, MIN_SHOW - elapsed);
+        }
+    });
+})();
+</script>
+
+<!-- ═══ Service Worker ═══ -->
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js')
+            .then(function(reg) { console.log('✅ SW registered:', reg.scope); })
+            .catch(function(err) { console.warn('SW failed:', err); });
+    });
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,501 @@
+/* ==============================================
+   king-room.css — غرفة الملك
+   ============================================== */
+
+/* الحاوية الرئيسية */
+#king-room-view {
+    position: fixed;
+    inset: 0;
+    background: #05050c;
+    z-index: 800;
+    display: none;
+    flex-direction: column;
+    direction: rtl;
+    font-family: 'Cairo', sans-serif;
+}
+#king-room-view.active {
+    display: flex;
+}
+
+/* Header */
+#kr-header {
+    height: 60px;
+    background: rgba(5, 5, 12, 0.98);
+    border-bottom: 2px solid #ffd700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 14px;
+    flex-shrink: 0;
+    position: relative;
+}
+#kr-header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #ffd700, transparent);
+}
+#kr-title {
+    color: #ffd700;
+    font-weight: 900;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#kr-exit-btn {
+    background: rgba(255, 68, 68, 0.15);
+    border: 1px solid rgba(255, 68, 68, 0.5);
+    color: #ff7777;
+    padding: 8px 14px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+#kr-exit-btn:active {
+    transform: scale(0.95);
+}
+
+/* Tabs */
+#kr-tabs {
+    display: flex;
+    background: rgba(5, 5, 12, 0.95);
+    border-bottom: 1px solid rgba(255, 215, 0, 0.25);
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+    padding: 0 4px;
+}
+#kr-tabs::-webkit-scrollbar { display: none; }
+
+.kr-tab {
+    padding: 12px 14px;
+    background: none;
+    border: none;
+    color: #999;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.kr-tab:hover {
+    color: #ffd700;
+}
+.kr-tab.active {
+    color: #ffd700;
+    border-bottom-color: #ffd700;
+}
+
+/* Body */
+#kr-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 215, 0, 0.3) transparent;
+}
+#kr-body::-webkit-scrollbar { width: 4px; }
+#kr-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.3);
+    border-radius: 4px;
+}
+
+/* Cards */
+.kr-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 215, 0, 0.15);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+.kr-card-title {
+    color: #ffd700;
+    font-size: 13px;
+    font-weight: 900;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Stats Grid */
+.kr-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+}
+@media (min-width: 500px) {
+    .kr-stats { grid-template-columns: repeat(4, 1fr); }
+}
+.kr-stat {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(255, 215, 0, 0.02));
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+}
+.kr-stat-val {
+    color: #ffd700;
+    font-size: 24px;
+    font-weight: 900;
+    line-height: 1.1;
+}
+.kr-stat-lbl {
+    color: #888;
+    font-size: 10px;
+    margin-top: 4px;
+    font-weight: 700;
+}
+
+/* Inputs */
+.kr-input, .kr-select, .kr-textarea {
+    width: 100%;
+    padding: 11px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 10px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+    text-align: right;
+}
+.kr-input:focus, .kr-textarea:focus, .kr-select:focus {
+    border-color: #ffd700;
+    background: rgba(255, 255, 255, 0.09);
+}
+.kr-textarea {
+    min-height: 90px;
+    resize: vertical;
+    line-height: 1.5;
+}
+.kr-select {
+    cursor: pointer;
+}
+.kr-select option {
+    background: #110724;
+    color: #fff;
+}
+
+/* Buttons */
+.kr-btn {
+    padding: 11px 18px;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.kr-btn:active { transform: scale(0.96); }
+.kr-btn-gold { background: #ffd700; color: #000; }
+.kr-btn-green { background: #84cc16; color: #fff; }
+.kr-btn-red { background: #ef4444; color: #fff; }
+.kr-btn-blue { background: #3b82f6; color: #fff; }
+.kr-btn-orange { background: #ff9800; color: #fff; }
+.kr-btn-outline {
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+}
+.kr-btn-block { width: 100%; }
+.kr-btn-sm { padding: 7px 12px; font-size: 11px; }
+
+/* Filter chips */
+.kr-filters {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.kr-chip {
+    padding: 7px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    border-radius: 20px;
+    color: #aaa;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.kr-chip.active {
+    background: rgba(255, 215, 0, 0.2);
+    border-color: #ffd700;
+    color: #ffd700;
+}
+
+/* User Card */
+.kr-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 215, 0, 0.12);
+    border-radius: 12px;
+    margin-bottom: 8px;
+}
+.kr-user-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid #ffd700;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+.kr-user-info {
+    flex: 1;
+    min-width: 0;
+}
+.kr-user-name {
+    color: #fff;
+    font-weight: 900;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kr-user-sub {
+    color: #888;
+    font-size: 10px;
+    margin-top: 2px;
+}
+.kr-user-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+.kr-badge {
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 9px;
+    font-weight: 900;
+}
+.kr-badge-ban { background: rgba(239, 68, 68, 0.25); color: #ff8888; }
+.kr-badge-jail { background: rgba(255, 152, 0, 0.25); color: #ffbb66; }
+.kr-badge-warn { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
+.kr-badge-online { background: rgba(132, 204, 22, 0.25); color: #a3e635; }
+.kr-badge-king { background: rgba(255, 215, 0, 0.3); color: #ffd700; }
+.kr-badge-queen { background: rgba(255, 105, 180, 0.25); color: #ff9ecb; }
+
+.kr-user-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.kr-icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    background: rgba(0, 0, 0, 0.3);
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-family: inherit;
+}
+.kr-icon-btn:active { transform: scale(0.9); }
+.kr-icon-btn.warn { color: #ffbb66; border-color: rgba(255, 187, 102, 0.4); }
+.kr-icon-btn.ban { color: #ff6666; border-color: rgba(255, 102, 102, 0.4); }
+.kr-icon-btn.kick { color: #ff9800; border-color: rgba(255, 152, 0, 0.4); }
+.kr-icon-btn.jail { color: #c084fc; border-color: rgba(192, 132, 252, 0.4); }
+.kr-icon-btn.more { color: #aaa; }
+
+/* Empty */
+.kr-empty {
+    text-align: center;
+    color: #666;
+    padding: 40px 20px;
+    font-size: 13px;
+}
+.kr-loading {
+    text-align: center;
+    color: #ffd700;
+    padding: 30px;
+    font-size: 13px;
+}
+
+/* Menu popup (للإجراءات) */
+#kr-menu {
+    position: fixed;
+    background: rgba(15, 15, 25, 0.98);
+    border: 1px solid #ffd700;
+    border-radius: 12px;
+    padding: 6px;
+    z-index: 999999;
+    min-width: 180px;
+    max-width: 240px;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.95);
+    direction: rtl;
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+}
+#kr-menu.open { display: flex; }
+.kr-menu-item {
+    padding: 10px 14px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+.kr-menu-item:active {
+    background: rgba(255, 215, 0, 0.2);
+    color: #ffd700;
+}
+.kr-menu-item.danger { color: #ff7777; }
+.kr-menu-item.success { color: #84cc16; }
+.kr-menu-title {
+    padding: 8px 14px 4px;
+    color: #ffd700;
+    font-size: 10px;
+    font-weight: 900;
+    border-top: 1px solid rgba(255, 215, 0, 0.15);
+    margin-top: 4px;
+}
+.kr-menu-title:first-child {
+    border-top: none;
+    margin-top: 0;
+}
+
+/* ⭐ v4: Dialog — إصلاح مشكلة عدم scroll */
+#kr-dialog {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 999999;
+    padding: 20px;
+    direction: rtl;
+}
+#kr-dialog.active { display: flex; }
+
+#kr-dialog-box {
+    background: #110724;
+    border: 2px solid #ffd700;
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 380px;
+    /* ⭐ v4: هذه السطور الثلاثة الجديدة */
+    max-height: 92vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 215, 0, 0.4) transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+#kr-dialog-box::-webkit-scrollbar { width: 5px; }
+#kr-dialog-box::-webkit-scrollbar-track { background: transparent; }
+#kr-dialog-box::-webkit-scrollbar-thumb {
+    background: rgba(255, 215, 0, 0.4);
+    border-radius: 5px;
+}
+
+#kr-dialog-title {
+    color: #ffd700;
+    font-size: 15px;
+    font-weight: 900;
+    margin: 0;
+    position: sticky;
+    top: 0;
+    background: #110724;
+    padding-bottom: 8px;
+    z-index: 2;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+}
+#kr-dialog-desc {
+    color: #bbb;
+    font-size: 12px;
+    line-height: 1.5;
+}
+#kr-dialog-body input,
+#kr-dialog-body textarea,
+#kr-dialog-body select {
+    width: 100%;
+    padding: 11px 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 10px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+    text-align: right;
+}
+#kr-dialog-body textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+/* ⭐ v4: الأزرار — sticky في الأسفل (تظهر دائماً) */
+#kr-dialog-actions {
+    display: flex;
+    gap: 8px;
+    position: sticky;
+    bottom: 0;
+    background: #110724;
+    padding-top: 12px;
+    padding-bottom: 4px;
+    border-top: 1px solid rgba(255, 215, 0, 0.15);
+    z-index: 2;
+    margin-top: 4px;
+}
+#kr-dialog-actions .kr-btn {
+    flex: 1;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    #kr-header { padding: 0 10px; height: 56px; }
+    #kr-title { font-size: 14px; }
+    #kr-body { padding: 10px; }
+    .kr-stat-val { font-size: 20px; }
+    .kr-user-avatar { width: 38px; height: 38px; }
+    .kr-icon-btn { width: 30px; height: 30px; font-size: 12px; }
+    #kr-dialog { padding: 12px; }
+    #kr-dialog-box {
+        padding: 16px;
+        max-height: 95vh;
+        max-width: 100%;
+    }
+}
