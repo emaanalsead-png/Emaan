@@ -1,0 +1,530 @@
+/* ==============================================
+   name-effects.css v11
+   ==============================================
+   ✅ v11:
+     1. 11 نمط إضافي للخلفية السينمائية
+     2. كل الأنظمة السابقة كما هي
+   ============================================== */
+
+:root {
+    --frame-inset: -8%;
+    --name-font-size: 26px;
+}
+
+.name-styled,
+.message-username.name-styled,
+.username.name-styled {
+    position: relative !important;
+    display: inline-block !important;
+    padding: 3px 10px;
+    font-weight: 900;
+    line-height: 1.3;
+    border-radius: 8px;
+    color: var(--name-color, #ffffff);
+    isolation: isolate;
+    z-index: 1;
+    box-sizing: content-box;
+}
+
+/* ═══ خلفية الاسم القديمة ═══ */
+.name-styled.has-bg::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    bottom: -1px;
+    left: -1px;
+    border-radius: inherit;
+    background: var(--name-bg, transparent);
+    box-shadow:
+        0 0 4px 1px var(--name-bg-glow, transparent),
+        0 0 10px 2px var(--name-bg-glow, transparent);
+    z-index: -1;
+    pointer-events: none;
+    background-size: 100% 100%;
+}
+
+.name-styled.has-bg-gradient::before {
+    background-size: 400% 100% !important;
+    animation: nameGradientSlide 3s linear infinite;
+}
+
+/* ═══ تدرج النص القديم ═══ */
+.name-styled.has-gradient::after {
+    content: attr(data-text);
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    bottom: -1px;
+    left: -1px;
+    padding: inherit;
+    border-radius: inherit;
+    background: var(--name-gradient);
+    background-size: 400% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: nameGradientSlide 3s linear infinite;
+    pointer-events: none;
+    z-index: 2;
+    opacity: var(--name-gradient-opacity, 0.85);
+    line-height: 1.3;
+    font-weight: 900;
+    box-sizing: content-box;
+}
+
+@keyframes nameGradientSlide {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 400% 50%; }
+}
+
+.name-styled.name-color-only { color: var(--name-color, #ffffff); }
+
+.name-styled.name-gradient-only {
+    background: var(--name-gradient);
+    background-size: 400% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: nameGradientSlide 3s linear infinite;
+}
+.name-styled.name-gradient-only::after { display: none; }
+
+/* ══════════════════════════════════════════════ */
+/* الأنماط السينمائية — النص                      */
+/* ══════════════════════════════════════════════ */
+.name-styled[data-cinema-text]:not(.cinema-split)::after {
+    content: attr(data-text);
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    bottom: -1px;
+    left: -1px;
+    padding: inherit;
+    border-radius: inherit;
+    background: var(--cinema-bg, transparent);
+    background-size: var(--cinema-bg-size, 100% 100%);
+    background-position: var(--cinema-bg-pos, 0 0);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: var(--cinema-anim, none);
+    filter: var(--cinema-filter, none);
+    text-shadow: var(--cinema-shadow, none);
+    z-index: 2;
+    pointer-events: none;
+    line-height: 1.3;
+    font-weight: 900;
+    box-sizing: content-box;
+}
+
+/* 1. multicolor */
+.name-styled[data-cinema-text="multicolor"].cinema-split .nc {
+    animation: cinemaMultiColorText 1.5s linear infinite;
+    animation-delay: calc(var(--ci, 0) * 0.22s);
+}
+@keyframes cinemaMultiColorText {
+    0%   { color: #ff0000; text-shadow: 0 0 6px #ff0000; }
+    16%  { color: #ffd700; text-shadow: 0 0 6px #ffd700; }
+    33%  { color: #00ff88; text-shadow: 0 0 6px #00ff88; }
+    50%  { color: #00f3ff; text-shadow: 0 0 6px #00f3ff; }
+    66%  { color: #a855f7; text-shadow: 0 0 6px #a855f7; }
+    83%  { color: #ff0080; text-shadow: 0 0 6px #ff0080; }
+    100% { color: #ff0000; text-shadow: 0 0 6px #ff0000; }
+}
+
+/* 2. spiral */
+.name-styled[data-cinema-text="spiral"] {
+    --cinema-bg: conic-gradient(from 0deg, #ff0000, #ffd700, #00ff88, #00f3ff, #a855f7, #ff0080, #ff0000);
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaSpiralRotate 2s linear infinite;
+}
+@keyframes cinemaSpiralRotate {
+    from { transform: rotate(0deg) scale(1); }
+    to   { transform: rotate(360deg) scale(1); }
+}
+
+/* 3. nebula */
+.name-styled[data-cinema-text="nebula"] {
+    --cinema-bg:
+        radial-gradient(circle at 20% 30%, #6a0dad, transparent 50%),
+        radial-gradient(circle at 80% 70%, #1e90ff, transparent 50%),
+        radial-gradient(circle at 50% 50%, #ff69b4, transparent 40%),
+        radial-gradient(circle at 30% 80%, #00ffff, transparent 40%),
+        linear-gradient(90deg, #1a0033, #4b0082, #1a0033);
+    --cinema-bg-size: 200% 200%;
+    --cinema-anim: cinemaNebulaShift 5s ease-in-out infinite alternate;
+}
+@keyframes cinemaNebulaShift {
+    0%   { background-position: 0 0, 0 0, 0 0, 0 0; }
+    100% { background-position: 40% 30%, -30% 40%, 20% -20%, 100% 50%; }
+}
+
+/* 4. storm */
+.name-styled[data-cinema-text="storm"] {
+    --cinema-shadow: 0 0 5px #fff, 0 0 10px #00f3ff;
+    --cinema-bg: linear-gradient(90deg, #c0c0ff, #ffffff, #c0c0ff);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: cinemaStormFlash 0.6s steps(2) infinite;
+    --cinema-filter: drop-shadow(0 0 8px #00f3ff);
+}
+@keyframes cinemaStormFlash {
+    0%, 100% { background-position: 0 0; filter: drop-shadow(0 0 4px #00f3ff); }
+    50%      { background-position: 100% 0; filter: drop-shadow(0 0 20px #ffffff) drop-shadow(0 0 40px #00f3ff); }
+}
+
+/* 5. fireworks */
+.name-styled[data-cinema-text="fireworks"] {
+    --cinema-bg: repeating-linear-gradient(90deg, transparent 0%, #ff0000 5%, transparent 10%, #ffd700 15%, transparent 20%, #00ff88 25%, transparent 30%, #00f3ff 35%, transparent 40%, #ff00ff 45%, transparent 50%);
+    --cinema-bg-size: 200% 100%;
+    --cinema-anim: cinemaFireworksSlide 3s linear infinite;
+    --cinema-filter: drop-shadow(0 0 6px rgba(255,255,255,0.5));
+}
+@keyframes cinemaFireworksSlide {
+    from { background-position: 0 0; }
+    to   { background-position: 200% 0; }
+}
+
+/* 6. sugar */
+.name-styled[data-cinema-text="sugar"].cinema-split .nc {
+    animation: cinemaSugarPulse 1.5s ease-in-out infinite;
+    animation-delay: calc(var(--ci, 0) * 0.18s);
+    color: var(--sugar-color, #ffffff);
+}
+@keyframes cinemaSugarPulse {
+    0%, 100% { text-shadow: 0 0 3px currentColor; transform: scale(1); }
+    50%      { text-shadow: 0 0 8px currentColor, 0 0 15px currentColor, 0 0 25px currentColor; transform: scale(1.12); }
+}
+
+/* 7. snow */
+.name-styled[data-cinema-text="snow"] {
+    --cinema-bg: linear-gradient(180deg, #ffffff 0%, #b3e5fc 25%, #87ceeb 50%, #b3e5fc 75%, #ffffff 100%);
+    --cinema-bg-size: 100% 250%;
+    --cinema-anim: cinemaSnowFall 3s linear infinite;
+    --cinema-filter: drop-shadow(0 0 5px #87ceeb);
+}
+@keyframes cinemaSnowFall {
+    from { background-position: 0 0; }
+    to   { background-position: 0 250%; }
+}
+
+/* 8. volcano */
+.name-styled[data-cinema-text="volcano"] {
+    --cinema-bg: linear-gradient(90deg, #1a0000, #8b0000, #ff4400, #ffd700, #ffff00, #ffd700, #ff4400, #8b0000, #1a0000);
+    --cinema-bg-size: 250% 100%;
+    --cinema-anim: cinemaVolcanoFlow 2s linear infinite;
+    --cinema-filter: drop-shadow(0 0 8px #ff4400);
+}
+@keyframes cinemaVolcanoFlow {
+    from { background-position: 0 0; }
+    to   { background-position: 250% 0; }
+}
+
+/* 9. waves */
+.name-styled[data-cinema-text="waves"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #001a66 0%, #0066cc 15%, #00ffff 30%, #0066cc 45%, #001a66 60%);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: cinemaWavesFlow 3s linear infinite;
+    --cinema-filter: drop-shadow(0 0 5px #00bfff);
+}
+@keyframes cinemaWavesFlow {
+    from { background-position: 0 0; }
+    to   { background-position: 300% 0; }
+}
+
+/* ══════════════════════════════════════════════ */
+/* الأنماط السينمائية — الخلفية                   */
+/* ══════════════════════════════════════════════ */
+.name-styled[data-cinema-bg]::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    right: -1px;
+    bottom: -1px;
+    left: -1px;
+    border-radius: inherit;
+    background: var(--cinema-bg, transparent);
+    background-size: var(--cinema-bg-size, 100% 100%);
+    background-position: var(--cinema-bg-pos, 0 0);
+    animation: var(--cinema-anim, none);
+    filter: var(--cinema-filter, none);
+    box-shadow:
+        0 0 4px 1px var(--name-bg-glow, transparent),
+        0 0 10px 2px var(--name-bg-glow, transparent);
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* multicolor bg */
+.name-styled[data-cinema-bg="multicolor"].cinema-split-bg .nc {
+    animation: cinemaMultiColorBg 1.5s linear infinite;
+    animation-delay: calc(var(--ci, 0) * 0.22s);
+    display: inline-block;
+    border-radius: 3px;
+    padding: 0 1px;
+}
+@keyframes cinemaMultiColorBg {
+    0%   { background-color: rgba(255, 0, 0, 0.35); }
+    16%  { background-color: rgba(255, 215, 0, 0.35); }
+    33%  { background-color: rgba(0, 255, 136, 0.35); }
+    50%  { background-color: rgba(0, 243, 255, 0.35); }
+    66%  { background-color: rgba(168, 85, 247, 0.35); }
+    83%  { background-color: rgba(255, 0, 128, 0.35); }
+    100% { background-color: rgba(255, 0, 0, 0.35); }
+}
+
+/* spiral bg */
+.name-styled[data-cinema-bg="spiral"] {
+    --cinema-bg: conic-gradient(from 0deg, rgba(255,0,0,0.4), rgba(255,215,0,0.4), rgba(0,255,136,0.4), rgba(0,243,255,0.4), rgba(168,85,247,0.4), rgba(255,0,128,0.4), rgba(255,0,0,0.4));
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaSpiralRotate 2s linear infinite;
+}
+
+/* nebula bg */
+.name-styled[data-cinema-bg="nebula"] {
+    --cinema-bg:
+        radial-gradient(circle at 20% 30%, rgba(106,13,173,0.5), transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(30,144,255,0.5), transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(255,105,180,0.4), transparent 40%),
+        linear-gradient(90deg, #1a0033, #4b0082, #1a0033);
+    --cinema-bg-size: 200% 200%;
+    --cinema-anim: cinemaNebulaShift 5s ease-in-out infinite alternate;
+}
+
+/* storm bg */
+.name-styled[data-cinema-bg="storm"] {
+    --cinema-bg: linear-gradient(120deg, #001a33 0%, #003d66 40%, #ffffff 50%, #003d66 60%, #001a33 100%);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: cinemaStormBg 0.8s steps(3) infinite;
+}
+@keyframes cinemaStormBg {
+    0%, 100% { background-position: 0 0; filter: brightness(1); }
+    33%      { background-position: 50% 0; filter: brightness(1.5); }
+    66%      { background-position: 100% 0; filter: brightness(1.2); }
+}
+
+/* fireworks bg */
+.name-styled[data-cinema-bg="fireworks"] {
+    --cinema-bg: repeating-linear-gradient(90deg, transparent 0%, rgba(255,0,0,0.4) 5%, transparent 10%, rgba(255,215,0,0.4) 15%, transparent 20%, rgba(0,255,136,0.4) 25%, transparent 30%, rgba(0,243,255,0.4) 35%, transparent 40%);
+    --cinema-bg-size: 200% 100%;
+    --cinema-anim: cinemaFireworksSlide 3s linear infinite;
+}
+
+/* sugar bg */
+.name-styled[data-cinema-bg="sugar"].cinema-split-bg .nc {
+    animation: cinemaSugarBgPulse 1.5s ease-in-out infinite;
+    animation-delay: calc(var(--ci, 0) * 0.18s);
+    background-color: var(--sugar-bg-color, rgba(255,255,255,0.2));
+    border-radius: 4px;
+    padding: 1px 3px;
+    margin: 0 1px;
+    display: inline-block;
+}
+@keyframes cinemaSugarBgPulse {
+    0%, 100% { box-shadow: 0 0 4px var(--sugar-bg-color, transparent); transform: scale(1); }
+    50%      { box-shadow: 0 0 10px var(--sugar-bg-color, transparent), 0 0 18px var(--sugar-bg-color, transparent); transform: scale(1.08); }
+}
+
+/* snow bg */
+.name-styled[data-cinema-bg="snow"] {
+    --cinema-bg: linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(179,229,252,0.5) 30%, rgba(135,206,235,0.5) 60%, rgba(255,255,255,0.5) 100%);
+    --cinema-bg-size: 100% 250%;
+    --cinema-anim: cinemaSnowFall 3s linear infinite;
+}
+
+/* volcano bg */
+.name-styled[data-cinema-bg="volcano"] {
+    --cinema-bg: linear-gradient(90deg, rgba(26,0,0,0.6), rgba(139,0,0,0.6), rgba(255,68,0,0.6), rgba(255,215,0,0.6), rgba(139,0,0,0.6), rgba(26,0,0,0.6));
+    --cinema-bg-size: 250% 100%;
+    --cinema-anim: cinemaVolcanoFlow 2s linear infinite;
+}
+
+/* waves bg */
+.name-styled[data-cinema-bg="waves"] {
+    --cinema-bg: repeating-linear-gradient(90deg, rgba(0,26,102,0.5) 0%, rgba(0,102,204,0.5) 15%, rgba(0,255,255,0.5) 30%, rgba(0,102,204,0.5) 45%, rgba(0,26,102,0.5) 60%);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: cinemaWavesFlow 3s linear infinite;
+}
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v11: 11 نمط جديد للخلفية                    */
+/* ══════════════════════════════════════════════ */
+
+/* gold — ذهبي فاخر */
+.name-styled[data-cinema-bg="gold"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #8b6914 0%, #b8860b 12%, #d4af37 25%, #ffd700 38%, #ffec8b 50%, #fff8dc 62%, #ffec8b 75%, #ffd700 88%, #8b6914 100%);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: nameGradientSlide 3s linear infinite;
+    --cinema-filter: drop-shadow(0 0 6px #ffd700);
+}
+
+/* sunset — غروب */
+.name-styled[data-cinema-bg="sunset"] {
+    --cinema-bg: linear-gradient(90deg, #ff006e, #fb5607, #ffbe0b, #ffd60a, #3a86ff, #8338ec, #c77dff, #8338ec, #3a86ff, #ffd60a, #ffbe0b, #fb5607, #ff006e);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: nameGradientSlide 4s linear infinite;
+}
+
+/* aurora — شفق قطبي */
+.name-styled[data-cinema-bg="aurora"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #00ff87 0%, #3affaa 15%, #60efff 30%, #80c0ff 45%, #a070ff 60%, #ff00ff 75%, #a070ff 88%, #00ff87 100%);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: nameGradientSlide 3.5s linear infinite;
+    --cinema-filter: drop-shadow(0 0 8px #3affaa);
+}
+
+/* ocean — محيط */
+.name-styled[data-cinema-bg="ocean"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #001a66 0%, #004080 15%, #0080ff 30%, #00bfff 45%, #00ffff 60%, #00bfff 75%, #0080ff 88%, #001a66 100%);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: cinemaWavesFlow 3s linear infinite;
+    --cinema-filter: drop-shadow(0 0 5px #00bfff);
+}
+
+/* galaxy — مجرة */
+.name-styled[data-cinema-bg="galaxy"] {
+    --cinema-bg:
+        radial-gradient(circle at 15% 30%, rgba(255,255,255,0.8) 1px, transparent 2px),
+        radial-gradient(circle at 75% 60%, rgba(255,215,0,0.9) 1px, transparent 2px),
+        radial-gradient(circle at 40% 80%, rgba(255,255,255,0.6) 1px, transparent 2px),
+        linear-gradient(90deg, #1a0033, #4b0082, #8a2be2, #da70d6, #8a2be2, #4b0082, #1a0033);
+    --cinema-bg-size: 15px 15px, 22px 22px, 18px 18px, 250% 100%;
+    --cinema-anim: cinemaNebulaShift 4s ease-in-out infinite alternate;
+}
+
+/* fire — نار */
+.name-styled[data-cinema-bg="fire"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #330000 0%, #990000 15%, #ff2200 30%, #ff6600 45%, #ffaa00 60%, #ffdd00 75%, #ffaa00 88%, #330000 100%);
+    --cinema-bg-size: 250% 100%;
+    --cinema-anim: cinemaVolcanoFlow 2s linear infinite;
+    --cinema-filter: drop-shadow(0 0 10px #ff4400);
+}
+
+/* neon — نيون */
+.name-styled[data-cinema-bg="neon"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #ff00ff 0%, #00ffff 25%, #ff00ff 50%, #00ffff 75%, #ff00ff 100%);
+    --cinema-bg-size: 200% 100%;
+    --cinema-anim: nameGradientSlide 1.5s linear infinite;
+    --cinema-filter: drop-shadow(0 0 8px #ff00ff) drop-shadow(0 0 15px #00ffff);
+}
+
+/* emerald — زمرد */
+.name-styled[data-cinema-bg="emerald"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #004d40 0%, #00695c 15%, #00c853 30%, #2ecc71 45%, #69f0ae 60%, #a5f5b0 75%, #69f0ae 88%, #004d40 100%);
+    --cinema-bg-size: 250% 100%;
+    --cinema-anim: nameGradientSlide 3s linear infinite;
+    --cinema-filter: drop-shadow(0 0 6px #00c853);
+}
+
+/* diamond — ماسي */
+.name-styled[data-cinema-bg="diamond"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #c0c0c0 0%, #e0e0e0 12%, #fff 25%, #f0f8ff 38%, #87ceeb 50%, #fff 62%, #e0e0e0 75%, #c0c0c0 100%);
+    --cinema-bg-size: 250% 100%;
+    --cinema-anim: nameGradientSlide 4s linear infinite;
+    --cinema-filter: drop-shadow(0 0 8px #e0f7fa);
+}
+
+/* blood — دماء */
+.name-styled[data-cinema-bg="blood"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #1a0000 0%, #4d0000 15%, #8b0000 30%, #b22222 45%, #dc143c 60%, #ff0040 75%, #dc143c 88%, #1a0000 100%);
+    --cinema-bg-size: 250% 100%;
+    --cinema-anim: nameGradientSlide 2s linear infinite;
+    --cinema-filter: drop-shadow(0 0 8px #8b0000);
+}
+
+/* cyber — سايبر */
+.name-styled[data-cinema-bg="cyber"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #00fff7 0%, #00d4ff 15%, #00aaff 30%, #ff00e0 45%, #ff00c0 60%, #ff00a0 75%, #ff00e0 88%, #00fff7 100%);
+    --cinema-bg-size: 250% 100%;
+    --cinema-anim: nameGradientSlide 2s linear infinite;
+    --cinema-filter: drop-shadow(0 0 6px #00d4ff) drop-shadow(0 0 12px #ff00e0);
+}
+
+/* rainbowtext — قوس قزح متحرك */
+.name-styled[data-cinema-bg="rainbowtext"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #ff0000 0%, #ff8800 10%, #ffff00 20%, #00ff00 30%, #00ffff 40%, #0080ff 50%, #8800ff 60%, #ff00ff 70%, #ff0000 80%);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: nameGradientSlide 2.5s linear infinite;
+    --cinema-filter: drop-shadow(0 0 6px rgba(255,255,255,0.6));
+}
+
+/* royal — ملكي */
+.name-styled[data-cinema-bg="royal"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #4a148c 0%, #8b0000 15%, #d4af37 30%, #ffd700 45%, #d4af37 60%, #8b0000 75%, #4a148c 88%);
+    --cinema-bg-size: 250% 100%;
+    --cinema-anim: nameGradientSlide 3s linear infinite;
+    --cinema-filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 14px #8b0000);
+}
+
+/* ══════════════════════════════════════════════ */
+/* الإطار الافتراضي للأفاتار                      */
+/* ══════════════════════════════════════════════ */
+.avatar-box { position: relative; }
+
+.avatar-box.default-frame-gold::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    padding: 4px;
+    background: conic-gradient(from 0deg, #ffd700, #ffec8b, #fffef0, #ffd700, #d4af37, #b8860b, #ffd700);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: defaultFrameSpin 5s linear infinite;
+    pointer-events: none;
+    z-index: 5;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+}
+.avatar-box.default-frame-pink::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    padding: 4px;
+    background: conic-gradient(from 0deg, #ff69b4, #ffb6d9, #fff0f7, #ff69b4, #ff1493, #ff69b4);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: defaultFrameSpin 5s linear infinite;
+    pointer-events: none;
+    z-index: 5;
+    box-shadow: 0 0 20px rgba(255, 105, 180, 0.6);
+}
+.avatar-box.default-frame-silver::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    padding: 4px;
+    background: conic-gradient(from 0deg, #c0c0c0, #e8e8e8, #fff, #e0e0e0, #a8a8a8, #c0c0c0);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: defaultFrameSpin 6s linear infinite;
+    pointer-events: none;
+    z-index: 5;
+    box-shadow: 0 0 16px rgba(192, 192, 192, 0.5);
+}
+.avatar-box.default-frame-gray::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    padding: 4px;
+    background: conic-gradient(from 0deg, #555, #777, #999, #777, #555);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: defaultFrameSpin 8s linear infinite;
+    pointer-events: none;
+    z-index: 5;
+    box-shadow: 0 0 12px rgba(100, 100, 100, 0.4);
+}
+
+@keyframes defaultFrameSpin {
+    to { transform: rotate(360deg); }
+}
