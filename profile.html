@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#050508">
+<title>قمر الشام — البروفايل</title>
+
+<script>
+(function() {
+    var startTime = Date.now();
+    var revealed = false;
+    var interval = null;
+    function tryReveal() {
+        if (revealed) return true;
+        var p = document.getElementById('profile-container');
+        if (!p) return false;
+        revealed = true;
+        p.style.transition = 'opacity 0.15s ease-in';
+        p.style.opacity = '1';
+        if (interval) { clearInterval(interval); interval = null; }
+        return true;
+    }
+    interval = setInterval(function() {
+        if (tryReveal()) { if (interval) { clearInterval(interval); interval = null; } return; }
+        if (Date.now() - startTime > 1500) { if (interval) { clearInterval(interval); interval = null; } tryReveal(); }
+    }, 30);
+})();
+</script>
+
+<!-- ⭐ v13: Eruda شرطي — يظهر فقط مع ?debug=1 -->
+<script>
+(function() {
+    if (location.search.indexOf('debug=1') === -1) return;
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/eruda';
+    s.onload = function() { if (typeof eruda !== 'undefined') eruda.init(); };
+    s.onerror = function() { console.warn('Eruda load failed'); };
+    document.head.appendChild(s);
+})();
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com">
+<link rel="preconnect" href="https://qamaralsham-default-rtdb.firebaseio.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+<!-- ⭐ v14: Firebase SDK كامل مع defer (storage مضاف) -->
+<script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+<link rel="stylesheet" href="profile-styles.css?v=11">
+<link rel="stylesheet" href="frames-engine.css?v=11">
+<link rel="stylesheet" href="name-effects.css?v=37">
+</head>
+<body>
+
+<input type="file" id="avatar-file-input" accept="image/*" style="display:none">
+<input type="file" id="cover-file-input" accept="image/*" style="display:none">
+<input type="file" id="profile-bg-input" accept="image/*,video/*" style="display:none">
+<input type="file" id="music-file-input" accept="audio/*" style="display:none">
+<input type="file" id="poetry-bg-input" accept="image/*" style="display:none">
+<input type="file" id="poetry-attach-input" accept="image/*" style="display:none">
+
+<div class="profile" id="profile-container" style="opacity:0;">
+
+    <div class="cover" id="profile-cover-box">
+        <div class="cover-moon"></div>
+        <img src="" class="cover-img" id="profile-cover-img" style="display:none">
+        <video class="cover-video" id="profile-cover-video" style="display:none" muted loop playsinline></video>
+        <button type="button" id="btn-visitor-view-cover" title="معاينة كزائر">👁️</button>
+        <button type="button" id="btn-collapse-info" title="طي المعلومات">👁️</button>
+        <button type="button" id="btn-close" title="إغلاق">✕</button>
+        <div class="avatar-cont">
+            <div class="avatar-box" id="avatar-box">
+                <div class="avatar">
+                    <img src="https://ui-avatars.com/api/?name=User&background=555&color=fff" id="profile-avatar-img" alt="avatar">
+                </div>
+                <div id="activeAvatarFrame"></div>
+            </div>
+        </div>
+        <button class="music-toggle-mini" id="music-btn-mini" style="display:none" title="تشغيل الموسيقى" type="button">
+            <i class="fas fa-play"></i>
+        </button>
+        <div class="header">
+            <div class="role">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="role-text">User 👤</span>
+            </div>
+            <div class="user-cont">
+                <div class="username name-styled" id="profile-username" data-name="">مستخدم</div>
+                <span class="edit-pen owner-only" id="btn-edit-username" title="تعديل الاسم">✏️</span>
+            </div>
+            <div class="user-cont">
+                <div class="bio" id="profile-bio">❋ نجوم الشام ❋</div>
+                <span class="edit-pen owner-only" id="btn-edit-bio" title="تعديل البايو">✏️</span>
+            </div>
+        </div>
+        <div class="cover-fade"></div>
+    </div>
+
+    <div class="interact-btns visitor-only">
+        <button type="button" id="btn-heart" title="إعجاب" data-state="off">❤️</button>
+        <button type="button" id="btn-mail" title="رسالة">💬</button>
+        <button type="button" id="btn-friend" title="صديق" data-state="off">➕</button>
+        <button type="button" id="btn-block" title="حظر" data-state="off">🚫</button>
+        <button type="button" id="btn-admin-actions" style="display:none" title="أوامر إدارية">⚔️</button>
+    </div>
+
+    <div class="main-content">
+        <div id="profile-bg-layer" class="profile-bg-layer"></div>
+        <div class="tabs" id="tabsBar"></div>
+        <div class="scroll-box" id="scroll-box">
+
+            <div class="tab-content active" data-content="home">
+                <div class="section" id="info-section">
+                    <div class="section-title">
+                        <h3><i class="fas fa-info-circle"></i> معلومات</h3>
+                    </div>
+                    <div class="info-grid" id="info-grid">
+                        <div style="grid-column:1/-1;text-align:center;color:#666;padding:12px;font-size:12px;">⏳</div>
+                    </div>
+                </div>
+                <div class="stats">
+                    <div class="stat" data-stat="likes"><span class="stat-icon">❤️</span><span class="stat-value" id="stat-likes">0</span><span class="stat-label">إعجاب</span></div>
+                    <div class="stat" data-stat="friends"><span class="stat-icon">👥</span><span class="stat-value" id="stat-friends">0</span><span class="stat-label">صديق</span></div>
+                    <div class="stat" data-stat="achievements"><span class="stat-icon">🏆</span><span class="stat-value" id="stat-achievements">0</span><span class="stat-label">إنجاز</span></div>
+                    <div class="stat" data-stat="gifts"><span class="stat-icon">🎁</span><span class="stat-value" id="stat-gifts">0</span><span class="stat-label">هدية</span></div>
+                </div>
+                <div class="section owner-only" id="visitors-section" style="display:none;">
+                    <div class="section-title">
+                        <h3><i class="fas fa-eye"></i> آخر الزوار والمعجبون</h3>
+                    </div>
+                    <div class="visitors-row" id="visitors-container">
+                        <div style="color:#666;font-size:11px;padding:8px;">لا يوجد بعد</div>
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">
+                        <h3><i class="fas fa-medal"></i> الإنجازات</h3>
+                    </div>
+                    <div class="achievements-row" id="achievements-container"></div>
+                </div>
+            </div>
+
+            <div class="tab-content" data-content="moments">
+                <div class="section">
+                    <div class="section-title"><h3><i class="fas fa-circle-notch"></i> اللحظات</h3></div>
+                    <div class="moments-grid" id="moments-grid">
+                        <div class="moment-tile add owner-only" id="add-moment-btn">
+                            <div class="moment-tile-icon">＋</div>
+                            <div class="moment-tile-name">أضف لحظة</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" data-content="friends">
+                <div class="section">
+                    <div class="section-title"><h3><i class="fas fa-user-friends"></i> الأصدقاء</h3></div>
+                    <div class="friends-grid" id="friends-grid-container">
+                        <div style="grid-column:1/-1;text-align:center;color:#888;padding:20px;font-size:12px;">⏳ جاري التحميل...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" data-content="settings">
+
+                <div class="settings-page active" data-page="main">
+                    <div class="settings-group">
+                        <button type="button" class="settings-group-item" data-open-page="name">
+                            <span class="sgi-label"><i class="fas fa-signature"></i> الاسم</span>
+                            <span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="images">
+                            <span class="sgi-label"><i class="fas fa-image"></i> الصور والمظهر</span>
+                            <span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="music">
+                            <span class="sgi-label"><i class="fas fa-music"></i> الموسيقى</span>
+                            <span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="poetry">
+                            <span class="sgi-label"><i class="fas fa-feather-alt"></i> الشعر</span>
+                            <span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="privacy">
+                            <span class="sgi-label"><i class="fas fa-lock"></i> الخصوصية</span>
+                            <span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="room">
+                            <span class="sgi-label"><i class="fas fa-door-open"></i> الغرفة</span>
+                            <span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="danger">
+                            <span class="sgi-label" style="color:#ff8888;"><i class="fas fa-exclamation-triangle" style="color:#ff6666;"></i> إجراءات حساسة</span>
+                            <span class="sgi-arrow">◀</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- صفحة الاسم -->
+                <div class="settings-page" data-page="name">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🎨 الاسم</div>
+                    </div>
+                    <div class="settings-group">
+                        <button type="button" class="settings-group-item" data-open-page="name-color">
+                            <span class="sgi-label">لون الاسم</span><span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="name-gradient">
+                            <span class="sgi-label">تدرج الاسم</span><span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="name-bg-color">
+                            <span class="sgi-label">خلفية الاسم (لون)</span><span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="name-bg-gradient">
+                            <span class="sgi-label">خلفية الاسم (تدرج)</span><span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="name-cinema-bg">
+                            <span class="sgi-label">🎬 نمط الخلفية السينمائي</span><span class="sgi-arrow">◀</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="name-color">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🎨 لون الاسم</div>
+                    </div>
+                    <div class="name-preview-box"><span class="name-styled" id="name-preview-color" data-text="">—</span></div>
+                    <div class="name-grid" id="name-color-grid"></div>
+                    <div style="padding:20px 12px 0;">
+                        <button type="button" class="danger-btn" id="remove-name-color"><i class="fas fa-trash"></i> إزالة اللون</button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="name-gradient">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🌈 تدرج الاسم</div>
+                    </div>
+                    <div class="name-preview-box"><span class="name-styled" id="name-preview-gradient" data-text="">—</span></div>
+                    <div class="name-grid" id="name-gradient-grid"></div>
+                    <div style="padding:20px 12px 0;">
+                        <button type="button" class="danger-btn" id="remove-name-gradient"><i class="fas fa-trash"></i> إزالة التدرج</button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="name-bg-color">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🎨 خلفية الاسم (لون)</div>
+                    </div>
+                    <div class="name-preview-box"><span class="name-styled" id="name-preview-bg-color" data-text="">—</span></div>
+                    <div class="name-grid" id="name-bg-color-grid"></div>
+                    <div style="padding:20px 12px 0;">
+                        <button type="button" class="danger-btn" id="remove-name-bg-color"><i class="fas fa-trash"></i> إزالة خلفية اللون</button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="name-bg-gradient">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🌈 خلفية الاسم (تدرج)</div>
+                    </div>
+                    <div class="name-preview-box"><span class="name-styled" id="name-preview-bg-gradient" data-text="">—</span></div>
+                    <div class="name-grid" id="name-bg-gradient-grid"></div>
+                    <div style="padding:20px 12px 0;">
+                        <button type="button" class="danger-btn" id="remove-name-bg-gradient"><i class="fas fa-trash"></i> إزالة خلفية التدرج</button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="name-cinema-bg">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🎬 نمط الخلفية السينمائي</div>
+                    </div>
+                    <div class="name-preview-box">
+                        <span class="name-styled" id="name-preview-cinema-bg" data-text="">—</span>
+                    </div>
+                    <div class="name-grid" id="name-cinema-bg-grid"></div>
+                    <div style="padding:20px 12px 0;">
+                        <button type="button" class="danger-btn" id="remove-name-cinema-bg">
+                            <i class="fas fa-trash"></i> إزالة الخلفية السينمائية
+                        </button>
+                    </div>
+                </div>
+
+                <!-- الصور والمظهر -->
+                <div class="settings-page" data-page="images">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🖼️ الصور والمظهر</div>
+                    </div>
+                    <div class="settings-group">
+                        <button type="button" class="settings-group-item" data-open-page="avatar-page">
+                            <span class="sgi-label">الصورة الشخصية</span><span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="cover-page">
+                            <span class="sgi-label">الغلاف</span><span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="frame-page">
+                            <span class="sgi-label">إطار الأفاتار</span><span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="glow-page">
+                            <span class="sgi-label">توهج البروفايل</span><span class="sgi-arrow">◀</span>
+                        </button>
+                        <button type="button" class="settings-group-item" data-open-page="profile-bg-page">
+                            <span class="sgi-label">خلفية البروفايل</span><span class="sgi-arrow">◀</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="avatar-page">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🖼️ الصورة الشخصية</div>
+                    </div>
+                    <div class="img-preview" id="avatar-preview-box"><img src="" id="avatar-preview-img" alt=""></div>
+                    <div style="padding:0 12px;">
+                        <button type="button" class="upload-btn" id="btn-upload-avatar">
+                            <i class="fas fa-upload"></i> رفع من الجهاز
+                        </button>
+                        <button type="button" class="danger-btn" id="btn-remove-avatar">
+                            <i class="fas fa-trash"></i> إزالة الصورة
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="cover-page">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🖼️ الغلاف</div>
+                    </div>
+                    <div class="img-preview cover-preview" id="cover-preview-box"><img src="" id="cover-preview-img" alt=""></div>
+                    <div style="padding:0 12px;">
+                        <button type="button" class="upload-btn" id="btn-upload-cover">
+                            <i class="fas fa-upload"></i> رفع من الجهاز
+                        </button>
+                        <button type="button" class="danger-btn" id="btn-remove-cover">
+                            <i class="fas fa-trash"></i> إزالة الغلاف
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="frame-page">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">✨ إطار الأفاتار</div>
+                    </div>
+                    <div class="frames-grid" id="frames-grid-container"></div>
+                    <div style="padding:20px 12px 0;">
+                        <button type="button" class="danger-btn" id="btn-remove-frame">
+                            <i class="fas fa-trash"></i> إزالة الإطار
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="glow-page">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">✨ توهج البروفايل</div>
+                    </div>
+                    <div class="glow-grid" id="glow-grid-container"></div>
+                    <div style="padding:20px 12px 0;">
+                        <button type="button" class="danger-btn" id="btn-remove-glow">
+                            <i class="fas fa-trash"></i> إزالة التوهج
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="profile-bg-page">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🖼️ خلفية البروفايل</div>
+                    </div>
+                    <div style="padding:0 12px 12px;">
+                        <div class="section-title" style="border:none; padding:0; margin-bottom:10px;">
+                            <h3 style="font-size:12px;">النوع</h3>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button type="button" class="upload-btn" data-bg-type="color" id="bg-type-color" style="margin-bottom:0;">
+                                <i class="fas fa-palette"></i> لون
+                            </button>
+                            <button type="button" class="upload-btn" data-bg-type="image" id="bg-type-image" style="margin-bottom:0;">
+                                <i class="fas fa-image"></i> صورة
+                            </button>
+                            <button type="button" class="upload-btn" data-bg-type="video" id="bg-type-video" style="margin-bottom:0;">
+                                <i class="fas fa-video"></i> فيديو
+                            </button>
+                        </div>
+                    </div>
+                    <div id="bg-color-section" style="padding:0 12px 12px; display:none;">
+                        <label style="display:block; color:#ffd700; font-size:12px; font-weight:900; margin-bottom:8px;">اختر لون:</label>
+                        <input type="color" id="profile-bg-color-picker" value="#050508"
+                               style="width:100%; height:60px; border:2px solid #ffd700; border-radius:12px; cursor:pointer; background:transparent;">
+                    </div>
+                    <div id="bg-media-section" style="padding:0 12px 12px; display:none;">
+                        <button type="button" class="upload-btn" id="btn-upload-bg">
+                            <i class="fas fa-upload"></i> <span id="bg-upload-label">رفع صورة</span>
+                        </button>
+                        <div style="color:#888; font-size:11px; text-align:center; margin-top:6px;">
+                            💡 الحد الأقصى: 15MB (صورة/فيديو)
+                        </div>
+                    </div>
+                    <div style="padding:0 12px;">
+                        <button type="button" class="danger-btn" id="btn-remove-profile-bg">
+                            <i class="fas fa-trash"></i> إزالة الخلفية
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="music">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🎵 الموسيقى</div>
+                    </div>
+                    <div class="settings-group">
+                        <div class="settings-row">
+                            <span class="sr-label">الحالة</span>
+                            <span class="sr-value" id="music-status">لا يوجد موسيقى</span>
+                        </div>
+                    </div>
+                    <div style="padding:0 12px;">
+                        <button type="button" class="upload-btn" id="btn-upload-music">
+                            <i class="fas fa-upload"></i> رفع موسيقى
+                        </button>
+                        <button type="button" class="danger-btn" id="btn-remove-music">
+                            <i class="fas fa-trash"></i> إزالة الموسيقى
+                        </button>
+                        <div style="color:#888; font-size:11px; text-align:center; margin-top:6px;">
+                            💡 الحد الأقصى: 5MB
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="poetry">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">📝 الشعر</div>
+                    </div>
+                    <div style="padding:0 12px 12px;">
+                        <label style="display:block; color:#ffd700; font-size:12px; font-weight:900; margin-bottom:8px;">نص الشعر (700 حرف كحد أقصى)</label>
+                        <textarea id="poetry-input"
+                                  style="width:100%; min-height:120px; padding:12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,215,0,0.3); border-radius:10px; color:#fff; font-family:inherit; font-size:13px; resize:vertical; box-sizing:border-box;"
+                                  maxlength="700" placeholder="اكتب بيتاً من الشعر..."></textarea>
+                        <div style="color:#888; font-size:11px; text-align:left; margin-top:4px;">
+                            <span id="poetry-char-count">0</span> / 700
+                        </div>
+                    </div>
+                    <div style="padding:0 12px 12px;">
+                        <label style="display:block; color:#ffd700; font-size:12px; font-weight:900; margin-bottom:8px;">صورة خلفية الشعر (اختياري)</label>
+                        <div id="poetry-bg-preview" class="img-preview" style="max-width:120px; height:120px; margin:0 0 10px;"></div>
+                        <button type="button" class="upload-btn" id="btn-upload-poetry-bg">
+                            <i class="fas fa-upload"></i> رفع صورة خلفية
+                        </button>
+                        <button type="button" class="danger-btn" id="btn-remove-poetry-bg">
+                            <i class="fas fa-trash"></i> إزالة الخلفية
+                        </button>
+                    </div>
+                    <div style="padding:0 12px 12px;">
+                        <label style="display:block; color:#ffd700; font-size:12px; font-weight:900; margin-bottom:8px;">صورة مرفقة (اختياري)</label>
+                        <div id="poetry-attach-preview" class="img-preview" style="max-width:120px; height:120px; margin:0 0 10px;"></div>
+                        <button type="button" class="upload-btn" id="btn-upload-poetry-attach">
+                            <i class="fas fa-upload"></i> رفع صورة مرفقة
+                        </button>
+                        <button type="button" class="danger-btn" id="btn-remove-poetry-attach">
+                            <i class="fas fa-trash"></i> إزالة المرفقة
+                        </button>
+                    </div>
+                    <div style="padding:0 12px;">
+                        <button type="button" class="upload-btn" id="btn-save-poetry" style="background:linear-gradient(135deg,rgba(255,215,0,0.3),rgba(255,215,0,0.1)); border-color:#ffd700; color:#ffd700;">
+                            <i class="fas fa-save"></i> حفظ الشعر
+                        </button>
+                        <button type="button" class="danger-btn" id="btn-remove-poetry">
+                            <i class="fas fa-trash"></i> حذف الشعر بالكامل
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="privacy">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🔒 الخصوصية</div>
+                    </div>
+                    <div class="settings-group" id="privacy-container"></div>
+                </div>
+
+                <div class="settings-page" data-page="room">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">🚪 الغرفة</div>
+                    </div>
+                    <div class="settings-group">
+                        <div class="settings-row">
+                            <span class="sr-label">الغرفة الحالية</span>
+                            <span class="sr-value" id="current-room-name">—</span>
+                        </div>
+                    </div>
+                    <div style="padding:20px 12px 0;">
+                        <button type="button" class="danger-btn warning" id="btn-leave-room">
+                            <i class="fas fa-door-open"></i> مغادرة الغرفة
+                        </button>
+                    </div>
+                </div>
+
+                <div class="settings-page" data-page="danger">
+                    <div class="settings-subpage-header">
+                        <button type="button" class="settings-back-btn" data-back="1">←</button>
+                        <div class="settings-subpage-title">⚠️ إجراءات حساسة</div>
+                    </div>
+                    <div style="padding:12px;">
+                        <button type="button" class="danger-btn warning" id="btn-logout">
+                            <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
+                        </button>
+                        <button type="button" class="danger-btn" id="btn-delete-account">
+                            <i class="fas fa-trash"></i> حذف الحساب
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="tab-content" data-content="admin">
+                <div class="section" id="admin-actions-container"></div>
+            </div>
+
+            <div class="poetry-section empty" id="poetry-section">
+                <div class="poetry-text" id="poetry-display"></div>
+                <div class="poetry-author" id="poetry-author"></div>
+                <img class="poetry-attachment" id="poetry-attachment" style="display:none" alt="">
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="app-modal">
+    <div class="modal-c">
+        <h3 id="modal-title">عنوان</h3>
+        <p id="modal-text">نص</p>
+        <div id="modal-dyn"></div>
+        <div class="modal-btns">
+            <button id="modal-ok">موافق</button>
+            <button class="cancel" id="modal-cancel">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<audio id="music-player" loop preload="none"></audio>
+
+<!-- ⭐ v12: كل السكربتات defer — لا تحجب الرسم -->
+<script defer src="config.js?v=38"></script>
+<script defer src="ranks.js?v=38"></script>
+<script defer src="utils.js?v=38"></script>
+<script defer src="name-effects.js?v=38"></script>
+<script defer src="frames-engine.js?v=38"></script>
+<script defer src="stories.js?v=38"></script>
+<script defer src="profile-core.js?v=38"></script>
+<script defer src="profile-optimizer.js?v=2"></script>
+
+<script>
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js')
+            .then(function(reg) { console.log('✅ SW registered:', reg.scope); })
+            .catch(function(err) { console.warn('SW failed:', err); });
+    });
+}
+</script>
+
+</body>
+</html>

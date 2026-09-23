@@ -1,0 +1,316 @@
+/* ==============================================
+   قمر الشام — الزجاج ثلاثي الأبعاد v2
+   Qamar Al Sham — Glass 3D
+   ==============================================
+   ✅ v2:
+     • نُقل كل CSS الزجاج من chat-fixes.js
+     • يشمل: header, bottom-nav, input-area, mics-bar, sidebar
+     • نمط body.sidebar-glass (تفعيل من غرفة الملك)
+   ============================================== */
+
+/* ═══════════════════════════════════════════ */
+/* الأساس — الشريط العلوي                     */
+/* ═══════════════════════════════════════════ */
+.header {
+    background: rgba(255, 255, 255, 0.02) !important;
+    backdrop-filter: blur(22px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(180%) !important;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.3) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+        0 8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* ═══════════════════════════════════════════ */
+/* الشريط السفلي                              */
+/* ═══════════════════════════════════════════ */
+.bottom-nav {
+    background: rgba(255, 255, 255, 0.02) !important;
+    backdrop-filter: blur(22px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(180%) !important;
+    border-top: 1px solid rgba(255, 215, 0, 0.3) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(0, 0, 0, 0.4),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+        0 -8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* ═══════════════════════════════════════════ */
+/* صندوق الكتابة                              */
+/* ═══════════════════════════════════════════ */
+.input-area {
+    background: rgba(255, 255, 255, 0.02) !important;
+    backdrop-filter: blur(22px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(22px) saturate(180%) !important;
+    border-top: 1px solid rgba(255, 215, 0, 0.3) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(0, 0, 0, 0.4),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.12),
+        0 -8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* ═══════════════════════════════════════════ */
+/* شريط المايكات                              */
+/* ═══════════════════════════════════════════ */
+.mics-bar {
+    background: rgba(255, 255, 255, 0.02) !important;
+    backdrop-filter: blur(18px) saturate(170%) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(170%) !important;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.2) !important;
+}
+
+/* ═══════════════════════════════════════════ */
+/* القوائم الجانبية — بلور أقوى                */
+/* ═══════════════════════════════════════════ */
+.sidebar {
+    background: rgba(255, 255, 255, 0.02) !important;
+    backdrop-filter: blur(28px) saturate(190%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+    border: 1px solid rgba(255, 215, 0, 0.35) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.15),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+        0 20px 50px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 215, 0, 0.1) !important;
+}
+
+/* ═══════════════════════════════════════════ */
+/* نمط body.sidebar-glass                     */
+/* (تفعيل من غرفة الملك → إعدادات)            */
+/* ═══════════════════════════════════════════ */
+
+/* ─── Container القائمة الجانبية ─── */
+body.sidebar-glass .sidebar-content {
+    padding: 10px !important;
+    gap: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* ─── العنصر الجانبي ─── */
+body.sidebar-glass .sidebar-content .sidebar-item {
+    width: 100% !important;
+    height: 65px !important;
+    min-height: 65px !important;
+    margin: 0 !important;
+    padding: 0 16px !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 14px !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+
+    /* التدرج الزجاجي ثلاثي الأبعاد */
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.10) 0%,
+        rgba(255, 255, 255, 0.03) 50%,
+        rgba(0, 0, 0, 0.18) 100%) !important;
+    backdrop-filter: blur(14px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(150%) !important;
+
+    border: 1px solid rgba(255, 215, 0, 0.20) !important;
+    border-top: none !important;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.10) !important;
+
+    /* الحواف اللامعة (3D effect) */
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+        0 2px 6px rgba(0, 0, 0, 0.35) !important;
+
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    color: #fff !important;
+    cursor: pointer !important;
+    overflow: hidden !important;
+    transition: background 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+/* ─── أول عنصر ─── */
+body.sidebar-glass .sidebar-content .sidebar-item:first-child {
+    border-top: 1px solid rgba(255, 215, 0, 0.20) !important;
+    border-radius: 16px 16px 0 0 !important;
+}
+
+/* ─── آخر عنصر ─── */
+body.sidebar-glass .sidebar-content .sidebar-item:last-child {
+    border-bottom: 1px solid rgba(255, 215, 0, 0.20) !important;
+    border-radius: 0 0 16px 16px !important;
+}
+
+/* ─── عنصر وحيد ─── */
+body.sidebar-glass .sidebar-content .sidebar-item:only-child {
+    border-radius: 16px !important;
+    border-top: 1px solid rgba(255, 215, 0, 0.20) !important;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.20) !important;
+}
+
+/* ─── أيقونة العنصر (span الأول) ─── */
+body.sidebar-glass .sidebar-content .sidebar-item > span:first-child {
+    font-size: 22px !important;
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 10px !important;
+    background: rgba(255, 215, 0, 0.06) !important;
+    border: 1px solid rgba(255, 215, 0, 0.12) !important;
+    overflow: hidden !important;
+}
+
+body.sidebar-glass .sidebar-content .sidebar-item > span:first-child img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 8px;
+}
+
+/* ─── نص العنصر (span الأخير) ─── */
+body.sidebar-glass .sidebar-content .sidebar-item > span:last-child {
+    flex: 1 !important;
+    font-weight: 800 !important;
+    font-size: 14px !important;
+    color: #fff !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* ─── العنصر النشط ─── */
+body.sidebar-glass .sidebar-content .sidebar-item.active {
+    background: linear-gradient(135deg,
+        rgba(255, 215, 0, 0.28) 0%,
+        rgba(255, 215, 0, 0.12) 50%,
+        rgba(0, 0, 0, 0.15) 100%) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.25),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+        0 4px 12px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(255, 215, 0, 0.35) !important;
+    color: #ffd700 !important;
+    font-weight: 900 !important;
+}
+
+body.sidebar-glass .sidebar-content .sidebar-item.active > span:first-child {
+    background: rgba(255, 215, 0, 0.2) !important;
+    border-color: rgba(255, 215, 0, 0.5) !important;
+}
+
+/* ─── Hover ─── */
+body.sidebar-glass .sidebar-content .sidebar-item:hover:not(.active) {
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.14) 0%,
+        rgba(255, 255, 255, 0.06) 50%,
+        rgba(0, 0, 0, 0.18) 100%) !important;
+}
+
+/* ═══════════════════════════════════════════ */
+/* Glass على باقي العناصر المهمة              */
+/* ═══════════════════════════════════════════ */
+
+/* ─── الرسائل (خلفية شفافة في glass mode) ─── */
+body.sidebar-glass .message:not(.system):not(.bot):not(.hidden-message-king) {
+    background: rgba(5, 5, 12, 0.25) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-radius: 14px !important;
+    padding: 10px 12px !important;
+}
+
+/* ─── الهيدر في glass mode ─── */
+body.sidebar-glass .header {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(24px) saturate(190%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+}
+
+/* ─── الإدخال في glass mode ─── */
+body.sidebar-glass .input-area {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(24px) saturate(190%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+}
+
+body.sidebar-glass .input-area input[type="text"] {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 215, 0, 0.25) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* ─── Bottom nav في glass mode ─── */
+body.sidebar-glass .bottom-nav {
+    background: rgba(255, 255, 255, 0.03) !important;
+    backdrop-filter: blur(24px) saturate(190%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+}
+
+/* ─── Private chat في glass mode ─── */
+body.sidebar-glass .private-chat-modal {
+    background: rgba(5, 5, 12, 0.55) !important;
+    backdrop-filter: blur(24px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+}
+
+body.sidebar-glass .private-chat-header {
+    background: rgba(5, 5, 12, 0.55) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+}
+
+body.sidebar-glass .private-chat-input {
+    background: rgba(5, 5, 12, 0.55) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+}
+
+/* ═══════════════════════════════════════════ */
+/* Classic mode — إزالة أي glass متبقٍ        */
+/* ═══════════════════════════════════════════ */
+body.sidebar-classic .sidebar-content .sidebar-item {
+    /* إبقاء الحواف المستديرة في classic */
+    border-radius: 8px !important;
+    height: auto !important;
+    min-height: auto !important;
+    padding: 8px !important;
+    gap: 6px !important;
+}
+
+body.sidebar-classic .sidebar-content {
+    padding: 8px !important;
+    gap: 5px !important;
+}
+
+/* ═══════════════════════════════════════════ */
+/* Responsive tweaks للـ glass                */
+/* ═══════════════════════════════════════════ */
+@media (max-width: 480px) {
+    body.sidebar-glass .sidebar-content .sidebar-item {
+        height: 58px !important;
+        min-height: 58px !important;
+        padding: 0 12px !important;
+        gap: 10px !important;
+    }
+    body.sidebar-glass .sidebar-content .sidebar-item > span:first-child {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 20px !important;
+    }
+    body.sidebar-glass .sidebar-content .sidebar-item > span:last-child {
+        font-size: 13px !important;
+    }
+}
+
+@media (max-width: 360px) {
+    body.sidebar-glass .sidebar-content .sidebar-item {
+        height: 52px !important;
+        min-height: 52px !important;
+        padding: 0 10px !important;
+    }
+}
