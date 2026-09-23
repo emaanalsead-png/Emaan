@@ -16,14 +16,20 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://www.gstatic.com">
 <link rel="preconnect" href="https://qamaralsham-default-rtdb.firebaseio.com">
+<link rel="preconnect" href="https://nistuixdtmuqketweiig.supabase.co">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="dns-prefetch" href="https://ui-avatars.com">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+<!-- Firebase SDK (سيُستبدل تدريجياً بـ Supabase) -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+<!-- ⭐ Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <!-- ═══ CSS الرئيسي ═══ -->
 <link rel="stylesheet" href="styles.css?v=37">
@@ -116,13 +122,11 @@
 /* تنسيقات حرجة يجب أن تكون inline            */
 /* ═══════════════════════════════════════════ */
 
-/* keyboard-open — إخفاء الأشرطة عند فتح الكيبورد */
 body.keyboard-open .bottom-nav,
 body.keyboard-open .floating-toolbar {
     display: none !important;
 }
 
-/* background base */
 html {
     background:
         radial-gradient(ellipse at top, rgba(212, 175, 55, 0.1) 0%, transparent 55%),
@@ -287,7 +291,6 @@ body.pm-open .floating-toolbar {
     display: none !important;
 }
 
-/* nav-pm-slot */
 .nav-pm-slot {
     position: relative;
     display: flex;
@@ -335,7 +338,6 @@ body.pm-open .floating-toolbar {
     50% { box-shadow: 0 0 22px rgba(255, 215, 0, 1); transform: scale(1.08); }
 }
 
-/* message background */
 .message:not(.system):not(.bot) {
     background: rgba(5, 5, 12, 0.15) !important;
     border: 1px solid rgba(255, 255, 255, 0.05) !important;
@@ -343,7 +345,6 @@ body.pm-open .floating-toolbar {
     -webkit-backdrop-filter: none !important;
 }
 
-/* header compact */
 .header {
     height: 42px !important;
     padding: 0 10px !important;
@@ -364,7 +365,6 @@ body.pm-open .floating-toolbar {
     right: -3px !important;
 }
 
-/* input area */
 .input-area { padding: 6px 10px !important; gap: 6px !important; }
 .input-area input[type="text"] {
     padding: 8px 14px !important;
@@ -374,7 +374,6 @@ body.pm-open .floating-toolbar {
 .send-btn { width: 34px !important; height: 34px !important; font-size: 14px !important; }
 .emoji-btn, .plus-btn { width: 30px !important; height: 30px !important; font-size: 16px !important; }
 
-/* bottom-nav compact */
 .bottom-nav { height: 46px !important; }
 .nav-item { padding: 2px !important; gap: 0 !important; font-size: 9px !important; }
 .nav-item i { font-size: 15px !important; }
@@ -385,7 +384,6 @@ body.pm-open .floating-toolbar {
     font-size: 8px !important;
 }
 
-/* mics */
 .mics-bar { padding: 6px 10px !important; }
 .mic-btn { width: 34px !important; height: 34px !important; font-size: 13px !important; }
 .mics-toggle-btn {
@@ -397,7 +395,6 @@ body.pm-open .floating-toolbar {
 
 .reply-preview { padding: 6px 12px !important; }
 
-/* text-size-adjust */
 html, body {
     -webkit-text-size-adjust: 100% !important;
     -moz-text-size-adjust: 100% !important;
@@ -408,19 +405,16 @@ input, textarea, select { font-size: 16px !important; }
     input, textarea, select { font-size: 13px !important; }
 }
 
-/* room-settings-btn + reports-btn */
 #room-settings-btn { display: none !important; }
 #room-settings-btn.visible { display: flex !important; }
 #reports-btn { display: none !important; position: relative !important; }
 #reports-btn.visible { display: flex !important; }
 
-/* ra-send-btn */
 #ra-send-btn {
     animation: none !important;
     box-shadow: 0 0 8px rgba(255, 215, 0, 0.35) !important;
 }
 
-/* ⭐ v40: Login button loading state */
 .login-btn:disabled,
 .upgrade-btn:disabled {
     opacity: 0.75 !important;
@@ -435,7 +429,7 @@ input, textarea, select { font-size: 16px !important; }
 </head>
 <body>
 
-<!-- ⭐ v40: Boot Loader — يظهر فوراً قبل تحميل Firebase -->
+<!-- ⭐ Boot Loader -->
 <div id="qamar-boot-loader">
     <div id="qamar-boot-moon">🌙</div>
     <div id="qamar-boot-title">قمر الشام</div>
@@ -648,6 +642,8 @@ input, textarea, select { font-size: 16px !important; }
 
 <!-- ═══ الموجة الحرجة (sync) ═══ -->
 <script src="config.js?v=38"></script>
+<script src="supabase-config.js?v=1"></script>
+<script src="supabase-adapter.js?v=1"></script>
 <script src="ranks.js?v=38"></script>
 <script src="utils.js?v=38"></script>
 <script src="name-effects.js?v=38"></script>
@@ -972,7 +968,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <!-- ═══════════════════════════════════════════ -->
-<!-- ⭐ v40: إخفاء Boot Loader + فحص الحالة       -->
+<!-- إخفاء Boot Loader + فحص الحالة              -->
 <!-- ═══════════════════════════════════════════ -->
 <script>
 (function () {
@@ -1013,13 +1009,13 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         if (typeof QAMAR !== 'undefined') {
-            _updateStatus('جاري تهيئة Firebase...', false);
+            _updateStatus('جاري تهيئة الاتصال...', false);
         } else if (elapsed > 1500) {
             _updateStatus('جاري تجهيز الواجهة...', false);
         }
 
         if (elapsed >= MAX_WAIT) {
-            _updateStatus('استمرار بدون Firebase...', false);
+            _updateStatus('استمرار...', false);
             clearInterval(waitCheck);
             setTimeout(_hide, 300);
         }
