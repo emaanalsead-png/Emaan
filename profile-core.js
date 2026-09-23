@@ -1,8 +1,13 @@
 // ==============================================
-// profile-core.js v11 — music Blob fix
+// profile-core.js v12 — no-video + catbox upload
 // ==============================================
-// ✅ v11:
-//   _applyMusicButton: base64 → Blob URL (يحل مشكلة التشغيل)
+// ✅ v12:
+//   1. _applyCover: صور فقط (no video)
+//   2. _applyProfileBackground: color/image فقط
+//   3. uploadFile: يستخدم UploadService (catbox/imgbb)
+//   4. _autoCleanupLegacyVideos: يحذف فيديوهات قديمة
+//   5. _switchBgTypeUI: بدون زر video
+//   6. باقي المنطق كما v11 بالضبط
 // ==============================================
 
 const ProfileState = {
@@ -18,7 +23,7 @@ const ProfileState = {
 
 const IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
 const MAX_VIDEO_MB = 5;
-const MAX_AUDIO_MB = 3;
+const MAX_AUDIO_MB = 5;
 
 const NAME_GRADIENTS = [
     ['#d4af37','#ffec8b'], ['#b8860b','#ffd700'], ['#ffd700','#ff8c00'],
@@ -246,7 +251,7 @@ window.openAppModal = openAppModal;
 
 /* ═══ Bootstrap ═══ */
 document.addEventListener('DOMContentLoaded', async function () {
-    console.log('🚀 profile-core.js v11 booting...');
+    console.log('🚀 profile-core.js v12 booting...');
 
     try {
         localStorage.removeItem('saved_avatar_frame_motion');
@@ -307,6 +312,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     applyIdentityToDOM();
     _startSubjectListener();
 
+    // ⭐ v12: تنظيف صامت للفيديوهات القديمة (owner فقط)
+    if (_isOwner()) {
+        _autoCleanupLegacyVideos();
+    }
+
     setTimeout(function () {
         const p = document.getElementById('profile-container');
         if (p) {
@@ -322,8 +332,50 @@ document.addEventListener('DOMContentLoaded', async function () {
         renderFriendsTab();
     }, 400);
 
-    console.log('✅ profile-core.js v11 ready | Mode:', ProfileState.mode);
+    console.log('✅ profile-core.js v12 ready | Mode:', ProfileState.mode);
 });
+
+/* ⭐ v12: تنظيف فيديوهات قديمة */
+async function _autoCleanupLegacyVideos() {
+    const subj = ProfileState.subject;
+    if (!subj || !subj.uid) return;
+    if (typeof db === 'undefined' || !db) return;
+
+    const updates = {};
+    let didCleanup = false;
+
+    // غلاف فيديو قديم؟
+    const cover = subj.cover;
+    if (cover && (
+        subj.coverType === 'video' ||
+        cover.indexOf('data:video/') === 0 ||
+        /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(cover)
+    )) {
+        updates.cover = null;
+        updates.coverType = null;
+        didCleanup = true;
+    }
+
+    // خلفية بروفايل فيديو؟
+    if (subj.profileBgType === 'video') {
+        updates.profileBgType = null;
+        updates.profileBgValue = null;
+        didCleanup = true;
+    }
+
+    if (!didCleanup) return;
+
+    try {
+        await db.ref('users/' + subj.uid).update(updates);
+        if (updates.cover === null) ProfileState.subject.cover = null;
+        if (updates.coverType === null) ProfileState.subject.coverType = null;
+        if (updates.profileBgType === null) ProfileState.subject.profileBgType = null;
+        if (updates.profileBgValue === null) ProfileState.subject.profileBgValue = null;
+        console.log('🗑️ v12: removed legacy videos from Firebase');
+    } catch (e) {
+        console.warn('cleanup legacy videos failed:', e);
+    }
+}
 
 /* ═══ Load Subject ═══ */
 function _loadSubjectFromCache(uid) {
@@ -486,34 +538,20 @@ function applyIdentityToDOM() {
     }
 }
 
+/* ⭐ v12: cover — صور فقط */
 function _applyCover(subj) {
     const img = document.getElementById('profile-cover-img');
-    const video = document.getElementById('profile-cover-video');
     if (!img) return;
 
     const cover = subj.cover;
     if (!cover) {
         img.style.display = 'none';
-        if (video) { video.style.display = 'none'; if (video.pause) video.pause(); video.removeAttribute('src'); }
+        img.removeAttribute('src');
         return;
     }
 
-    const isVideo = /\.(mp4|webm|ogg|mov|m4v)(\?|$)/i.test(cover) || (subj.coverType === 'video') ||
-                    (cover.indexOf('data:video/') === 0);
-
-    if (isVideo && video) {
-        img.style.display = 'none';
-        video.style.display = 'block';
-        if (video.src !== cover) {
-            video.src = cover;
-            video.load();
-            video.play().catch(function () {});
-        }
-    } else {
-        if (video) { video.style.display = 'none'; if (video.pause) video.pause(); }
-        img.style.display = 'block';
-        if (img.src !== cover) img.src = cover;
-    }
+    img.style.display = 'block';
+    if (img.src !== cover) img.src = cover;
 }
 
 function _applyAvatar(subj) {
@@ -533,6 +571,7 @@ function _applyAvatar(subj) {
     }
 }
 
+/* ⭐ v12: profile bg — color/image فقط */
 function _applyProfileBackground(subj) {
     const layer = document.getElementById('profile-bg-layer');
     if (!layer) return;
@@ -548,16 +587,6 @@ function _applyProfileBackground(subj) {
         layer.style.backgroundImage = 'url("' + value + '")';
         layer.style.backgroundSize = 'cover';
         layer.style.backgroundPosition = 'center';
-    } else if (type === 'video') {
-        const v = document.createElement('video');
-        v.src = value;
-        v.muted = true;
-        v.loop = true;
-        v.playsInline = true;
-        v.setAttribute('playsinline', '');
-        v.autoplay = true;
-        layer.appendChild(v);
-        v.play().catch(function () {});
     }
 }
 
@@ -573,7 +602,7 @@ function _applyProfileGlow(subj) {
     }
 }
 
-/* ⭐ v11: Music Button — base64 → Blob URL */
+/* ⭐ v12: Music — v11 logic يبقى (base64 legacy + URL جديد) */
 function _applyMusicButton(subj) {
     const btn = document.getElementById('music-btn-mini');
     const player = document.getElementById('music-player');
@@ -589,9 +618,9 @@ function _applyMusicButton(subj) {
     if (!_isVisitor()) { btn.style.display = 'none'; return; }
     btn.style.display = 'flex';
 
-    // ⭐ v11: تحويل base64 إلى Blob URL (يحل مشكلة فشل التشغيل)
     var finalSrc = subj.musicURL;
 
+    // ⭐ legacy base64 → Blob
     if (finalSrc.indexOf('data:') === 0) {
         try {
             var cachedSrc = player.getAttribute('data-blob-src');
@@ -615,7 +644,6 @@ function _applyMusicButton(subj) {
                     }
                     var blob = new Blob([bytes], { type: mime });
 
-                    // revoke القديم
                     if (cachedUrl) {
                         try { URL.revokeObjectURL(cachedUrl); } catch (e) {}
                     }
@@ -840,52 +868,12 @@ function _bindSettingsNavigation() {
     });
 }
 
-function _fileToDataURL(file) {
-    return new Promise(function (resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function (e) { resolve(e.target.result); };
-        reader.onerror = function () { reject(new Error('FileReader failed')); };
-        reader.readAsDataURL(file);
-    });
-}
-
-async function uploadFile(file) {
-    var isVideo = file.type && file.type.indexOf('video/') === 0;
-    var isAudio = file.type && file.type.indexOf('audio/') === 0;
-
-    if (isVideo || isAudio) {
-        return await _fileToDataURL(file);
+/* ⭐ v12: uploadFile — يستخدم UploadService */
+async function uploadFile(file, options) {
+    if (!window.UploadService) {
+        throw new Error('UploadService غير محمّل');
     }
-
-    const fd = new FormData();
-    fd.append('key', IMGBB_KEY);
-    fd.append('image', file);
-    const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (data && data.success && data.data && data.data.url) return data.data.url;
-    throw new Error('Image upload failed');
-}
-
-async function uploadToImgBB(file) {
-    return await uploadFile(file);
-}
-
-function pickImageFile(inputId, onFile, opts) {
-    opts = opts || {};
-    const inp = document.getElementById(inputId);
-    if (!inp) return;
-    inp.value = '';
-    inp.onchange = async function () {
-        const file = this.files[0];
-        if (!file) return;
-        const maxMb = opts.maxMb || 5;
-        if (file.size / (1024 * 1024) > maxMb) {
-            _toast('⚠️ الحد ' + maxMb + 'MB');
-            return;
-        }
-        onFile(file);
-    };
-    inp.click();
+    return await window.UploadService.upload(file, options || {});
 }
 
 async function updateIdentityField(field, value) {
@@ -1350,6 +1338,7 @@ function _bindImagesUploads() {
                 try {
                     const url = await uploadFile(file);
                     await updateIdentityField('cover', url);
+                    await updateIdentityField('coverType', 'image');
                     renderCoverPage();
                     _toast('✅ تم');
                 } catch (e) { _toast('⚠️ فشل الرفع'); }
@@ -1363,6 +1352,7 @@ function _bindImagesUploads() {
         removeCover.onclick = function () {
             if (!confirm('إزالة الغلاف؟')) return;
             updateIdentityField('cover', null);
+            updateIdentityField('coverType', null);
             renderCoverPage();
             _toast('✅ تم');
         };
@@ -1397,8 +1387,7 @@ function _bindImagesUploads() {
                 _toast('⏳ جاري الرفع...');
                 try {
                     const url = await uploadFile(file);
-                    const isVideo = file.type.indexOf('video/') === 0;
-                    await updateIdentityField('profileBgType', isVideo ? 'video' : 'image');
+                    await updateIdentityField('profileBgType', 'image');
                     await updateIdentityField('profileBgValue', url);
                     renderProfileBgPage();
                     _toast('✅ تم');
@@ -1420,14 +1409,15 @@ function _bindImagesUploads() {
     }
 }
 
+/* ⭐ v12: بدون video */
 function _switchBgTypeUI(type) {
     const colorSec = document.getElementById('bg-color-section');
     const mediaSec = document.getElementById('bg-media-section');
     if (!colorSec || !mediaSec) return;
     colorSec.style.display = (type === 'color') ? 'block' : 'none';
-    mediaSec.style.display = (type === 'image' || type === 'video') ? 'block' : 'none';
+    mediaSec.style.display = (type === 'image') ? 'block' : 'none';
     const lbl = document.getElementById('bg-upload-label');
-    if (lbl) lbl.textContent = type === 'video' ? 'رفع فيديو' : 'رفع صورة';
+    if (lbl) lbl.textContent = 'رفع صورة';
     document.querySelectorAll('[data-bg-type]').forEach(function (b) {
         b.style.opacity = (b.getAttribute('data-bg-type') === type) ? '1' : '0.5';
     });
@@ -2314,14 +2304,16 @@ async function renderMomentsTab() {
         stories.forEach(function (st) {
             const tile = document.createElement('div');
             tile.className = 'moment-tile';
-            const icon = st.type === 'image' && st.imageUrl ? '🖼️' : '📝';
-            const preview = st.text ? st.text.substring(0, 20) : (st.type === 'image' ? 'صورة' : '');
+            var icon = '📝';
+            if (st.type === 'image') icon = '🖼️';
+            else if (st.type === 'video') icon = '🎥';
+            const preview = st.text ? st.text.substring(0, 20) : (st.type === 'image' ? 'صورة' : (st.type === 'video' ? 'فيديو' : 'نص'));
             tile.innerHTML =
                 '<div class="moment-tile-icon">' + icon + '</div>' +
                 '<div class="moment-tile-name">' + _esc(preview) + '</div>';
             tile.onclick = function () {
                 if (typeof openStoryViewer === 'function') {
-                    openStoryViewer(subj.uid, st._id);
+                    openStoryViewer([st], subj.uid, false);
                 } else {
                     try {
                         window.parent.postMessage({ action: 'openStory', uid: subj.uid }, '*');
@@ -2539,6 +2531,25 @@ function _executeAdminAction(action) {
     }
 }
 
+/* ═══ Helpers: pickImageFile ═══ */
+function pickImageFile(inputId, onFile, opts) {
+    opts = opts || {};
+    const inp = document.getElementById(inputId);
+    if (!inp) return;
+    inp.value = '';
+    inp.onchange = async function () {
+        const file = this.files[0];
+        if (!file) return;
+        const maxMb = opts.maxMb || 5;
+        if (file.size / (1024 * 1024) > maxMb) {
+            _toast('⚠️ الحد ' + maxMb + 'MB');
+            return;
+        }
+        onFile(file);
+    };
+    inp.click();
+}
+
 /* ═══ Exports ═══ */
 window.ProfileState = ProfileState;
 window.applyIdentityToDOM = applyIdentityToDOM;
@@ -2550,4 +2561,4 @@ window.renderVisitors = renderVisitors;
 window.renderLikers = renderLikers;
 window._openUserProfile = _openUserProfile;
 
-console.log('✅ profile-core.js v11 loaded — music Blob fix');
+console.log('✅ profile-core.js v12 loaded — no-video + catbox upload');
