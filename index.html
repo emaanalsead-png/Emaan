@@ -28,7 +28,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<!-- Supabase SDK -->
+<!-- Supabase SDK (محضّر — يُستخدم لاحقاً عبر Cloudflare) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <!-- ═══ CSS الرئيسي ═══ -->
@@ -638,8 +638,11 @@ input, textarea, select { font-size: 16px !important; }
 
 <!-- ═══ الموجة الحرجة (sync) ═══ -->
 <script src="config.js?v=38"></script>
-<script src="supabase-config.js?v=2"></script>
-<script src="supabase-adapter.js?v=1"></script>
+
+<!-- Supabase مؤقتاً معطّل — ننتظر Cloudflare Worker -->
+<!-- <script src="supabase-config.js?v=2"></script> -->
+<!-- <script src="supabase-adapter.js?v=1"></script> -->
+
 <script src="ranks.js?v=38"></script>
 <script src="utils.js?v=38"></script>
 <script src="name-effects.js?v=38"></script>
@@ -1038,30 +1041,6 @@ if ('serviceWorker' in navigator) {
             .catch(function(err) { console.warn('SW failed:', err); });
     });
 }
-</script>
-
-<!-- ═══════════════════════════════════════════ -->
-<!-- ⭐ اختبار Supabase — مؤقت                      -->
-<!-- ═══════════════════════════════════════════ -->
-<script>
-setTimeout(function() {
-    if (typeof window.supabaseClient === 'undefined') {
-        alert('❌ Supabase client MISSING\n(supabase-config.js لم يُحمَّل)');
-        return;
-    }
-    console.log('Testing Supabase connection...');
-    window.supabaseClient.from('kv_store').select('path').limit(1)
-        .then(function(r) {
-            if (r.error) {
-                alert('❌ Supabase ERROR:\n' + r.error.message);
-            } else {
-                alert('✅ Supabase WORKS!\nrows: ' + (r.data ? r.data.length : 0));
-            }
-        })
-        .catch(function(e) {
-            alert('❌ Supabase FAILED:\n' + (e && e.message ? e.message : String(e)));
-        });
-}, 3000);
 </script>
 
 </body>
