@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
+<meta name="google-site-verification" content="googledef67db6e90c3077">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,31 +17,23 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://www.gstatic.com">
 <link rel="preconnect" href="https://qamaralsham-default-rtdb.firebaseio.com">
-<link rel="preconnect" href="https://nistuixdtmuqketweiig.supabase.co">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="dns-prefetch" href="https://ui-avatars.com">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
-
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<!-- Supabase SDK (محضّر — يُستخدم لاحقاً عبر Cloudflare) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="styles.css?v=39">
+<link rel="stylesheet" href="frames-engine.css?v=39">
+<link rel="stylesheet" href="name-effects.css?v=39">
+<link rel="stylesheet" href="king-room.css?v=39">
+<link rel="stylesheet" href="room-alerts.css?v=39">
+<link rel="stylesheet" href="dice.css?v=39">
+<link rel="stylesheet" href="qamar-glass.css?v=39">
 
-<!-- ═══ CSS الرئيسي ═══ -->
-<link rel="stylesheet" href="styles.css?v=37">
-<link rel="stylesheet" href="frames-engine.css?v=37">
-<link rel="stylesheet" href="name-effects.css?v=37">
-<link rel="stylesheet" href="king-room.css?v=37">
-<link rel="stylesheet" href="room-alerts.css?v=37">
-<link rel="stylesheet" href="dice.css?v=37">
-<link rel="stylesheet" href="qamar-glass.css?v=37">
-
-<!-- CSS الـ Boot Loader — inline -->
 <style id="qamar-boot-css">
 #qamar-boot-loader {
     position: fixed;
@@ -425,7 +418,6 @@ input, textarea, select { font-size: 16px !important; }
 </head>
 <body>
 
-<!-- Boot Loader -->
 <div id="qamar-boot-loader">
     <div id="qamar-boot-moon">🌙</div>
     <div id="qamar-boot-title">قمر الشام</div>
@@ -435,7 +427,6 @@ input, textarea, select { font-size: 16px !important; }
 
 <div class="starfield" id="starfield"></div>
 
-<!-- ═══ شاشة الدخول ═══ -->
 <div class="login-screen" id="login-screen">
 <div class="login-card">
 <div class="login-logo">
@@ -478,7 +469,6 @@ input, textarea, select { font-size: 16px !important; }
 </div>
 </div>
 
-<!-- ═══ حاوية الشات ═══ -->
 <div class="container" id="chat-container" style="display:none;">
 
 <div class="header">
@@ -536,8 +526,6 @@ input, textarea, select { font-size: 16px !important; }
 
 </div>
 
-<!-- ═══ السيدبارات ═══ -->
-
 <div class="sidebar right-sidebar" id="rooms-sidebar">
 <div class="sidebar-header"><h3><i class="fas fa-door-open"></i> الغرف</h3><button type="button" class="sidebar-close" onclick="closeAllPanels()"><i class="fas fa-times"></i></button></div>
 <div class="sidebar-content" id="rooms-list"></div>
@@ -568,7 +556,6 @@ input, textarea, select { font-size: 16px !important; }
 
 <div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
 
-<!-- ═══ الخاص ═══ -->
 <div class="private-chat-modal" id="private-chat-modal">
 <div class="private-chat-header">
 <div class="private-chat-user">
@@ -587,7 +574,6 @@ input, textarea, select { font-size: 16px !important; }
 </div>
 </div>
 
-<!-- ═══ نافذة الترقية ═══ -->
 <div class="upgrade-modal" id="upgrade-modal">
 <div class="upgrade-content">
 <h3>🔑 ترقية لعضوية</h3>
@@ -602,7 +588,6 @@ input, textarea, select { font-size: 16px !important; }
 </div>
 </div>
 
-<!-- ═══ نافذة بوت ═══ -->
 <div class="bot-profile-modal" id="bot-profile-modal">
 <div class="bot-profile-content">
 <button type="button" class="bot-profile-close" onclick="closeBotProfile()">✕</button>
@@ -613,7 +598,6 @@ input, textarea, select { font-size: 16px !important; }
 </div>
 </div>
 
-<!-- ═══ iframe البروفايل ═══ -->
 <div id="profile-frame-container" style="
     position: fixed;
     top: 6%;
@@ -632,27 +616,17 @@ input, textarea, select { font-size: 16px !important; }
 <iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
 </div>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- السكربتات                                    -->
-<!-- ═══════════════════════════════════════════ -->
-
 <!-- ═══ الموجة الحرجة (sync) ═══ -->
-<script src="config.js?v=38"></script>
+<script src="config.js?v=40"></script>
+<script src="ranks.js?v=40"></script>
+<script src="utils.js?v=40"></script>
+<script src="name-effects.js?v=40"></script>
+<script src="frames-engine.js?v=40"></script>
+<script src="connection-optimizer.js?v=2"></script>
+<script src="firebase-persistence.js?v=3"></script>
+<script src="chat-optimizer.js?v=2"></script>
+<script src="connection-resilience.js?v=2"></script>
 
-<!-- Supabase مؤقتاً معطّل — ننتظر Cloudflare Worker -->
-<!-- <script src="supabase-config.js?v=2"></script> -->
-<!-- <script src="supabase-adapter.js?v=1"></script> -->
-
-<script src="ranks.js?v=38"></script>
-<script src="utils.js?v=38"></script>
-<script src="name-effects.js?v=38"></script>
-<script src="frames-engine.js?v=38"></script>
-<script src="connection-optimizer.js?v=1"></script>
-<script src="firebase-persistence.js?v=2"></script>
-<script src="chat-optimizer.js?v=1"></script>
-<script src="connection-resilience.js?v=1"></script>
-
-<!-- ═══ inline script — تهيئة سريعة ═══ -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var modal = document.getElementById('private-chat-modal');
@@ -777,25 +751,23 @@ window.openReportsPanel = openReportsPanel;
 window._updateHeaderButtons = _updateHeaderButtons;
 </script>
 
-<!-- ═══ الأساسي (sync) ═══ -->
-<script src="auth.js?v=39"></script>
-<script src="chat.js?v=38"></script>
+<script src="auth.js?v=41"></script>
+<script src="chat.js?v=40"></script>
 
-<!-- ═══ الثانوي (defer) ═══ -->
-<script defer src="islamic-library.js?v=37"></script>
-<script defer src="pm-enhanced.js?v=38"></script>
-<script defer src="media-picker.js?v=37"></script>
-<script defer src="bots.js?v=37"></script>
-<script defer src="guardian-hide.js?v=37"></script>
-<script defer src="king-room.js?v=37"></script>
-<script defer src="room-alerts.js?v=37"></script>
-<script defer src="dice.js?v=37"></script>
-<script defer src="invisible-mode.js?v=38"></script>
-<script defer src="room-picker.js?v=37"></script>
-<script defer src="stories.js?v=37"></script>
-<script defer src="user-data-optimizer.js?v=2"></script>
+<script defer src="islamic-library.js?v=39"></script>
+<script defer src="pm-enhanced.js?v=40"></script>
+<script defer src="media-picker.js?v=39"></script>
+<script defer src="bots.js?v=39"></script>
+<script defer src="guardian-hide.js?v=39"></script>
+<script defer src="king-room.js?v=39"></script>
+<script defer src="room-alerts.js?v=39"></script>
+<script defer src="dice.js?v=39"></script>
+<script defer src="invisible-mode.js?v=40"></script>
+<script defer src="room-picker.js?v=39"></script>
+<script defer src="upload-service.js?v=2"></script>
+<script defer src="stories.js?v=40"></script>
+<script defer src="user-data-optimizer.js?v=3"></script>
 
-<!-- ═══ Login Scripts ═══ -->
 <script>
 let selectedGender = 'male';
 let regSelectedGender = 'male';
@@ -966,9 +938,6 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<!-- ═══════════════════════════════════════════ -->
-<!-- إخفاء Boot Loader + فحص الحالة              -->
-<!-- ═══════════════════════════════════════════ -->
 <script>
 (function () {
     var loader = document.getElementById('qamar-boot-loader');
@@ -1008,13 +977,13 @@ window.addEventListener('DOMContentLoaded', () => {
         }
 
         if (typeof QAMAR !== 'undefined') {
-            _updateStatus('جاري تهيئة الاتصال...', false);
+            _updateStatus('جاري تهيئة Firebase...', false);
         } else if (elapsed > 1500) {
             _updateStatus('جاري تجهيز الواجهة...', false);
         }
 
         if (elapsed >= MAX_WAIT) {
-            _updateStatus('استمرار...', false);
+            _updateStatus('استمرار بدون Firebase...', false);
             clearInterval(waitCheck);
             setTimeout(_hide, 300);
         }
@@ -1032,7 +1001,6 @@ window.addEventListener('DOMContentLoaded', () => {
 })();
 </script>
 
-<!-- ═══ Service Worker ═══ -->
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
