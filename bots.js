@@ -1,10 +1,14 @@
 // ==============================================
-// bots.js v27 — 5 بوتات + إصلاحات السفير
+// bots.js v28 (TEST) — كشف ذكي + استيراد قائمة
 // ==============================================
-// ✅ v27 (إصلاح):
-//   1. baseline على user_presence قبل الترحيب
-//   2. child_added/changed بدل value
-//   3. onRoomChanged → ترحيب بالشخص المنضم
+// ✅ v28:
+//   1. كشف الكلمات المُقنّعة:
+//      - كللللب → كلب (حذف التكرار 2+)
+//      - كـلـب → كلب (إزالة التطويل)
+//      - ڪلب → كلب (توحيد الحروف البديلة)
+//   2. استيراد قائمة كلمات عربية جاهزة من GitHub
+//   3. تخصيص قائمة "بدون تصفية" (whitelist) لتجنب false positives
+//   4. باقي المنطق كما v27
 // ==============================================
 
 const BotsState = {
@@ -42,6 +46,16 @@ const PRUNE_BATCH = 500;
 const IMMUNE_LEVEL = 90;
 
 const _processedMsgs = new Set();
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v28: قائمة تجنب الالتباس (false positives) */
+/* ══════════════════════════════════════════════ */
+const BAD_WORD_WHITELIST = [
+    'حمار وحشي',       // حمار الوحش حيوان بريء
+    'كلب الحراسة',      // سياق وصفي
+    'أبو كلب',          // لقب قبلي (إن كان مستخدم عندكم، وإلا احذفوا)
+    'يا حمار'           // إذا كانت عندكم عادة كلام غير مسيئة — احذفوا السطر
+];
 
 const DEFAULT_ISLAMIC = [
     '🌙 اللهم صلِّ وسلِّم على نبينا محمد ﷺ',
@@ -89,16 +103,53 @@ const DEFAULT_HAKAWATI = {
     'شو اسمك': 'اسمي حكواتي الشام 📖'
 };
 
+/* ══════════════════════════════════════════════ */
+/* ⭐ v28: normalizeArabic محسّن                   */
+/* ══════════════════════════════════════════════ */
 function normalizeArabic(text) {
     if (!text) return '';
-    return String(text).toLowerCase().trim()
-        .replace(/[أإآٱا]/g, 'ا')
-        .replace(/[يىئ]/g, 'ي')
-        .replace(/ة/g, 'ه')
-        .replace(/[\u064B-\u065F\u0670]/g, '')
-        .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
-        .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
-        .replace(/\s+/g, ' ');
+    var s = String(text).toLowerCase().trim();
+    
+    // 1. توحيد الحروف البديلة (ڪ کی ہ...)
+    if (typeof QAMAR !== 'undefined' && QAMAR.ARABIC_EQUIVALENTS) {
+        Object.keys(QAMAR.ARABIC_EQUIVALENTS).forEach(function(alt) {
+            var main = QAMAR.ARABIC_EQUIVALENTS[alt];
+            s = s.split(alt).join(main);
+        });
+    }
+    
+    // 2. إزالة التطويل (ـ)
+    s = s.replace(/\u0640/g, '');
+    
+    // 3. توحيد الألف
+    s = s.replace(/[أإآٱا]/g, 'ا');
+    // 4. توحيد الياء
+    s = s.replace(/[يىئ]/g, 'ي');
+    // 5. توحيد التاء المربوطة
+    s = s.replace(/ة/g, 'ه');
+    // 6. إزالة التشكيل
+    s = s.replace(/[\u064B-\u065F\u0670]/g, '');
+    // 7. توحيد الأرقام العربية
+    s = s.replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+    s = s.replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+    // 8. حذف التكرار (2+ حروف متتالية → حرف واحد)
+    //    كللللب → كلب / كتتتاب → كتاب
+    s = s.replace(/(.)\1{1,}/g, '$1');
+    // 9. توحيد المسافات
+    s = s.replace(/\s+/g, ' ');
+    
+    return s;
+}
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v28: كشف محسّن                              */
+/* ══════════════════════════════════════════════ */
+function _isWhitelisted(text) {
+    var norm = normalizeArabic(text);
+    for (var i = 0; i < BAD_WORD_WHITELIST.length; i++) {
+        if (norm.indexOf(normalizeArabic(BAD_WORD_WHITELIST[i])) !== -1) return true;
+    }
+    return false;
 }
 
 function isAnswerMatch(userAnswer, expected) {
@@ -286,7 +337,7 @@ async function hideOffensiveMessage(msg, reason) {
 }
 
 /* ══════════════════════════════════════════════ */
-/* كشف الكلمات                                    */
+/* كشف الكلمات — v28 محسّن                        */
 /* ══════════════════════════════════════════════ */
 function _buildSeparatedRegex(word) {
     var chars = String(word).split('');
@@ -296,14 +347,29 @@ function _buildSeparatedRegex(word) {
     return new RegExp(pattern, 'i');
 }
 
-function containsBadWord(text) {
-    if (!text || !BotsState.badWords.length) return null;
+function _checkWords(text, wordList) {
+    if (!text || !wordList.length) return null;
+    
+    // Whitelist check
+    if (_isWhitelisted(text)) return null;
+    
     var normalized = normalizeArabic(text);
-    for (var i = 0; i < BotsState.badWords.length; i++) {
-        var raw = BotsState.badWords[i];
+    var collapsedRaw = String(text).toLowerCase()
+        .replace(/\u0640/g, '')
+        .replace(/(.)\1{1,}/g, '$1');
+    
+    for (var i = 0; i < wordList.length; i++) {
+        var raw = wordList[i];
         var w = normalizeArabic(raw);
         if (!w) continue;
+        
+        // 1. كشف مباشر بعد التوحيد
         if (normalized.indexOf(w) !== -1) return raw;
+        
+        // 2. كشف بعد حذف التكرار (احتياط)
+        if (collapsedRaw.indexOf(w) !== -1) return raw;
+        
+        // 3. كشف منفصل (نقاط/شرطات/مسافات)
         if (w.length >= 3) {
             try {
                 if (_buildSeparatedRegex(w).test(normalized)) return raw;
@@ -313,21 +379,12 @@ function containsBadWord(text) {
     return null;
 }
 
+function containsBadWord(text) {
+    return _checkWords(text, BotsState.badWords);
+}
+
 function containsKickWord(text) {
-    if (!text || !BotsState.kickWords.length) return null;
-    var normalized = normalizeArabic(text);
-    for (var i = 0; i < BotsState.kickWords.length; i++) {
-        var raw = BotsState.kickWords[i];
-        var w = normalizeArabic(raw);
-        if (!w) continue;
-        if (normalized.indexOf(w) !== -1) return raw;
-        if (w.length >= 3) {
-            try {
-                if (_buildSeparatedRegex(w).test(normalized)) return raw;
-            } catch (e) {}
-        }
-    }
-    return null;
+    return _checkWords(text, BotsState.kickWords);
 }
 
 /* ══════════════════════════════════════════════ */
@@ -419,28 +476,19 @@ async function tryWelcomeUser(uid, roomId) {
     try {
         var userSnap = await db.ref('users/' + uid).once('value');
         var userData = userSnap.val();
-        if (!userData) {
-            console.log('🚪 Ambassador: user data missing for', uid);
-            return;
-        }
+        if (!userData) return;
 
-        // لا ترحيب للملك/الملكة المخفيين
         if (userData.invisible === true && (userData.rank === 'King' || userData.rank === 'Queen')) {
-            console.log('🚪 Ambassador: skip invisible royal', userData.name);
             return;
         }
 
-        // فحص cooldown
         var now = Date.now();
         var result = await db.ref('bot_locks/welcome/' + roomId + '/' + uid).transaction(function(c) {
             if (c && (now - (c.at || 0)) < WELCOME_COOLDOWN_MS) return;
             return { at: now, by: 'ambassador' };
         });
 
-        if (!result || result.committed !== true) {
-            console.log('🚪 Ambassador: cooldown for', userData.name);
-            return;
-        }
+        if (!result || result.committed !== true) return;
 
         var roomName = (typeof QAMAR !== 'undefined' && QAMAR.ROOMS && QAMAR.ROOMS[roomId])
             ? QAMAR.ROOMS[roomId].name
@@ -485,7 +533,6 @@ function handlePresenceChild(uid, p) {
     if (!me) return;
 
     var prev = BotsState.lastUserRooms[uid];
-
     BotsState.lastUserRooms[uid] = { state: p.state, room: p.room, lastChanged: p.lastChanged };
 
     if (uid === me.uid) return;
@@ -493,7 +540,6 @@ function handlePresenceChild(uid, p) {
 
     var myRoom = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
     if (p.room !== myRoom) return;
-
     if (Date.now() - (p.lastChanged || 0) > 60000) return;
 
     var isNewJoin = !prev || prev.state !== 'online' || prev.room !== p.room;
@@ -512,7 +558,6 @@ async function setupAmbassadorListener() {
         BotsState.presenceListener = null;
     }
 
-    // baseline
     try {
         var snap = await db.ref('user_presence').once('value');
         var presences = snap.val() || {};
@@ -529,17 +574,15 @@ async function setupAmbassadorListener() {
     BotsState.presenceListener.on('child_added', function(s) {
         handlePresenceChild(s.key, s.val());
     });
-
     BotsState.presenceListener.on('child_changed', function(s) {
         handlePresenceChild(s.key, s.val());
     });
-
     BotsState.presenceListener.on('child_removed', function(s) {
         delete BotsState.lastUserRooms[s.key];
     });
 
     BotsState.ambassadorReady = true;
-    console.log('🚪 Ambassador listener ready (v27)');
+    console.log('🚪 Ambassador listener ready (v28)');
 }
 
 function handleWelcomeMessage(msg) {
@@ -588,7 +631,7 @@ function initBots() {
     var user = getCurrentUser();
     if (!user) { console.warn('🤖 initBots: no user'); return; }
     BotsState.initialized = true;
-    console.log('🤖 bots.js v27 initialized');
+    console.log('🤖 bots.js v28 initialized');
 
     db.ref('bot_memory/badWords').on('value', s => {
         var arr = toArray(s.val());
@@ -1124,7 +1167,7 @@ async function processIncomingMessage(msg) {
 }
 
 /* ══════════════════════════════════════════════ */
-/* onRoomChanged — v27: ترحيب بالشخص المنضم      */
+/* onRoomChanged                                  */
 /* ══════════════════════════════════════════════ */
 function onRoomChanged(roomId) {
     if (typeof db === 'undefined' || !db) return;
@@ -1148,7 +1191,7 @@ function onRoomChanged(roomId) {
 /* ══════════════════════════════════════════════ */
 function setupKingPanel() {
     var user = getCurrentUser();
-    if (!user || (user.rank !== 'King' && user.rank !== 'Queen')) return;
+    if (!user || user.rank !== 'King') return;   /* ⭐ v28: الملك فقط */
     setTimeout(insertKingBtn, 1500);
     var list = document.getElementById('rooms-list');
     if (!list) { setTimeout(setupKingPanel, 2000); return; }
@@ -1211,6 +1254,7 @@ function closeBotManager() {
     if (m) m.style.display = 'none';
 }
 
+/* ⭐ v28: إضافة زر "استيراد قائمة عربية" */
 function renderTab(tab) {
     var c = document.getElementById('bm-content');
     if (!c) return;
@@ -1223,10 +1267,19 @@ function renderTab(tab) {
         : tab === 'hakawati_auto' ? '🔔 ردود تلقائية\n(بدون نداء — ترد على أول كلمة مكتشفة)\n⏱️ cooldown 10 ثواني/مستخدم'
         : tab === 'quiz' ? '🎯 أسئلة المسابقة\n🥇 10 | 🥈 5 | 🥉 2 نقطة\n💡 إيحاء عند 60 ثانية\n⏱️ 5 دقائق بين الأسئلة'
         : tab === 'islamic' ? '🌙 أدعية وأذكار\n📚 +1000 عنصر مدمج\n🎁 + إضافاتك'
-        : tab === 'badwords' ? '🚔 كلمات السجن\n2 → 4 → 8 → 15 دقيقة\n⚠️ 3 سجنات = حظر دائم'
+        : tab === 'badwords' ? '🚔 كلمات السجن\n2 → 4 → 8 → 15 دقيقة\n⚠️ 3 سجنات = حظر دائم\n🆕 كشف ذكي (تكرار/تطويل/حروف بديلة)'
         : tab === 'kickwords' ? '🚪 كلمات الطرد الدائم\n(حظر فوري بدون رجعة)'
         : '📥 أسئلة معلقة';
     c.appendChild(info);
+
+    if (tab === 'badwords' || tab === 'kickwords') {
+        /* ⭐ زر استيراد قائمة عربية */
+        var importBtn = document.createElement('button');
+        importBtn.textContent = '📥 استيراد قائمة عربية جاهزة';
+        importBtn.style.cssText = 'width:100%;padding:12px;background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;border:none;border-radius:10px;font-weight:900;font-size:14px;cursor:pointer;margin-bottom:8px;font-family:inherit;';
+        importBtn.onclick = function() { importArabicWordList(tab); };
+        c.appendChild(importBtn);
+    }
 
     if (tab !== 'pending') {
         var add = document.createElement('button');
@@ -1323,6 +1376,11 @@ function renderTab(tab) {
         if (!list || list.length === 0) {
             box.innerHTML = '<div style="color:#888;text-align:center;padding:20px;">لا توجد كلمات.</div>';
         } else {
+            var countInfo = document.createElement('div');
+            countInfo.style.cssText = 'color:#84cc16;text-align:center;padding:8px;margin-bottom:10px;font-size:12px;font-weight:900;';
+            countInfo.textContent = '📊 ' + list.length + ' كلمة';
+            box.appendChild(countInfo);
+            
             list.forEach(w => {
                 var r = document.createElement('div');
                 r.style.cssText = tab === 'badwords'
@@ -1395,6 +1453,75 @@ function renderTab(tab) {
                 box.appendChild(r);
             });
         });
+    }
+}
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v28: استيراد قائمة الكلمات العربية          */
+/* ══════════════════════════════════════════════ */
+async function importArabicWordList(tab) {
+    if (!confirm('📥 استيراد قائمة كلمات عربية جاهزة؟\n\n⚠️ القائمة تحتوي كلمات نابية.\nسيتم إضافتها إلى ' + (tab === 'badwords' ? 'كلمات السجن' : 'كلمات الطرد') + '.')) {
+        return;
+    }
+    
+    var btn = event && event.target;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري الاستيراد...'; }
+    
+    try {
+        var url = (typeof QAMAR !== 'undefined' && QAMAR.SWEAR_WORDS_SOURCES) 
+            ? QAMAR.SWEAR_WORDS_SOURCES.arabic 
+            : 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/ar';
+        
+        console.log('📥 Fetching from:', url);
+        var res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var text = await res.text();
+        var words = text.split('\n')
+            .map(w => w.trim())
+            .filter(w => w.length > 1 && !w.startsWith('#'));
+        
+        console.log('📥 Loaded ' + words.length + ' words from GitHub');
+        
+        if (words.length === 0) throw new Error('القائمة فارغة');
+        
+        var path = tab === 'badwords' ? 'bot_memory/badWords' : 'bot_memory/kickWords';
+        
+        // نقرأ القائمة الحالية لتجنب التكرار
+        var currentSnap = await db.ref(path).once('value');
+        var currentData = currentSnap.val() || {};
+        var currentSet = new Set();
+        Object.values(currentData).forEach(item => {
+            var txt = (typeof item === 'string') ? item : (item.text || '');
+            if (txt) currentSet.add(txt);
+        });
+        
+        // نضيف الجديدة
+        var added = 0;
+        var promises = [];
+        words.forEach(word => {
+            if (!currentSet.has(word)) {
+                promises.push(db.ref(path).push({ text: word }));
+                added++;
+            }
+        });
+        
+        await Promise.all(promises);
+        
+        if (typeof showToast === 'function') {
+            showToast('fa-check', '✅ تم استيراد ' + added + ' كلمة جديدة');
+        }
+        console.log('✅ Imported ' + added + ' new words');
+        
+        renderTab(tab);
+        
+    } catch (e) {
+        console.error('❌ Import failed:', e);
+        if (typeof showToast === 'function') {
+            showToast('fa-times', '⚠️ فشل الاستيراد: ' + e.message);
+        } else {
+            alert('⚠️ فشل: ' + e.message);
+        }
+        if (btn) { btn.disabled = false; btn.textContent = '📥 استيراد قائمة عربية جاهزة'; }
     }
 }
 
@@ -1474,7 +1601,8 @@ window.onRoomChanged = onRoomChanged;
 window.stopBots = stopBots;
 window.openBotManager = openBotManager;
 window.closeBotManager = closeBotManager;
+window.importArabicWordList = importArabicWordList;
 
 window.BotsState = BotsState;
 
-console.log('🤖 bots.js v27 loaded — ambassador welcomes on room switch');
+console.log('🤖 bots.js v28 loaded — smart detection + Arabic word list import');
