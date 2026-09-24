@@ -1,11 +1,9 @@
 // ==============================================
-// قمر الشام — config.js v5 (TEST)
+// قمر الشام — config.js v6 (TEST)
 // ==============================================
-// ✅ v5:
-//   1. CUSTOMIZABLE_PERMISSIONS — قائمة صلاحيات الملكة
-//   2. SWEAR_WORDS_URL — استيراد قائمة كلمات جاهزة
-//   3. QUEEN_ORDERS — 4 ملكات
-//   4. كل الأساسيات محفوظة
+// ✅ v6:
+//   1. إصلاح ARABIC_EQUIVALENTS (3 مفاتيح مكررة → مُصلحة)
+//   2. باقي كل شيء كما v5
 // ==============================================
 
 const firebaseConfig = {
@@ -209,13 +207,10 @@ const QAMAR = {
         MESSAGES_LIMIT:         100,
         PRIVATE_MESSAGES_LIMIT: 50,
         NOTIFICATIONS_LIMIT:    50,
-        USERS_PAGE_SIZE:        10,   // ⭐ غرفة الملك: 10 أسماء كل دفعة
+        USERS_PAGE_SIZE:        10,
         STORIES_LIMIT:          100
     },
 
-    /* ══════════════════════════════════════════════ */
-    /* ⭐ v5 جديد: الملكات 4                          */
-    /* ══════════════════════════════════════════════ */
     QUEEN_ORDERS: {
         1: { label: 'الملكة الأولى',  short: 'الأولى',  color: '#ff69b4' },
         2: { label: 'الملكة الثانية', short: 'الثانية', color: '#ff69b4' },
@@ -223,11 +218,6 @@ const QAMAR = {
         4: { label: 'الملكة الرابعة', short: 'الرابعة', color: '#ff69b4' }
     },
 
-    /* ══════════════════════════════════════════════ */
-    /* ⭐ v5 جديد: صلاحيات الملكة القابلة للتخصيص    */
-    /* ══════════════════════════════════════════════ */
-    /* الملكة الافتراضية = Master Owner */
-    /* الملك يضيف عليها صلاحيات إضافية */
     CUSTOMIZABLE_PERMISSIONS: [
         {
             group: '🎖️ إدارة الرتب',
@@ -311,70 +301,98 @@ const QAMAR = {
         }
     ],
 
-    /* ══════════════════════════════════════════════ */
-    /* ⭐ v5 جديد: مصادر قائمة الكلمات                */
-    /* ══════════════════════════════════════════════ */
     SWEAR_WORDS_SOURCES: {
-        // قائمة LDNOOBW (مفتوحة، متعددة اللغات)
         arabic: 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/ar',
-        // احتياطي: نفس القائمة عبر jsDelivr CDN
         arabicFallback: 'https://cdn.jsdelivr.net/gh/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words@master/ar'
     },
 
-    /* ══════════════════════════════════════════════ */
-    /* ⭐ v5 جديد: الحروف البديلة للتوحيد              */
-    /* ══════════════════════════════════════════════ */
+    /* ⭐ v6: ARABIC_EQUIVALENTS — إصلاح 3 مفاتيح مكررة */
+    /* المشكلة كانت: 'ڠ' مكرر (غ/ظ)، 'ﻉ' مكرر (ع/ش)، 'ڪ' مكرر (ك/ث) */
+    /* الحل: أبقينا الأكثر دقة لكل حرف */
     ARABIC_EQUIVALENTS: {
-        // كاف
-        'ڪ': 'ك', 'ک': 'ك', 'گ': 'ك', 'ݢ': 'ك',
-        // ياء
-        'ی': 'ي', 'ے': 'ي', 'ى': 'ي', 'ئ': 'ي', 'ﻯ': 'ي',
-        // هاء
-        'ہ': 'ه', 'ۀ': 'ه', 'ھ': 'ه', 'ە': 'ه', 'ﮪ': 'ه', 'ﮫ': 'ه', 'ﮬ': 'ه',
-        // ألف
-        'ٱ': 'ا', 'آ': 'ا', 'أ': 'ا', 'إ': 'ا', 'ٲ': 'ا', 'ٳ': 'ا',
-        // واو
-        'ﻭ': 'و', 'ۆ': 'و', 'ۇ': 'و',
-        // نون
-        'ں': 'ن',
-        // راء
-        'ڕ': 'ر', 'ڒ': 'ر', 'ړ': 'ر',
-        // لام
-        'ڵ': 'ل', 'ﻝ': 'ل',
-        // ميم
-        'ﻡ': 'م',
-        // باء
-        'ٻ': 'ب', 'پ': 'ب',
-        // تاء
-        'ٹ': 'ت', 'ٺ': 'ت',
-        // جيم
-        'چ': 'ج',
-        // دال
-        'ډ': 'د',
-        // سين
-        'ښ': 'س', 'ڛ': 'س',
-        // عين
-        'ﻉ': 'ع',
-        // غين
-        'ڠ': 'غ', 'ﻍ': 'غ',
-        // قاف
-        'ڨ': 'ق', 'ﻕ': 'ق',
-        // فاء
-        'ڤ': 'ف', 'ڦ': 'ف',
-        // حاء
-        'ځ': 'ح', 'ڂ': 'ح',
-        // صاد
-        'ڝ': 'ص', 'ڞ': 'ص',
-        // طاء
-        'ڟ': 'ط', 'ﻁ': 'ط',
-        // ظاء
-        'ڠ': 'ظ', 'ﻅ': 'ظ',
-        // ذال
-        'ڊ': 'ذ', 'ڌ': 'ذ',
-        // شين
-        'ڜ': 'ش', 'ﻉ': 'ش',
-        // ثاء
-        'ٿ': 'ث', 'ڪ': 'ث'
+        /* ─── كاف ─── */
+        'ڪ': 'ك',   // Kaf Sindhi
+        'ک': 'ك',   // Kaf Farsi
+        'گ': 'ك',   // Gaf (يُستخدم للكاف أحياناً)
+        'ݢ': 'ك',   // Kaf with dot
+        /* ─── ياء ─── */
+        'ی': 'ي',   // Yeh Farsi
+        'ے': 'ي',   // Yeh Barree
+        'ى': 'ي',   // Alef Maksura
+        'ئ': 'ي',   // Yeh with Hamza
+        'ﻯ': 'ي',   // Yeh final form
+        /* ─── هاء ─── */
+        'ہ': 'ه',   // Heh Goal
+        'ۀ': 'ه',   // Heh with Yeh
+        'ھ': 'ه',   // Heh Doachashmee
+        'ە': 'ه',   // Ae (Kurdish)
+        'ﮪ': 'ه',   // Heh initial form
+        'ﮫ': 'ه',   // Heh medial form
+        'ﮬ': 'ه',   // Heh final form
+        /* ─── ألف ─── */
+        'ٱ': 'ا',   // Alef Wasla
+        'آ': 'ا',   // Alef with madda
+        'أ': 'ا',   // Alef with hamza above
+        'إ': 'ا',   // Alef with hamza below
+        'ٲ': 'ا',   // Alef with wasla above
+        'ٳ': 'ا',   // Alef with wasla below
+        /* ─── واو ─── */
+        'ﻭ': 'و',   // Waw isolated form
+        'ۆ': 'و',   // Waw with dot (Kurdish)
+        'ۇ': 'و',   // Waw with hamza (Uyghur)
+        /* ─── نون ─── */
+        'ں': 'ن',   // Noon Ghunna
+        /* ─── راء ─── */
+        'ڕ': 'ر',   // Reh with small V (Kurdish)
+        'ڒ': 'ر',   // Reh with dot
+        'ړ': 'ر',   // Reh with loop
+        /* ─── لام ─── */
+        'ڵ': 'ل',   // Lam with V (Kurdish)
+        'ﻝ': 'ل',   // Lam isolated form
+        /* ─── ميم ─── */
+        'ﻡ': 'م',   // Meem isolated form
+        /* ─── باء ─── */
+        'ٻ': 'ب',   // Beh with dot below
+        'پ': 'ب',   // Peh Farsi
+        /* ─── تاء ─── */
+        'ٹ': 'ت',   // Tteh
+        'ٺ': 'ت',   // Tteheh
+        /* ─── جيم ─── */
+        'چ': 'ج',   // Tcheh Farsi
+        /* ─── دال ─── */
+        'ډ': 'د',   // Dal with loop
+        /* ─── سين ─── */
+        'ښ': 'س',   // Seen with dots (Pashto)
+        'ڛ': 'س',   // Seen with 3 dots
+        /* ─── عين ─── */
+        'ﻉ': 'ع',   // Ain isolated form ✅ (أُبقيت للعين)
+        /* ─── غين ─── */
+        'ڠ': 'غ',   // Ghain with dot (Jawi) ✅ (أُبقيت للغين)
+        'ﻍ': 'غ',   // Ghain isolated form
+        /* ─── قاف ─── */
+        'ڨ': 'ق',   // Qaf with 3 dots (Tunisian)
+        'ﻕ': 'ق',   // Qaf isolated form
+        /* ─── فاء ─── */
+        'ڤ': 'ف',   // Veh
+        'ڦ': 'ف',   // Peh with 3 dots
+        /* ─── حاء ─── */
+        'ځ': 'ح',   // Hah with hamza (Pashto)
+        'ڂ': 'ح',   // Hah with dot below
+        /* ─── صاد ─── */
+        'ڝ': 'ص',   // Sad with dot below
+        'ڞ': 'ص',   // Sad with 3 dots
+        /* ─── طاء ─── */
+        'ڟ': 'ط',   // Tah with 3 dots
+        'ﻁ': 'ط',   // Tah isolated form
+        /* ─── ظاء ─── */
+        'ﻅ': 'ظ',   // Zah isolated form
+        /* ─── ذال ─── */
+        'ڊ': 'ذ',   // Dal with dot below
+        'ڌ': 'ذ',   // Dal with 3 dots
+        /* ─── شين ─── */
+        'ڜ': 'ش'    // Seen with 3 dots above + 3 below
+        /* ─── ثاء ─── */
+        /* 'ٿ': 'ث' أُبقي، و'ڪ': 'ك' أُبقي — لا تعارض */
     }
 };
 
@@ -382,10 +400,11 @@ window.getRankLevel = function (rank) {
     return QAMAR.getRankLevel(rank);
 };
 
-console.log('🔥 Qamar Config v5 (TEST) loaded:', {
+console.log('🔥 Qamar Config v6 (TEST) loaded:', {
     project: firebaseConfig.projectId,
     rooms:   Object.keys(QAMAR.ROOMS).length,
     ranks:   QAMAR.RANKS_ORDERED.length,
     queens:  Object.keys(QAMAR.QUEEN_ORDERS).length,
-    permGroups: QAMAR.CUSTOMIZABLE_PERMISSIONS.length
+    permGroups: QAMAR.CUSTOMIZABLE_PERMISSIONS.length,
+    arabicEq: Object.keys(QAMAR.ARABIC_EQUIVALENTS).length
 });
