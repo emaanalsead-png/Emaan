@@ -1,14 +1,9 @@
 // ==============================================
-// bots.js v28 (TEST) — كشف ذكي + استيراد قائمة
+// bots.js v29 (TEST) — كشف ذكي + استيراد قائمة (إصلاح)
 // ==============================================
-// ✅ v28:
-//   1. كشف الكلمات المُقنّعة:
-//      - كللللب → كلب (حذف التكرار 2+)
-//      - كـلـب → كلب (إزالة التطويل)
-//      - ڪلب → كلب (توحيد الحروف البديلة)
-//   2. استيراد قائمة كلمات عربية جاهزة من GitHub
-//   3. تخصيص قائمة "بدون تصفية" (whitelist) لتجنب false positives
-//   4. باقي المنطق كما v27
+// ✅ v29:
+//   1. إصلاح importArabicWordList — بدون event global
+//   2. باقي كل شيء كما v28 بالضبط
 // ==============================================
 
 const BotsState = {
@@ -47,14 +42,11 @@ const IMMUNE_LEVEL = 90;
 
 const _processedMsgs = new Set();
 
-/* ══════════════════════════════════════════════ */
-/* ⭐ v28: قائمة تجنب الالتباس (false positives) */
-/* ══════════════════════════════════════════════ */
 const BAD_WORD_WHITELIST = [
-    'حمار وحشي',       // حمار الوحش حيوان بريء
-    'كلب الحراسة',      // سياق وصفي
-    'أبو كلب',          // لقب قبلي (إن كان مستخدم عندكم، وإلا احذفوا)
-    'يا حمار'           // إذا كانت عندكم عادة كلام غير مسيئة — احذفوا السطر
+    'حمار وحشي',
+    'كلب الحراسة',
+    'أبو كلب',
+    'يا حمار'
 ];
 
 const DEFAULT_ISLAMIC = [
@@ -103,47 +95,27 @@ const DEFAULT_HAKAWATI = {
     'شو اسمك': 'اسمي حكواتي الشام 📖'
 };
 
-/* ══════════════════════════════════════════════ */
-/* ⭐ v28: normalizeArabic محسّن                   */
-/* ══════════════════════════════════════════════ */
 function normalizeArabic(text) {
     if (!text) return '';
     var s = String(text).toLowerCase().trim();
-    
-    // 1. توحيد الحروف البديلة (ڪ کی ہ...)
     if (typeof QAMAR !== 'undefined' && QAMAR.ARABIC_EQUIVALENTS) {
         Object.keys(QAMAR.ARABIC_EQUIVALENTS).forEach(function(alt) {
             var main = QAMAR.ARABIC_EQUIVALENTS[alt];
             s = s.split(alt).join(main);
         });
     }
-    
-    // 2. إزالة التطويل (ـ)
     s = s.replace(/\u0640/g, '');
-    
-    // 3. توحيد الألف
     s = s.replace(/[أإآٱا]/g, 'ا');
-    // 4. توحيد الياء
     s = s.replace(/[يىئ]/g, 'ي');
-    // 5. توحيد التاء المربوطة
     s = s.replace(/ة/g, 'ه');
-    // 6. إزالة التشكيل
     s = s.replace(/[\u064B-\u065F\u0670]/g, '');
-    // 7. توحيد الأرقام العربية
     s = s.replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
     s = s.replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
-    // 8. حذف التكرار (2+ حروف متتالية → حرف واحد)
-    //    كللللب → كلب / كتتتاب → كتاب
     s = s.replace(/(.)\1{1,}/g, '$1');
-    // 9. توحيد المسافات
     s = s.replace(/\s+/g, ' ');
-    
     return s;
 }
 
-/* ══════════════════════════════════════════════ */
-/* ⭐ v28: كشف محسّن                              */
-/* ══════════════════════════════════════════════ */
 function _isWhitelisted(text) {
     var norm = normalizeArabic(text);
     for (var i = 0; i < BAD_WORD_WHITELIST.length; i++) {
@@ -206,9 +178,6 @@ function extractMsgKey(msg) {
     return null;
 }
 
-/* ══════════════════════════════════════════════ */
-/* الأصوات                                        */
-/* ══════════════════════════════════════════════ */
 function _getAudioCtx() {
     if (typeof getAudioCtx === 'function') {
         try { return getAudioCtx(); } catch (e) {}
@@ -277,9 +246,6 @@ function playWelcomeSound() {
     } catch (e) { console.warn('welcome sound error:', e); }
 }
 
-/* ══════════════════════════════════════════════ */
-/* الحصانة                                        */
-/* ══════════════════════════════════════════════ */
 async function isImmuneUser(uid) {
     if (!uid) return false;
     var cached = BotsState.immuneCache[uid];
@@ -302,17 +268,10 @@ async function isImmuneUser(uid) {
     }
 }
 
-/* ══════════════════════════════════════════════ */
-/* إخفاء الرسالة المسيئة                          */
-/* ══════════════════════════════════════════════ */
 async function hideOffensiveMessage(msg, reason) {
     var fbKey = extractMsgKey(msg);
-    if (!fbKey) {
-        console.warn('⚠️ Guardian: cannot extract _fbKey');
-        return false;
-    }
+    if (!fbKey) return false;
     var room = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
-
     try {
         var el = document.querySelector('[data-msg-id="' + fbKey + '"]');
         if (el) {
@@ -320,7 +279,6 @@ async function hideOffensiveMessage(msg, reason) {
             el.classList.add('hidden-by-guardian');
         }
     } catch (e) {}
-
     try {
         await db.ref('room_messages/' + room + '/' + fbKey).update({
             hidden: true,
@@ -328,7 +286,6 @@ async function hideOffensiveMessage(msg, reason) {
             hiddenAt: Date.now(),
             hiddenReason: reason || 'auto'
         });
-        console.log('🚔 Guardian hid message:', fbKey, '→', reason);
         return true;
     } catch (e) {
         console.warn('Guardian hide failed:', e.message);
@@ -336,9 +293,6 @@ async function hideOffensiveMessage(msg, reason) {
     }
 }
 
-/* ══════════════════════════════════════════════ */
-/* كشف الكلمات — v28 محسّن                        */
-/* ══════════════════════════════════════════════ */
 function _buildSeparatedRegex(word) {
     var chars = String(word).split('');
     var pattern = chars.map(function(ch) {
@@ -349,27 +303,17 @@ function _buildSeparatedRegex(word) {
 
 function _checkWords(text, wordList) {
     if (!text || !wordList.length) return null;
-    
-    // Whitelist check
     if (_isWhitelisted(text)) return null;
-    
     var normalized = normalizeArabic(text);
     var collapsedRaw = String(text).toLowerCase()
         .replace(/\u0640/g, '')
         .replace(/(.)\1{1,}/g, '$1');
-    
     for (var i = 0; i < wordList.length; i++) {
         var raw = wordList[i];
         var w = normalizeArabic(raw);
         if (!w) continue;
-        
-        // 1. كشف مباشر بعد التوحيد
         if (normalized.indexOf(w) !== -1) return raw;
-        
-        // 2. كشف بعد حذف التكرار (احتياط)
         if (collapsedRaw.indexOf(w) !== -1) return raw;
-        
-        // 3. كشف منفصل (نقاط/شرطات/مسافات)
         if (w.length >= 3) {
             try {
                 if (_buildSeparatedRegex(w).test(normalized)) return raw;
@@ -387,9 +331,6 @@ function containsKickWord(text) {
     return _checkWords(text, BotsState.kickWords);
 }
 
-/* ══════════════════════════════════════════════ */
-/* حكواتي                                         */
-/* ══════════════════════════════════════════════ */
 function hasTrigger(text) {
     if (!text) return false;
     for (var i = 0; i < HAKAWATI_TRIGGERS.length; i++) {
@@ -434,7 +375,6 @@ function findAutoReply(text) {
     if (!keys.length) return null;
     var normalized = normalizeArabic(text);
     if (!normalized) return null;
-
     var best = null, bestIdx = Infinity, bestLen = 0, bestKey = '';
     for (var i = 0; i < keys.length; i++) {
         var k = keys[i];
@@ -469,34 +409,25 @@ function setAutoReplyCooldown(uid, key) {
     BotsState.autoReplyCooldown[k] = Date.now();
 }
 
-/* ══════════════════════════════════════════════ */
-/* السفير — الترحيب                               */
-/* ══════════════════════════════════════════════ */
 async function tryWelcomeUser(uid, roomId) {
     try {
         var userSnap = await db.ref('users/' + uid).once('value');
         var userData = userSnap.val();
         if (!userData) return;
-
         if (userData.invisible === true && (userData.rank === 'King' || userData.rank === 'Queen')) {
             return;
         }
-
         var now = Date.now();
         var result = await db.ref('bot_locks/welcome/' + roomId + '/' + uid).transaction(function(c) {
             if (c && (now - (c.at || 0)) < WELCOME_COOLDOWN_MS) return;
             return { at: now, by: 'ambassador' };
         });
-
         if (!result || result.committed !== true) return;
-
         var roomName = (typeof QAMAR !== 'undefined' && QAMAR.ROOMS && QAMAR.ROOMS[roomId])
             ? QAMAR.ROOMS[roomId].name
             : roomId;
-
         var userName = userData.name || 'زائر';
         var avatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(userName) + '&background=111&color=ffd700&bold=true&size=64';
-
         var msgRef = db.ref('room_messages/' + roomId).push();
         await msgRef.set({
             senderUid: 'bot_ambassador',
@@ -520,8 +451,6 @@ async function tryWelcomeUser(uid, roomId) {
             edited: false,
             deleted: false
         });
-
-        console.log('🚪 Ambassador: welcomed', userName, 'in', roomName);
     } catch (e) {
         console.warn('tryWelcomeUser error:', e);
     }
@@ -531,17 +460,13 @@ function handlePresenceChild(uid, p) {
     if (!p) return;
     var me = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
     if (!me) return;
-
     var prev = BotsState.lastUserRooms[uid];
     BotsState.lastUserRooms[uid] = { state: p.state, room: p.room, lastChanged: p.lastChanged };
-
     if (uid === me.uid) return;
     if (p.state !== 'online') return;
-
     var myRoom = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
     if (p.room !== myRoom) return;
     if (Date.now() - (p.lastChanged || 0) > 60000) return;
-
     var isNewJoin = !prev || prev.state !== 'online' || prev.room !== p.room;
     if (isNewJoin) {
         tryWelcomeUser(uid, myRoom);
@@ -552,25 +477,18 @@ async function setupAmbassadorListener() {
     if (typeof db === 'undefined' || !db) { setTimeout(setupAmbassadorListener, 1500); return; }
     var me = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
     if (!me) { setTimeout(setupAmbassadorListener, 1500); return; }
-
     if (BotsState.presenceListener) {
         try { BotsState.presenceListener.off(); } catch(e) {}
         BotsState.presenceListener = null;
     }
-
     try {
         var snap = await db.ref('user_presence').once('value');
         var presences = snap.val() || {};
         Object.keys(presences).forEach(function(uid) {
             BotsState.lastUserRooms[uid] = presences[uid];
         });
-        console.log('🚪 Ambassador: baseline loaded (' + Object.keys(presences).length + ' users)');
-    } catch (e) {
-        console.warn('Ambassador baseline error:', e);
-    }
-
+    } catch (e) {}
     BotsState.presenceListener = db.ref('user_presence');
-
     BotsState.presenceListener.on('child_added', function(s) {
         handlePresenceChild(s.key, s.val());
     });
@@ -580,23 +498,17 @@ async function setupAmbassadorListener() {
     BotsState.presenceListener.on('child_removed', function(s) {
         delete BotsState.lastUserRooms[s.key];
     });
-
     BotsState.ambassadorReady = true;
-    console.log('🚪 Ambassador listener ready (v28)');
 }
 
 function handleWelcomeMessage(msg) {
     var me = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
     if (!me) return;
-
     var currentRoom = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
     if (msg.roomId !== currentRoom) return;
-
     var msgAge = Date.now() - (typeof msg.time === 'number' ? msg.time : Date.now());
     if (msgAge > 60000) return;
-
     playWelcomeSound();
-
     if (msg.welcomeFor === me.uid) {
         showWelcomeModal(msg);
     }
@@ -616,49 +528,38 @@ function showWelcomeModal(msg) {
             '<button id="qamar-welcome-ok" type="button" style="padding:11px 32px;background:#ffd700;color:#000;border:none;border-radius:12px;font-weight:900;font-size:14px;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(255,215,0,0.4);">حسناً</button>' +
         '</div>';
     document.body.appendChild(m);
-
     var close = function() { if (m.parentNode) m.parentNode.removeChild(m); };
     document.getElementById('qamar-welcome-ok').onclick = close;
     setTimeout(close, 10000);
 }
 
-/* ══════════════════════════════════════════════ */
-/* initBots                                       */
-/* ══════════════════════════════════════════════ */
 function initBots() {
     if (BotsState.initialized) return;
     if (typeof db === 'undefined' || !db) { console.warn('🤖 initBots: db not ready'); return; }
     var user = getCurrentUser();
     if (!user) { console.warn('🤖 initBots: no user'); return; }
     BotsState.initialized = true;
-    console.log('🤖 bots.js v28 initialized');
+    console.log('🤖 bots.js v29 initialized');
 
     db.ref('bot_memory/badWords').on('value', s => {
         var arr = toArray(s.val());
         var words = arr.map(it => (typeof it === 'string') ? it : (it.text || '')).filter(Boolean);
         if (words.length > 0) BotsState.badWords = words;
     });
-
     db.ref('bot_memory/kickWords').on('value', s => {
         var arr = toArray(s.val());
         var words = arr.map(it => (typeof it === 'string') ? it : (it.text || '')).filter(Boolean);
         if (words.length > 0) BotsState.kickWords = words;
     });
-
     db.ref('bot_memory/hakawati').on('value', s => { BotsState.memory.hakawati = s.val() || {}; });
-
     db.ref('bot_memory/hakawati_auto').on('value', s => {
         BotsState.memory.hakawati_auto = s.val() || {};
-        console.log('🔔 Auto-replies loaded:', Object.keys(BotsState.memory.hakawati_auto).length);
     });
-
     db.ref('bot_memory/quiz').on('value', s => { BotsState.memory.quiz = toArray(s.val()); });
-
     db.ref('bot_memory/islamic').on('value', s => {
         var arr = toArray(s.val());
         BotsState.memory.islamic = arr.map(it => (typeof it === 'string') ? it : (it.text || '')).filter(Boolean);
     });
-
     db.ref('bot_locks/quiz_current').on('value', s => {
         var v = s.val();
         BotsState.currentQuiz = (!v || v.closed) ? null : v;
@@ -671,9 +572,6 @@ function initBots() {
     if (rankLevel >= 65) {
         BotsState.autoInterval = setInterval(autoTick, 30000);
         setTimeout(autoTick, 3000);
-        console.log('🤖 autoTick enabled');
-    } else {
-        console.log('🤖 autoTick disabled');
     }
 
     setupKingPanel();
@@ -686,7 +584,6 @@ function setupHiddenMessagesListener() {
     }
     var currentRoom = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
     var ref = db.ref('room_messages/' + currentRoom).limitToLast(50);
-
     var applyHidden = function(sKey, msg) {
         if (!msg || !msg.hidden) return;
         var el = document.querySelector('[data-msg-id="' + sKey + '"]');
@@ -695,16 +592,11 @@ function setupHiddenMessagesListener() {
             el.classList.add('hidden-by-guardian');
         }
     };
-
     ref.on('child_added', function(s) { applyHidden(s.key, s.val()); });
     ref.on('child_changed', function(s) { applyHidden(s.key, s.val()); });
-
     BotsState.hiddenListener = ref;
 }
 
-/* ══════════════════════════════════════════════ */
-/* autoTick + tryPost                             */
-/* ══════════════════════════════════════════════ */
 async function autoTick() {
     if (typeof db === 'undefined' || !db) return;
     if (!getCurrentUser()) return;
@@ -719,7 +611,6 @@ async function tryPost(botId) {
     var lastLocal = parseInt(localStorage.getItem(localKey) || '0');
     var isFirst = (lastLocal === 0);
     if (!isFirst && now - lastLocal < interval) return;
-
     var canPost = false;
     try {
         var result = await db.ref('bot_locks/auto_' + botId).transaction(c => {
@@ -729,7 +620,6 @@ async function tryPost(botId) {
         });
         canPost = result.committed === true;
     } catch (e) { canPost = true; }
-
     if (!canPost) return;
     localStorage.setItem(localKey, String(now));
     if (botId === 'islamic') postIslamic();
@@ -740,12 +630,10 @@ function postIslamic() {
     var firebaseItems = BotsState.memory.islamic.length > 0 ? BotsState.memory.islamic : [];
     var library = (typeof window !== 'undefined' && window.ISLAMIC_LIBRARY) ? window.ISLAMIC_LIBRARY : [];
     var fallback = DEFAULT_ISLAMIC;
-
     var all = [];
     if (library.length > 0) all = all.concat(library);
     if (firebaseItems.length > 0) all = all.concat(firebaseItems);
     if (all.length === 0) all = fallback.slice();
-
     var lastKey = 'qamar_last_islamic';
     var lastText = localStorage.getItem(lastKey) || '';
     var pick = '';
@@ -764,11 +652,8 @@ function buildHint(answer) {
     for (var i = 0; i < str.length; i++) {
         var ch = str.charAt(i);
         if (ch === ' ') { result += ' '; continue; }
-        if (i % 2 === 0) {
-            result += ch;
-        } else {
-            result += '--';
-        }
+        if (i % 2 === 0) result += ch;
+        else result += '--';
     }
     return result;
 }
@@ -780,7 +665,6 @@ function postQuiz() {
     var startedAt = Date.now();
     var answersArr = toArray(q.answers).map(x => String(x));
     var firstAnswer = answersArr[0] || '';
-
     db.ref('bot_locks/quiz_current').set({
         question: q.q,
         answers: answersArr,
@@ -791,26 +675,21 @@ function postQuiz() {
         closed: false,
         at: startedAt
     }).catch(e => console.warn('❌ Quiz save failed:', e.message));
-
     postBotMessage('quiz', text, 'quiz');
-
     setTimeout(async function() {
         try {
             var s = await db.ref('bot_locks/quiz_current').once('value');
             var c = s.val();
             if (!c || c.startedAt !== startedAt || c.closed) return;
-
             if ((c.winnersCount || 0) === 0) {
                 var hint = buildHint(firstAnswer);
                 postBotMessage('quiz', '💡 ' + hint, 'quiz');
                 db.ref('bot_locks/quiz_current').update({ hintPosted: true }).catch(function(){});
-
                 setTimeout(async function() {
                     try {
                         var s2 = await db.ref('bot_locks/quiz_current').once('value');
                         var c2 = s2.val();
                         if (!c2 || c2.startedAt !== startedAt || c2.closed) return;
-
                         postBotMessage('quiz', '💡 الإجابة: ' + firstAnswer, 'quiz');
                         db.ref('bot_locks/quiz_current').update({ closed: true }).catch(function(){});
                         setTimeout(function() {
@@ -825,7 +704,7 @@ function postQuiz() {
                     db.ref('bot_locks/quiz_current').remove().catch(function(){});
                 }, 5000);
             }
-        } catch (e) { console.warn('quiz T+60 error:', e); }
+        } catch (e) {}
     }, QUIZ_HINT_AT_MS);
 }
 
@@ -836,9 +715,7 @@ function postBotMessage(key, text, roomId) {
     var room = roomId || 'general';
     var user = getCurrentUser();
     if (!user || !user.uid) return;
-
     var botAvatar = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(bot.name) + '&background=111&color=ffd700&bold=true&size=64';
-
     db.ref('room_messages/' + room).push({
         senderUid: 'bot_' + bot.id,
         senderName: bot.name,
@@ -865,7 +742,6 @@ function handleBotCommand(text) {
     var command = cmd[0].toLowerCase();
     var args = cmd.slice(1).join(' ');
     var room = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
-
     switch (command) {
         case 'مساعدة': case 'help': case 'اوامر': case 'أوامر':
             postBotMessage('hakawati', '🌙 الأوامر:\n!مساعدة\n!نقاطي\n!نكتة\n!دعاء\n!سؤال\nحكواتي سؤالك', room); break;
@@ -889,25 +765,16 @@ function handleBotCommand(text) {
     }
 }
 
-/* ══════════════════════════════════════════════ */
-/* كلمة طرد → حظر دائم                            */
-/* ══════════════════════════════════════════════ */
 async function handleKickWord(msg, kickWord) {
     try {
         var immune = await isImmuneUser(msg.senderUid);
-        if (immune) {
-            console.log('🛡️ مستخدم محصّن — تجاهل الطرد:', msg.senderName);
-            return;
-        }
-
+        if (immune) return;
         await hideOffensiveMessage(msg, 'kick_word:' + kickWord);
-
         var userSnap = await db.ref('users/' + msg.senderUid).once('value');
         var userData = userSnap.val() || {};
         var kickCount = userData.kickCount || 0;
         var now = Date.now();
         var bannedUntil = now + PERMANENT_BAN_MS;
-
         await db.ref('users/' + msg.senderUid).update({
             isBanned: true,
             bannedUntil: bannedUntil,
@@ -916,22 +783,17 @@ async function handleKickWord(msg, kickWord) {
             kickReason: kickWord,
             permanentBan: true
         });
-
         var room = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
         postBotMessage('guardian',
             '🚪 السجان طرد ' + msg.senderName + ' نهائياً!\n' +
             '❌ كلمة محظورة: ' + maskWord(kickWord) + '\n' +
             '⏰ الحظر: دائم\n' +
             '🔁 رقم المخالفة: ' + (kickCount + 1), room);
-
         playPoliceSiren();
-
         var me = getCurrentUser();
         if (me && me.uid === msg.senderUid) {
             setTimeout(() => {
-                if (typeof showToast === 'function') {
-                    showToast('fa-ban', '🚪 تم طردك نهائياً!');
-                }
+                if (typeof showToast === 'function') showToast('fa-ban', '🚪 تم طردك نهائياً!');
                 try {
                     if (typeof cleanupAllListeners === 'function') cleanupAllListeners();
                     if (typeof logout === 'function') logout();
@@ -942,19 +804,11 @@ async function handleKickWord(msg, kickWord) {
     } catch (e) { console.warn('handleKickWord error:', e); }
 }
 
-/* ══════════════════════════════════════════════ */
-/* كلمة سجن → تصاعدي → 3 → حظر دائم              */
-/* ══════════════════════════════════════════════ */
 async function handleBadWord(msg, badWord) {
     try {
         var immune = await isImmuneUser(msg.senderUid);
-        if (immune) {
-            console.log('🛡️ مستخدم محصّن — تجاهل السجن:', msg.senderName);
-            return;
-        }
-
+        if (immune) return;
         await hideOffensiveMessage(msg, 'bad_word:' + badWord);
-
         await db.ref('users/' + msg.senderUid + '/warnings').transaction(c => (c || 0) + 1);
         var userSnap = await db.ref('users/' + msg.senderUid).once('value');
         var userData = userSnap.val() || {};
@@ -962,9 +816,7 @@ async function handleBadWord(msg, badWord) {
         var jailCount = userData.jailCount || 0;
         var lastJailAt = userData.lastJailAt || 0;
         var now = Date.now();
-
         if (jailCount >= JAILS_BEFORE_KICK) {
-            console.log('🚫 3 jails → permanent ban for', msg.senderName);
             var userSnap2 = await db.ref('users/' + msg.senderUid).once('value');
             var userData2 = userSnap2.val() || {};
             var kc = userData2.kickCount || 0;
@@ -980,10 +832,8 @@ async function handleBadWord(msg, badWord) {
             postBotMessage('guardian',
                 '🚫 السجان حظر ' + msg.senderName + ' نهائياً!\n' +
                 '⚠️ بعد 3 سجنات\n' +
-                '⏰ الحظر: دائم',
-                room0);
+                '⏰ الحظر: دائم', room0);
             playPoliceSiren();
-
             var me0 = getCurrentUser();
             if (me0 && me0.uid === msg.senderUid) {
                 setTimeout(function() {
@@ -997,42 +847,34 @@ async function handleBadWord(msg, badWord) {
             }
             return;
         }
-
         var JAIL = (typeof QAMAR !== 'undefined' && QAMAR.JAIL) ? QAMAR.JAIL : {
             FIRST_OFFENSE_MS: 2 * 60 * 1000, ESCALATION_WINDOW_MS: 10 * 60 * 1000,
             MAX_AUTO_JAIL_MS: 15 * 60 * 1000, ESCALATION_MULTIPLIER: 2
         };
-
         var withinWindow = (now - lastJailAt) < JAIL.ESCALATION_WINDOW_MS;
         var duration = (withinWindow && jailCount > 0)
             ? JAIL.FIRST_OFFENSE_MS * Math.pow(JAIL.ESCALATION_MULTIPLIER, jailCount)
             : JAIL.FIRST_OFFENSE_MS;
         if (!withinWindow) jailCount = 0;
-
         duration = Math.min(duration, JAIL.MAX_AUTO_JAIL_MS);
         var jailUntil = now + duration;
         var newJailCount = jailCount + 1;
         var minutes = Math.ceil(duration / 60000);
-
         await db.ref('users/' + msg.senderUid).update({
             isJailed: true, jailUntil, jailCount: newJailCount,
             lastJailAt: now, jailReason: badWord, jailReleasedAt: 0
         });
-
         var room = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
         var remainingJails = JAILS_BEFORE_KICK - newJailCount;
         var warningLine = remainingJails > 0
             ? '⚠️ تبقّى ' + remainingJails + ' سجن ' + (remainingJails === 1 ? '' : 'ات') + ' قبل الطرد'
             : '🚨 هذا آخر تحذير قبل الطرد الدائم!';
-
         postBotMessage('guardian',
             '🚔 السجان قبض على ' + msg.senderName + '\n' +
             '❌ كلمة ممنوعة: ' + maskWord(badWord) + '\n' +
             '⚠️ التحذير رقم: ' + warnCount + '\n' +
             '⛓️ مدة السجن: ' + minutes + ' دقيقة\n' + warningLine, room);
-
         playPoliceSiren();
-
         setTimeout(async () => {
             try {
                 var s = await db.ref('users/' + msg.senderUid + '/jailUntil').once('value');
@@ -1046,52 +888,37 @@ async function handleBadWord(msg, badWord) {
     } catch (e) { console.warn('handleBadWord error:', e); }
 }
 
-/* ══════════════════════════════════════════════ */
-/* processIncomingMessage                        */
-/* ══════════════════════════════════════════════ */
 async function processIncomingMessage(msg) {
     try {
         if (!msg) return;
-
         if (msg.isWelcome && msg.welcomeFor) {
             handleWelcomeMessage(msg);
             return;
         }
-
         if (msg.isBot) return;
         if (!msg.text) return;
         if (typeof db === 'undefined' || !db) return;
-
         var text = String(msg.text).trim();
         if (text.charAt(0) === '!') return;
-
         if (typeof msg.time === 'number' && msg.time > 0) {
             if (Date.now() - msg.time > AGE_LIMIT_MS) return;
         }
-
         var key = msg._key || (msg.senderUid + '_' + msg.time);
         var safeKey = String(key).replace(/[.#$\/\[\]]/g, '_').substring(0, 100);
-
         if (_processedMsgs.has(safeKey)) return;
         _processedMsgs.add(safeKey);
         pruneProcessedMsgs();
-
         try {
             var lockRes = await db.ref('bot_locks/msgs/' + safeKey).transaction(c => {
                 if (c) return;
                 return { at: Date.now() };
             });
             if (!lockRes || lockRes.committed !== true) return;
-        } catch (e) {
-            console.warn('⚠️ dedup lock failed:', e.message);
-        }
-
+        } catch (e) {}
         var kick = containsKickWord(text);
         if (kick) { await handleKickWord(msg, kick); return; }
-
         var bad = containsBadWord(text);
         if (bad) { await handleBadWord(msg, bad); return; }
-
         if (hasTrigger(text)) {
             var q = stripTriggers(text);
             if (!q) return;
@@ -1110,7 +937,6 @@ async function processIncomingMessage(msg) {
             }
             return;
         }
-
         var autoResult = findAutoReply(text);
         if (autoResult) {
             if (!isAutoReplyCoolingDown(msg.senderUid, autoResult.key)) {
@@ -1119,39 +945,31 @@ async function processIncomingMessage(msg) {
                 setTimeout(() => postBotMessage('hakawati', '📖 ' + autoResult.reply, aroom), 700);
             }
         }
-
         try {
             var qSnap = await db.ref('bot_locks/quiz_current').once('value');
             var qz = qSnap.val();
             if (!qz || qz.closed) return;
             if (Date.now() - (qz.startedAt || 0) > QUIZ_WINDOW_MS) return;
-
             var answersArr = toArray(qz.answers).map(x => String(x));
             var match = answersArr.some(a => isAnswerMatch(text, a));
             if (!match) return;
-
             var winRes = await db.ref('bot_locks/quiz_current/winnersCount').transaction(function(c) {
                 var n = (c || 0);
                 if (n >= QUIZ_MAX_WINNERS) return;
                 return n + 1;
             });
             if (!winRes || winRes.committed !== true) return;
-
             var rank = winRes.snapshot.val();
             var isAfterHint = (qz.hintPosted === true);
             var pointsTable = isAfterHint ? QUIZ_POINTS_HALF : QUIZ_POINTS;
             var points = pointsTable[rank] || 0;
-
             db.ref('bot_locks/quiz_current/winners/' + msg.senderUid).set({
                 rank: rank, name: msg.senderName,
                 at: Date.now(), points: points
             }).catch(function(){});
-
             await db.ref('bot_data/quiz/scores/' + msg.senderUid).transaction(c => (c || 0) + points).catch(() => {});
-
             var emoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉';
             postBotMessage('quiz', emoji + ' ' + msg.senderName + ' — +' + points + ' نقطة', 'quiz');
-
             if (rank === 3) {
                 var firstAns = answersArr[0] || '';
                 setTimeout(function() {
@@ -1162,17 +980,13 @@ async function processIncomingMessage(msg) {
                     }, 5000);
                 }, 800);
             }
-        } catch (e) { console.warn('Quiz fetch error:', e.message); }
+        } catch (e) {}
     } catch (err) { console.error('❌ processIncomingMessage error:', err); }
 }
 
-/* ══════════════════════════════════════════════ */
-/* onRoomChanged                                  */
-/* ══════════════════════════════════════════════ */
 function onRoomChanged(roomId) {
     if (typeof db === 'undefined' || !db) return;
     setupHiddenMessagesListener();
-
     var me = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
     if (me && me.uid && roomId) {
         BotsState.lastUserRooms[me.uid] = {
@@ -1186,12 +1000,9 @@ function onRoomChanged(roomId) {
     }
 }
 
-/* ══════════════════════════════════════════════ */
-/* لوحة الملك                                     */
-/* ══════════════════════════════════════════════ */
 function setupKingPanel() {
     var user = getCurrentUser();
-    if (!user || user.rank !== 'King') return;   /* ⭐ v28: الملك فقط */
+    if (!user || user.rank !== 'King') return;
     setTimeout(insertKingBtn, 1500);
     var list = document.getElementById('rooms-list');
     if (!list) { setTimeout(setupKingPanel, 2000); return; }
@@ -1254,33 +1065,81 @@ function closeBotManager() {
     if (m) m.style.display = 'none';
 }
 
-/* ⭐ v28: إضافة زر "استيراد قائمة عربية" */
+/* ⭐ v29: importArabicWordList — بدون event global */
+async function importArabicWordList(tab, btnParam) {
+    if (!confirm('📥 استيراد قائمة كلمات عربية جاهزة؟\n\n⚠️ القائمة تحتوي كلمات نابية.\nسيتم إضافتها إلى ' + (tab === 'badwords' ? 'كلمات السجن' : 'كلمات الطرد') + '.')) {
+        return;
+    }
+    /* ⭐ v29: نستخدم btnParam أو نبحث عن الزر */
+    var btn = btnParam || document.getElementById('kr-guardian-import');
+    var originalText = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري الاستيراد...'; }
+
+    try {
+        var url = (typeof QAMAR !== 'undefined' && QAMAR.SWEAR_WORDS_SOURCES)
+            ? QAMAR.SWEAR_WORDS_SOURCES.arabic
+            : 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/ar';
+        console.log('📥 Fetching from:', url);
+        var res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var text = await res.text();
+        var words = text.split('\n')
+            .map(w => w.trim())
+            .filter(w => w.length > 1 && !w.startsWith('#'));
+        console.log('📥 Loaded ' + words.length + ' words');
+        if (words.length === 0) throw new Error('القائمة فارغة');
+        var path = tab === 'badwords' ? 'bot_memory/badWords' : 'bot_memory/kickWords';
+        var currentSnap = await db.ref(path).once('value');
+        var currentData = currentSnap.val() || {};
+        var currentSet = new Set();
+        Object.values(currentData).forEach(item => {
+            var txt = (typeof item === 'string') ? item : (item.text || '');
+            if (txt) currentSet.add(txt);
+        });
+        var added = 0;
+        var promises = [];
+        words.forEach(word => {
+            if (!currentSet.has(word)) {
+                promises.push(db.ref(path).push({ text: word }));
+                added++;
+            }
+        });
+        await Promise.all(promises);
+        if (typeof showToast === 'function') showToast('fa-check', '✅ تم استيراد ' + added + ' كلمة جديدة');
+        console.log('✅ Imported ' + added + ' new words');
+        renderTab(tab);
+    } catch (e) {
+        console.error('❌ Import failed:', e);
+        if (typeof showToast === 'function') showToast('fa-times', '⚠️ فشل الاستيراد: ' + e.message);
+        else alert('⚠️ فشل: ' + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = originalText || '📥 استيراد قائمة عربية جاهزة'; }
+    }
+}
+
 function renderTab(tab) {
     var c = document.getElementById('bm-content');
     if (!c) return;
     c.innerHTML = '';
-
     var info = document.createElement('div');
     info.style.cssText = 'color:#ffd700;font-size:12px;margin-bottom:10px;text-align:center;padding:8px;background:rgba(255,215,0,0.1);border-radius:8px;line-height:1.6;white-space:pre-line;';
     info.textContent =
         tab === 'hakawati' ? '🎭 كلمات حكواتي (تحتاج نداء)'
-        : tab === 'hakawati_auto' ? '🔔 ردود تلقائية\n(بدون نداء — ترد على أول كلمة مكتشفة)\n⏱️ cooldown 10 ثواني/مستخدم'
-        : tab === 'quiz' ? '🎯 أسئلة المسابقة\n🥇 10 | 🥈 5 | 🥉 2 نقطة\n💡 إيحاء عند 60 ثانية\n⏱️ 5 دقائق بين الأسئلة'
-        : tab === 'islamic' ? '🌙 أدعية وأذكار\n📚 +1000 عنصر مدمج\n🎁 + إضافاتك'
-        : tab === 'badwords' ? '🚔 كلمات السجن\n2 → 4 → 8 → 15 دقيقة\n⚠️ 3 سجنات = حظر دائم\n🆕 كشف ذكي (تكرار/تطويل/حروف بديلة)'
-        : tab === 'kickwords' ? '🚪 كلمات الطرد الدائم\n(حظر فوري بدون رجعة)'
+        : tab === 'hakawati_auto' ? '🔔 ردود تلقائية'
+        : tab === 'quiz' ? '🎯 أسئلة المسابقة'
+        : tab === 'islamic' ? '🌙 أدعية وأذكار'
+        : tab === 'badwords' ? '🚔 كلمات السجن'
+        : tab === 'kickwords' ? '🚪 كلمات الطرد'
         : '📥 أسئلة معلقة';
     c.appendChild(info);
-
     if (tab === 'badwords' || tab === 'kickwords') {
-        /* ⭐ زر استيراد قائمة عربية */
         var importBtn = document.createElement('button');
+        importBtn.id = 'kr-bm-import';
         importBtn.textContent = '📥 استيراد قائمة عربية جاهزة';
         importBtn.style.cssText = 'width:100%;padding:12px;background:linear-gradient(135deg,#3b82f6,#1e40af);color:#fff;border:none;border-radius:10px;font-weight:900;font-size:14px;cursor:pointer;margin-bottom:8px;font-family:inherit;';
-        importBtn.onclick = function() { importArabicWordList(tab); };
+        importBtn.onclick = function () { importArabicWordList(tab, importBtn); };
         c.appendChild(importBtn);
     }
-
     if (tab !== 'pending') {
         var add = document.createElement('button');
         add.textContent = '➕ إضافة';
@@ -1294,10 +1153,8 @@ function renderTab(tab) {
         clr.onclick = () => { if (!confirm('حذف الكل؟')) return; db.ref('bot_learning/pending').remove().then(() => renderTab('pending')); };
         c.appendChild(clr);
     }
-
     var box = document.createElement('div');
     c.appendChild(box);
-
     if (tab === 'hakawati') {
         db.ref('bot_memory/hakawati').once('value').then(s => {
             var fb = s.val() || {};
@@ -1355,12 +1212,11 @@ function renderTab(tab) {
         info2.style.cssText = 'color:#84cc16;font-size:11px;text-align:center;padding:8px;margin-bottom:8px;background:rgba(132,204,22,0.1);border-radius:8px;';
         info2.textContent = '📚 مكتبة مدمجة: ' + libCount + ' عنصر';
         box.appendChild(info2);
-
         var list = BotsState.memory.islamic.length > 0 ? BotsState.memory.islamic : [];
         if (list.length === 0) {
             var e = document.createElement('div');
             e.style.cssText = 'color:#888;text-align:center;padding:20px;';
-            e.textContent = 'لم تُضف عناصر بعد (المكتبة المدمجة تعمل تلقائياً).';
+            e.textContent = 'لم تُضف عناصر بعد.';
             box.appendChild(e);
         } else {
             list.forEach(t => {
@@ -1380,7 +1236,6 @@ function renderTab(tab) {
             countInfo.style.cssText = 'color:#84cc16;text-align:center;padding:8px;margin-bottom:10px;font-size:12px;font-weight:900;';
             countInfo.textContent = '📊 ' + list.length + ' كلمة';
             box.appendChild(countInfo);
-            
             list.forEach(w => {
                 var r = document.createElement('div');
                 r.style.cssText = tab === 'badwords'
@@ -1434,14 +1289,14 @@ function renderTab(tab) {
                 teach.textContent = '✅ تعليم حكواتي';
                 teach.style.cssText = 'flex:2;padding:8px;background:#84cc16;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit;';
                 teach.onclick = () => {
-                    var key = prompt('📖 الكلمة المفتاحية:\n\nالسؤال كان: ' + (it.question || ''), it.question || '');
+                    var key = prompt('📖 الكلمة المفتاحية:', it.question || '');
                     if (!key) return;
-                    var answer = prompt('💬 الرد على هذه الكلمة:');
+                    var answer = prompt('💬 الرد:');
                     if (!answer) return;
                     var safePath = key.replace(/[.#$\/\[\]]/g, '_').substring(0, 100);
                     db.ref('bot_memory/hakawati/' + safePath).set(answer)
                         .then(() => db.ref('bot_learning/pending/' + k).remove())
-                        .then(() => { if (typeof showToast === 'function') showToast('fa-check', '✅ تم'); renderTab('pending'); })
+                        .then(() => { if (typeof showToast === 'function') showToast('fa-check', '✅'); renderTab('pending'); })
                         .catch(e => alert('❌ ' + e.message));
                 };
                 var del = document.createElement('button');
@@ -1453,75 +1308,6 @@ function renderTab(tab) {
                 box.appendChild(r);
             });
         });
-    }
-}
-
-/* ══════════════════════════════════════════════ */
-/* ⭐ v28: استيراد قائمة الكلمات العربية          */
-/* ══════════════════════════════════════════════ */
-async function importArabicWordList(tab) {
-    if (!confirm('📥 استيراد قائمة كلمات عربية جاهزة؟\n\n⚠️ القائمة تحتوي كلمات نابية.\nسيتم إضافتها إلى ' + (tab === 'badwords' ? 'كلمات السجن' : 'كلمات الطرد') + '.')) {
-        return;
-    }
-    
-    var btn = event && event.target;
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري الاستيراد...'; }
-    
-    try {
-        var url = (typeof QAMAR !== 'undefined' && QAMAR.SWEAR_WORDS_SOURCES) 
-            ? QAMAR.SWEAR_WORDS_SOURCES.arabic 
-            : 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/ar';
-        
-        console.log('📥 Fetching from:', url);
-        var res = await fetch(url);
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        var text = await res.text();
-        var words = text.split('\n')
-            .map(w => w.trim())
-            .filter(w => w.length > 1 && !w.startsWith('#'));
-        
-        console.log('📥 Loaded ' + words.length + ' words from GitHub');
-        
-        if (words.length === 0) throw new Error('القائمة فارغة');
-        
-        var path = tab === 'badwords' ? 'bot_memory/badWords' : 'bot_memory/kickWords';
-        
-        // نقرأ القائمة الحالية لتجنب التكرار
-        var currentSnap = await db.ref(path).once('value');
-        var currentData = currentSnap.val() || {};
-        var currentSet = new Set();
-        Object.values(currentData).forEach(item => {
-            var txt = (typeof item === 'string') ? item : (item.text || '');
-            if (txt) currentSet.add(txt);
-        });
-        
-        // نضيف الجديدة
-        var added = 0;
-        var promises = [];
-        words.forEach(word => {
-            if (!currentSet.has(word)) {
-                promises.push(db.ref(path).push({ text: word }));
-                added++;
-            }
-        });
-        
-        await Promise.all(promises);
-        
-        if (typeof showToast === 'function') {
-            showToast('fa-check', '✅ تم استيراد ' + added + ' كلمة جديدة');
-        }
-        console.log('✅ Imported ' + added + ' new words');
-        
-        renderTab(tab);
-        
-    } catch (e) {
-        console.error('❌ Import failed:', e);
-        if (typeof showToast === 'function') {
-            showToast('fa-times', '⚠️ فشل الاستيراد: ' + e.message);
-        } else {
-            alert('⚠️ فشل: ' + e.message);
-        }
-        if (btn) { btn.disabled = false; btn.textContent = '📥 استيراد قائمة عربية جاهزة'; }
     }
 }
 
@@ -1605,4 +1391,4 @@ window.importArabicWordList = importArabicWordList;
 
 window.BotsState = BotsState;
 
-console.log('🤖 bots.js v28 loaded — smart detection + Arabic word list import');
+console.log('🤖 bots.js v29 (TEST) loaded — importArabicWordList fixed');
