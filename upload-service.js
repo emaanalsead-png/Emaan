@@ -1,88 +1,109 @@
 // ==============================================
-// upload-service.js v2 — رفع موحّد مع بدائل
-// ==============================================
-// ✅ v2 (فوق v1):
-//   1. catbox → 0x0.st → uguu.se (fallback chain)
-//   2. litterbox → 0x0.st → uguu.se
-//   3. تشخيص واضح لكل خدمة
-//   4. صور: imgbb → 0x0.st (fallback)
+// upload-service.js v3 — بدائل للفيديو
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__uploadServiceV2) return;
-    window.__uploadServiceV2 = true;
+    if (window.__uploadServiceV3) return;
+    window.__uploadServiceV3 = true;
 
     var IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
 
-    /* ════════ 0x0.st — موثوق (512MB, 30 يوم) ════════ */
+    /* ════════ tmpfiles.org — 100MB، مؤقت ════════ */
+    async function uploadTmpfiles(file) {
+        var fd = new FormData();
+        fd.append('file', file);
+        var res = await fetch('https://tmpfiles.org/api/v1/upload', {
+            method: 'POST',
+            body: fd
+        });
+        if (!res.ok) throw new Error('tmpfiles HTTP ' + res.status);
+        var data = await res.json();
+        if (!data || !data.data || !data.data.url) {
+            throw new Error('tmpfiles: bad response');
+        }
+        // https://tmpfiles.org/12345/file.mp4 → https://tmpfiles.org/dl/12345/file.mp4
+        var directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+        return directUrl;
+    }
+
+    /* ════════ gofile.io — غير محدود ════════ */
+    async function uploadGofile(file) {
+        var fd = new FormData();
+        fd.append('file', file);
+        var res = await fetch('https://upload.gofile.io/uploadfile', {
+            method: 'POST',
+            body: fd
+        });
+        if (!res.ok) throw new Error('gofile HTTP ' + res.status);
+        var data = await res.json();
+        if (!data || data.status !== 'ok' || !data.data || !data.data.downloadPage) {
+            throw new Error('gofile: bad response');
+        }
+        return data.data.downloadPage;
+    }
+
+    /* ════════ bashupload.com — بسيط ════════ */
+    async function uploadBashupload(file) {
+        var fd = new FormData();
+        fd.append('file', file);
+        var res = await fetch('https://bashupload.com/', {
+            method: 'POST',
+            body: fd
+        });
+        if (!res.ok) throw new Error('bashupload HTTP ' + res.status);
+        var text = (await res.text()).trim();
+        var match = text.match(/https:\/\/bashupload\.com\/[^\s]+/);
+        if (!match) throw new Error('bashupload: no url');
+        return match[0].replace('bashupload.com', 'bashupload.com/dl');
+    }
+
+    /* ════════ 0x0.st ════════ */
     async function upload0x0(file) {
         var fd = new FormData();
         fd.append('file', file);
-        var res = await fetch('https://0x0.st', {
-            method: 'POST',
-            body: fd
-        });
+        var res = await fetch('https://0x0.st', { method: 'POST', body: fd });
         if (!res.ok) throw new Error('0x0 HTTP ' + res.status);
         var text = (await res.text()).trim();
-        if (!text || text.indexOf('https://') !== 0) {
-            throw new Error('0x0: ' + text.substring(0, 100));
-        }
+        if (!text || text.indexOf('https://') !== 0) throw new Error('0x0: ' + text.substring(0, 50));
         return text;
     }
 
-    /* ════════ uguu.se — بديل سريع (128MB, 3h) ════════ */
+    /* ════════ uguu.se ════════ */
     async function uploadUguu(file) {
         var fd = new FormData();
         fd.append('files[]', file);
-        var res = await fetch('https://uguu.se/upload?output=text', {
-            method: 'POST',
-            body: fd
-        });
+        var res = await fetch('https://uguu.se/upload?output=text', { method: 'POST', body: fd });
         if (!res.ok) throw new Error('uguu HTTP ' + res.status);
         var text = (await res.text()).trim();
-        if (!text || text.indexOf('https://') !== 0) {
-            throw new Error('uguu: ' + text.substring(0, 100));
-        }
+        if (!text || text.indexOf('https://') !== 0) throw new Error('uguu: bad');
         return text;
     }
 
-    /* ════════ catbox.moe — دائم (200MB) ════════ */
+    /* ════════ catbox.moe ════════ */
     async function uploadCatbox(file) {
         var fd = new FormData();
         fd.append('reqtype', 'fileupload');
         fd.append('fileToUpload', file);
-        var res = await fetch('https://catbox.moe/user/api.php', {
-            method: 'POST',
-            body: fd
-        });
+        var res = await fetch('https://catbox.moe/user/api.php', { method: 'POST', body: fd });
         if (!res.ok) throw new Error('catbox HTTP ' + res.status);
         var text = (await res.text()).trim();
-        if (!text || text.indexOf('https://') !== 0) {
-            throw new Error('catbox: ' + text.substring(0, 100));
-        }
+        if (!text || text.indexOf('https://') !== 0) throw new Error('catbox: bad');
         return text;
     }
 
-    /* ════════ litterbox — مؤقت (1GB, 24h) ════════ */
+    /* ════════ litterbox ════════ */
     async function uploadLitterbox(file, hours) {
         hours = hours || 24;
-        var time = hours <= 1 ? '1h' :
-                   hours <= 12 ? '12h' :
-                   hours <= 24 ? '24h' : '72h';
+        var time = hours <= 12 ? '12h' : (hours <= 24 ? '24h' : '72h');
         var fd = new FormData();
         fd.append('reqtype', 'fileupload');
         fd.append('time', time);
         fd.append('fileToUpload', file);
-        var res = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
-            method: 'POST',
-            body: fd
-        });
+        var res = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', { method: 'POST', body: fd });
         if (!res.ok) throw new Error('litterbox HTTP ' + res.status);
         var text = (await res.text()).trim();
-        if (!text || text.indexOf('https://') !== 0) {
-            throw new Error('litterbox: ' + text.substring(0, 100));
-        }
+        if (!text || text.indexOf('https://') !== 0) throw new Error('litterbox: bad');
         return text;
     }
 
@@ -91,10 +112,7 @@
         var fd = new FormData();
         fd.append('key', IMGBB_KEY);
         fd.append('image', file);
-        var res = await fetch('https://api.imgbb.com/1/upload', {
-            method: 'POST',
-            body: fd
-        });
+        var res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
         var data = await res.json();
         if (!data.success || !data.data || !data.data.url) {
             throw new Error('imgbb: ' + (data.error && data.error.message || 'unknown'));
@@ -114,57 +132,46 @@
                     try {
                         var canvas = document.createElement('canvas');
                         var w = img.width, h = img.height;
-                        if (w > h) {
-                            if (w > maxSize) { h = h * maxSize / w; w = maxSize; }
-                        } else {
-                            if (h > maxSize) { w = w * maxSize / h; h = maxSize; }
-                        }
-                        canvas.width = w;
-                        canvas.height = h;
+                        if (w > h) { if (w > maxSize) { h = h * maxSize / w; w = maxSize; } }
+                        else { if (h > maxSize) { w = w * maxSize / h; h = maxSize; } }
+                        canvas.width = w; canvas.height = h;
                         var ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, w, h);
                         canvas.toBlob(function (blob) {
                             if (!blob) { reject(new Error('convert failed')); return; }
                             var newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
-                            var newFile = new File([blob], newName, { type: 'image/jpeg' });
-                            resolve(newFile);
+                            resolve(new File([blob], newName, { type: 'image/jpeg' }));
                         }, 'image/jpeg', quality);
                     } catch (err) { reject(err); }
                 };
                 img.onerror = function () { reject(new Error('image load failed')); };
                 img.src = e.target.result;
             };
-            reader.onerror = function () { reject(new Error('file read failed')); };
+            reader.onerror = function () { reject(new Error('read failed')); };
             reader.readAsDataURL(file);
         });
     }
 
     function needsConversion(file) {
         if (!file || !file.type) return false;
-        var needConvert = [
-            'image/heic', 'image/heif', 'image/avif',
-            'image/tiff', 'image/bmp'
-        ];
-        return needConvert.indexOf(file.type) !== -1;
+        return ['image/heic','image/heif','image/avif','image/tiff','image/bmp'].indexOf(file.type) !== -1;
     }
 
     /* ════════ سلسلة fallback ════════ */
     async function tryChain(attempts) {
         var errors = [];
         for (var i = 0; i < attempts.length; i++) {
-            var name = attempts[i].name;
-            var fn = attempts[i].fn;
             try {
-                console.log('📤 Trying: ' + name + '...');
-                var url = await fn();
-                console.log('✅ Success: ' + name + ' →', url);
-                return { url: url, service: name };
+                console.log('📤 Trying: ' + attempts[i].name + '...');
+                var url = await attempts[i].fn();
+                console.log('✅ Success: ' + attempts[i].name + ' →', url);
+                return { url: url, service: attempts[i].name };
             } catch (e) {
-                console.warn('❌ Failed: ' + name + ' →', e.message);
-                errors.push(name + ': ' + e.message);
+                console.warn('❌ Failed: ' + attempts[i].name + ' →', e.message);
+                errors.push(attempts[i].name + ': ' + e.message);
             }
         }
-        throw new Error('كل الخدمات فشلت:\n' + errors.join('\n'));
+        throw new Error(errors.join(' | '));
     }
 
     /* ════════ الرفع الموحّد ════════ */
@@ -177,58 +184,58 @@
         var isAudio = type.indexOf('audio/') === 0;
         var isImage = type.indexOf('image/') === 0;
 
-        /* ─── صور ─── */
+        // صور → imgbb
         if (isImage) {
             var imgFile = file;
             if (needsConversion(file)) {
-                try {
-                    imgFile = await convertImageToJpg(file, 1920, 0.88);
-                } catch (e) {
-                    console.warn('⚠️ conversion failed:', e);
-                }
+                try { imgFile = await convertImageToJpg(file, 1920, 0.88); } catch (e) {}
             }
-            // imgbb → 0x0
             return (await tryChain([
-                { name: 'imgbb', fn: function() { return uploadImgbb(imgFile); } },
-                { name: '0x0.st', fn: function() { return upload0x0(imgFile); } }
+                { name: 'imgbb',  fn: function() { return uploadImgbb(imgFile); } },
+                { name: 'tmpfiles', fn: function() { return uploadTmpfiles(imgFile); } }
             ])).url;
         }
 
-        /* ─── فيديو ─── */
+        // فيديو → tmpfiles → gofile → bashupload → 0x0 → uguu → catbox → litterbox
         if (isVideo) {
-            // ترتيب: 0x0 (30 يوم) → uguu (3h) → catbox → litterbox
             return (await tryChain([
-                { name: '0x0.st',  fn: function() { return upload0x0(file); } },
-                { name: 'uguu.se', fn: function() { return uploadUguu(file); } },
-                { name: 'catbox',  fn: function() { return uploadCatbox(file); } },
-                { name: 'litterbox', fn: function() { return uploadLitterbox(file, options.hours || 24); } }
+                { name: 'tmpfiles',   fn: function() { return uploadTmpfiles(file); } },
+                { name: 'gofile',     fn: function() { return uploadGofile(file); } },
+                { name: 'bashupload', fn: function() { return uploadBashupload(file); } },
+                { name: '0x0.st',     fn: function() { return upload0x0(file); } },
+                { name: 'uguu.se',    fn: function() { return uploadUguu(file); } },
+                { name: 'catbox',     fn: function() { return uploadCatbox(file); } },
+                { name: 'litterbox',  fn: function() { return uploadLitterbox(file, 24); } }
             ])).url;
         }
 
-        /* ─── صوت ─── */
+        // صوت → tmpfiles → gofile → bashupload → 0x0 → catbox → uguu
         if (isAudio) {
             return (await tryChain([
-                { name: '0x0.st',  fn: function() { return upload0x0(file); } },
-                { name: 'catbox',  fn: function() { return uploadCatbox(file); } },
-                { name: 'uguu.se', fn: function() { return uploadUguu(file); } }
+                { name: 'tmpfiles',   fn: function() { return uploadTmpfiles(file); } },
+                { name: 'gofile',     fn: function() { return uploadGofile(file); } },
+                { name: 'bashupload', fn: function() { return uploadBashupload(file); } },
+                { name: '0x0.st',     fn: function() { return upload0x0(file); } },
+                { name: 'catbox',     fn: function() { return uploadCatbox(file); } },
+                { name: 'uguu.se',    fn: function() { return uploadUguu(file); } }
             ])).url;
         }
 
         throw new Error('نوع غير مدعوم: ' + type);
     }
 
-    /* ════════ التصدير ════════ */
     window.UploadService = {
         upload: upload,
+        uploadTmpfiles: uploadTmpfiles,
+        uploadGofile: uploadGofile,
+        uploadBashupload: uploadBashupload,
         upload0x0: upload0x0,
         uploadUguu: uploadUguu,
         uploadCatbox: uploadCatbox,
         uploadLitterbox: uploadLitterbox,
         uploadImgbb: uploadImgbb,
-        convertImageToJpg: convertImageToJpg,
-        needsConversion: needsConversion,
-        version: 2
+        version: 3
     };
 
-    console.log('📤 upload-service.js v2 loaded — 0x0.st + uguu.se + catbox + imgbb');
+    console.log('📤 upload-service.js v3 loaded — tmpfiles + gofile + bashupload');
 })();
