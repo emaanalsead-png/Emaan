@@ -2,13 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
 <script>
-// 🗑️ SW Killer — يُلغي أي Service Worker قديم
+// 🗑️ SW Killer
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(regs) {
-        regs.forEach(function(r) {
-            r.unregister();
-            console.log('🗑️ Unregistered SW:', r.scope);
-        });
+        regs.forEach(function(r) { r.unregister(); });
     });
     if (window.caches && caches.keys) {
         caches.keys().then(function(keys) {
@@ -41,13 +38,13 @@ if ('serviceWorker' in navigator) {
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="styles.css?v=66">
-<link rel="stylesheet" href="frames-engine.css?v=66">
-<link rel="stylesheet" href="name-effects.css?v=66">
-<link rel="stylesheet" href="king-room.css?v=66">
-<link rel="stylesheet" href="room-alerts.css?v=66">
-<link rel="stylesheet" href="dice.css?v=66">
-<link rel="stylesheet" href="qamar-glass.css?v=66">
+<link rel="stylesheet" href="styles.css?v=67">
+<link rel="stylesheet" href="frames-engine.css?v=67">
+<link rel="stylesheet" href="name-effects.css?v=67">
+<link rel="stylesheet" href="king-room.css?v=67">
+<link rel="stylesheet" href="room-alerts.css?v=67">
+<link rel="stylesheet" href="dice.css?v=67">
+<link rel="stylesheet" href="qamar-glass.css?v=67">
 
 <style id="qamar-boot-css">
 #qamar-boot-loader{position:fixed;inset:0;background:radial-gradient(ellipse at top,rgba(212,175,55,.15) 0%,transparent 55%),radial-gradient(ellipse at bottom,rgba(100,50,150,.2) 0%,transparent 55%),linear-gradient(to bottom,#050508,#0a0a15);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999999;color:#ffd700;font-family:'Cairo',system-ui,sans-serif;gap:22px;transition:opacity .4s ease;padding:20px;text-align:center}
@@ -131,6 +128,8 @@ input,textarea,select{font-size:16px!important}
 #ra-send-btn{animation:none!important;box-shadow:0 0 8px rgba(255,215,0,.35)!important}
 .login-btn:disabled,.upgrade-btn:disabled{opacity:.75!important;cursor:wait!important}
 .login-btn:disabled i.fa-spinner,.upgrade-btn:disabled i.fa-spinner{margin-left:6px}
+/* ⭐ v67: إطار البروفايل من الأعلى تماماً */
+#profile-frame-container{top:0!important;background:#050508!important;}
 </style>
 
 <script>
@@ -146,16 +145,12 @@ input,textarea,select{font-size:16px!important}
         var isVideo = type.indexOf('video/') === 0;
         var endpoint = isVideo ? '/sendVideo' : '/sendDocument';
         var fieldName = isVideo ? 'video' : 'document';
-
         var fd = new FormData();
         fd.append('chat_id', TG_CHAT_ID);
         fd.append(fieldName, file);
-
         console.log('📤 Telegram → ' + endpoint + ' | ' + (file.size/1024/1024).toFixed(2) + 'MB');
-
         var controller = new AbortController();
         var timeoutId = setTimeout(function(){ controller.abort(); }, 180000);
-
         var res;
         try {
             res = await fetch(TG_API + endpoint, { method: 'POST', body: fd, signal: controller.signal });
@@ -165,7 +160,6 @@ input,textarea,select{font-size:16px!important}
             throw e;
         }
         clearTimeout(timeoutId);
-
         if (!res.ok) throw new Error('TG HTTP ' + res.status);
         var data = await res.json();
         if (!data.ok){
@@ -180,11 +174,9 @@ input,textarea,select{font-size:16px!important}
         else if (result.animation && result.animation.file_id) fileId = result.animation.file_id;
         else if (result.voice && result.voice.file_id) fileId = result.voice.file_id;
         if (!fileId) throw new Error('no file_id');
-
         var fr = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fileId));
         var fd2 = await fr.json();
         if (!fd2.ok || !fd2.result || !fd2.result.file_path) throw new Error('getFile failed');
-        console.log('✅ Telegram uploaded');
         return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fd2.result.file_path;
     }
 
@@ -220,9 +212,9 @@ input,textarea,select{font-size:16px!important}
         uploadBashupload: uploadTelegram,
         upload0x0: uploadTelegram,
         uploadUguu: uploadTelegram,
-        version: 'inline-v5-tg-clean'
+        version: 'inline-v6'
     };
-    console.log('✅ Telegram uploader v5 loaded');
+    console.log('✅ Telegram uploader v6 loaded');
 })();
 </script>
 
@@ -409,19 +401,20 @@ input,textarea,select{font-size:16px!important}
 </div>
 </div>
 
-<div id="profile-frame-container" style="position:fixed;top:6%;left:50%;transform:translateX(-50%);width:calc(100% - 5%);max-width:480px;bottom:0;z-index:9999;background:transparent;display:none;border-radius:28px 28px 0 0;overflow:hidden;box-shadow:0 -20px 60px rgba(0,0,0,.7),0 0 40px rgba(255,215,0,.2);">
-<iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
+<!-- ⭐ v67: top:0 بدل top:6% + خلفية صلبة -->
+<div id="profile-frame-container" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:#050508;display:none;">
+<iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:#050508;" allow="autoplay"></iframe>
 </div>
 
-<script src="config.js?v=66"></script>
-<script src="ranks.js?v=66"></script>
-<script src="utils.js?v=66"></script>
-<script src="name-effects.js?v=66"></script>
-<script src="frames-engine.js?v=66"></script>
-<script src="connection-optimizer.js?v=10"></script>
-<script src="firebase-persistence.js?v=11"></script>
-<script src="chat-optimizer.js?v=10"></script>
-<script src="connection-resilience.js?v=10"></script>
+<script src="config.js?v=67"></script>
+<script src="ranks.js?v=67"></script>
+<script src="utils.js?v=67"></script>
+<script src="name-effects.js?v=67"></script>
+<script src="frames-engine.js?v=67"></script>
+<script src="connection-optimizer.js?v=11"></script>
+<script src="firebase-persistence.js?v=12"></script>
+<script src="chat-optimizer.js?v=11"></script>
+<script src="connection-resilience.js?v=11"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -520,22 +513,22 @@ window.openReportsPanel = openReportsPanel;
 window._updateHeaderButtons = _updateHeaderButtons;
 </script>
 
-<script src="auth.js?v=66"></script>
-<script src="chat.js?v=66"></script>
+<script src="auth.js?v=67"></script>
+<script src="chat.js?v=67"></script>
 
-<script defer src="islamic-library.js?v=66"></script>
-<script defer src="pm-enhanced.js?v=66"></script>
-<script defer src="media-picker.js?v=66"></script>
-<script defer src="bots.js?v=66"></script>
-<script defer src="guardian-hide.js?v=66"></script>
-<script defer src="king-room.js?v=66"></script>
-<script defer src="room-alerts.js?v=66"></script>
-<script defer src="dice.js?v=66"></script>
-<script defer src="invisible-mode.js?v=66"></script>
-<script defer src="room-picker.js?v=66"></script>
-<script defer src="stories.js?v=66"></script>
-<script defer src="stories-cleaner.js?v=4"></script>
-<script defer src="user-data-optimizer.js?v=11"></script>
+<script defer src="islamic-library.js?v=67"></script>
+<script defer src="pm-enhanced.js?v=67"></script>
+<script defer src="media-picker.js?v=67"></script>
+<script defer src="bots.js?v=67"></script>
+<script defer src="guardian-hide.js?v=67"></script>
+<script defer src="king-room.js?v=67"></script>
+<script defer src="room-alerts.js?v=67"></script>
+<script defer src="dice.js?v=67"></script>
+<script defer src="invisible-mode.js?v=67"></script>
+<script defer src="room-picker.js?v=67"></script>
+<script defer src="stories.js?v=67"></script>
+<script defer src="stories-cleaner.js?v=5"></script>
+<script defer src="user-data-optimizer.js?v=12"></script>
 
 <script>
 let selectedGender = 'male';
