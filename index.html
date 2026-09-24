@@ -439,7 +439,68 @@ window._updateHeaderButtons = _updateHeaderButtons;
 <script defer src="dice.js?v=50"></script>
 <script defer src="invisible-mode.js?v=50"></script>
 <script defer src="room-picker.js?v=50"></script>
-<script defer src="uploader.js?v=4"></script>
+<script>
+// 🎯 TELEGRAM UPLOADER — inline (لا يحتاج ملف خارجي)
+(function() {
+    var TG_TOKEN = '8850098271:AAEy7xKwhbaSWrY_5ojUTA0McZvTPE1Gpv8';
+    var TG_CHAT_ID = '-1003978647266';
+    var TG_API = 'https://api.telegram.org/bot' + TG_TOKEN;
+    var IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
+
+    async function uploadTelegram(file) {
+        var fd = new FormData();
+        fd.append('chat_id', TG_CHAT_ID);
+        fd.append('document', file);
+        var res = await fetch(TG_API + '/sendDocument', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('tg HTTP ' + res.status);
+        var data = await res.json();
+        if (!data.ok || !data.result || !data.result.document) {
+            throw new Error('tg: ' + (data.description || 'bad'));
+        }
+        var fid = data.result.document.file_id;
+        var fr = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fid));
+        var fd2 = await fr.json();
+        if (!fd2.ok || !fd2.result || !fd2.result.file_path) throw new Error('tg getFile failed');
+        return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fd2.result.file_path;
+    }
+
+    async function uploadImgbb(file) {
+        var fd = new FormData();
+        fd.append('key', IMGBB_KEY);
+        fd.append('image', file);
+        var res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
+        var data = await res.json();
+        if (!data.success || !data.data || !data.data.url) throw new Error('imgbb failed');
+        return data.data.url;
+    }
+
+    async function upload(file, opts) {
+        opts = opts || {};
+        var type = file.type || '';
+        if (type.indexOf('image/') === 0) {
+            try { return await uploadImgbb(file); }
+            catch (e) { return await uploadTelegram(file); }
+        }
+        return await uploadTelegram(file);
+    }
+
+    // نستبدل أي UploadService قديم
+    window.UploadService = {
+        upload: upload,
+        uploadTelegram: uploadTelegram,
+        uploadImgbb: uploadImgbb,
+        uploadLitterbox: uploadTelegram,
+        uploadCatbox: uploadTelegram,
+        uploadTmpfiles: uploadTelegram,
+        uploadGofile: uploadTelegram,
+        uploadBashupload: uploadTelegram,
+        upload0x0: uploadTelegram,
+        uploadUguu: uploadTelegram,
+        version: 'inline-telegram'
+    };
+    console.log('✅ Telegram uploader injected');
+})();
+</script>
 <script defer src="stories.js?v=50"></script>
 <script defer src="user-data-optimizer.js?v=4"></script>
 
