@@ -1,11 +1,18 @@
 // ==============================================
-// قمر الشام — منتقي الوسائط (v7) — jsDelivr بدون rate limit
+// media-picker.js v8 — إيموجي متعدد
+// ==============================================
+// ✅ v8:
+//   1. القائمة لا تغلق بعد اختيار إيموجي (اختيار متعدد)
+//   2. عدّاد الإيموجيات المُضافة (يظهر في الأعلى)
+//   3. زر ✅ تم لإغلاق القائمة
+//   4. عند الإغلاق: تركيز الإدخال + تحديث الحالة
+//   5. باقي المنطق كما v7
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__mediaPickerV7) return;
-    window.__mediaPickerV7 = true;
+    if (window.__mediaPickerV8) return;
+    window.__mediaPickerV8 = true;
 
     var REPO = 'qamaralsham/qamaralsham';
     var BRANCH = 'main';
@@ -13,29 +20,29 @@
     var JSDELIVR_CDN = 'https://cdn.jsdelivr.net/gh/' + REPO + '@' + BRANCH + '/emojis/';
     var IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
     var PAGE_SIZE = 30;
-    var CACHE_KEY = 'qamar_emoji_cache_v2';   // v2 لإبطال cache قديم
-    var CACHE_TTL = 24 * 60 * 60 * 1000;      // 24 ساعة
+    var CACHE_KEY = 'qamar_emoji_cache_v2';
+    var CACHE_TTL = 24 * 60 * 60 * 1000;
 
     var CACHE = { files: null, urlMap: null, fetchedAt: 0 };
     var currentContext = 'private';
     var currentTab = 'emojis1';
+    var _insertedCount = 0;
 
-    // قراءة cache من localStorage
     try {
         var saved = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
         if (saved.files && saved.urlMap && saved.fetchedAt && (Date.now() - saved.fetchedAt) < CACHE_TTL) {
             CACHE.files = saved.files;
             CACHE.urlMap = saved.urlMap;
             CACHE.fetchedAt = saved.fetchedAt;
-            console.log('📦 media-picker v7: loaded from cache (' + CACHE.files.length + ' files)');
+            console.log('📦 media-picker v8: loaded from cache (' + CACHE.files.length + ' files)');
         }
     } catch (e) {}
 
-    /* CSS */
+    /* ═══ CSS ═══ */
     (function injectCSS() {
-        if (document.getElementById('media-picker-css')) return;
+        if (document.getElementById('media-picker-css-v8')) return;
         var s = document.createElement('style');
-        s.id = 'media-picker-css';
+        s.id = 'media-picker-css-v8';
         s.textContent = `
 #media-picker-overlay {
     position: fixed; inset: 0;
@@ -85,8 +92,13 @@
     cursor: pointer; overflow: hidden; position: relative;
     padding: 4px; width: 100%; height: 100%;
     box-sizing: border-box;
+    transition: transform 0.1s, border-color 0.1s;
 }
 .mp-item:active { transform: scale(0.92); border-color: #ffd700; }
+.mp-item.just-picked {
+    border-color: #84cc16 !important;
+    box-shadow: 0 0 12px rgba(132, 204, 22, 0.6) !important;
+}
 .mp-item img {
     max-width: 100% !important; max-height: 100% !important;
     width: auto !important; height: auto !important;
@@ -137,6 +149,34 @@
     display: flex; align-items: center; justify-content: center;
     z-index: 10;
 }
+.mp-done-btn {
+    position: absolute; top: 8px; right: 8px;
+    height: 32px; padding: 0 14px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #84cc16, #65a30d);
+    border: none; color: #fff;
+    cursor: pointer; font-size: 12px; font-weight: 900;
+    font-family: inherit;
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 10;
+    box-shadow: 0 2px 10px rgba(132, 204, 22, 0.5);
+}
+.mp-done-btn.show { display: flex; }
+.mp-counter {
+    position: absolute; top: 12px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,215,0,0.15);
+    border: 1px solid rgba(255,215,0,0.4);
+    color: #ffd700;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px; font-weight: 900;
+    z-index: 9;
+    display: none;
+    pointer-events: none;
+}
+.mp-counter.show { display: block; }
 .pm-inline-media {
     max-width: 90px; max-height: 90px;
     vertical-align: middle; margin: 2px 4px;
@@ -146,7 +186,7 @@
         document.head.appendChild(s);
     })();
 
-    /* ⭐⭐⭐ جلب قائمة الإيموجيات من jsDelivr (بدون rate limit) */
+    /* ═══ جلب الإيموجيات من jsDelivr ═══ */
     async function fetchEmojis() {
         try {
             var res = await fetch(JSDELIVR_API + '?t=' + Date.now());
@@ -157,19 +197,15 @@
             var data = await res.json();
             if (!data || !Array.isArray(data.files)) return { files: [], error: 'invalid' };
 
-            // فلترة: فقط ملفات داخل مجلد /emojis/
             var emojiFiles = data.files.filter(function (f) {
                 if (!f.name) return false;
                 if (f.name.indexOf('/emojis/') !== 0) return false;
-                // تجاهل الملفات المخفية
                 var base = f.name.split('/').pop();
                 if (!base || base.charAt(0) === '.') return false;
-                // أنواع الصور المسموحة
                 var ext = (base.split('.').pop() || '').toLowerCase();
                 return ['gif', 'webp', 'png', 'jpg', 'jpeg', 'apng', 'svg'].indexOf(ext) !== -1;
             });
 
-            // ترتيب طبيعي (a2 قبل a10)
             emojiFiles.sort(function (a, b) {
                 var na = a.name.match(/\d+/g) || [];
                 var nb = b.name.match(/\d+/g) || [];
@@ -181,12 +217,11 @@
                 return a.name.localeCompare(b.name);
             });
 
-            // استخراج أسماء الملفات فقط
             var names = emojiFiles.map(function (f) {
                 return f.name.split('/').pop();
             });
 
-            console.log('📦 media-picker v7: fetched ' + names.length + ' emojis from jsDelivr');
+            console.log('📦 media-picker v8: fetched ' + names.length + ' emojis from jsDelivr');
             return { files: names, error: null };
         } catch (e) {
             console.warn('❌ fetch error:', e.message);
@@ -232,14 +267,16 @@
         return CACHE.urlMap ? CACHE.urlMap[n] : null;
     }
 
-    /* UI */
+    /* ═══ UI ═══ */
     function buildUI() {
         if (document.getElementById('media-picker-overlay')) return;
         var ov = document.createElement('div');
         ov.id = 'media-picker-overlay';
         ov.innerHTML =
             '<div id="media-picker-panel">' +
-                '<button class="mp-close-btn" onclick="MediaPicker.close()">✕</button>' +
+                '<button class="mp-close-btn" id="mp-close-x" type="button">✕</button>' +
+                '<button class="mp-done-btn" id="mp-done-btn" type="button">✅ تم</button>' +
+                '<div class="mp-counter" id="mp-counter">0</div>' +
                 '<div id="media-picker-tabs">' +
                     '<button class="mp-tab active" data-tab="emojis1">😀 إيموجي 1</button>' +
                     '<button class="mp-tab" data-tab="emojis2">😎 إيموجي 2</button>' +
@@ -250,6 +287,10 @@
             '</div>';
         document.body.appendChild(ov);
         ov.addEventListener('click', function (e) { if (e.target === ov) MediaPicker.close(); });
+
+        ov.querySelector('#mp-close-x').onclick = function () { MediaPicker.close(); };
+        ov.querySelector('#mp-done-btn').onclick = function () { MediaPicker.close(); };
+
         ov.querySelectorAll('.mp-tab').forEach(function (t) {
             t.onclick = function () {
                 ov.querySelectorAll('.mp-tab').forEach(function (x) { x.classList.remove('active'); });
@@ -258,6 +299,20 @@
                 renderTab();
             };
         });
+    }
+
+    function _updateCounter() {
+        var c = document.getElementById('mp-counter');
+        var d = document.getElementById('mp-done-btn');
+        if (!c || !d) return;
+        if (_insertedCount > 0) {
+            c.textContent = '✅ ' + _insertedCount + ' رمز';
+            c.classList.add('show');
+            d.classList.add('show');
+        } else {
+            c.classList.remove('show');
+            d.classList.remove('show');
+        }
     }
 
     function getCustomMedia() {
@@ -320,7 +375,7 @@
                 nb.className = 'mp-num';
                 nb.textContent = num;
                 d.appendChild(nb);
-                d.onclick = function () { insertEmoji(num); };
+                d.onclick = function () { insertEmoji(num, d); };
                 c.appendChild(d);
             })(i);
         }
@@ -361,7 +416,7 @@
                 renderCustomTab(c);
             };
             wrap.appendChild(del);
-            wrap.onclick = function () { insertCustom(item.url); };
+            wrap.onclick = function () { insertCustom(item.url, wrap); };
             c.appendChild(wrap);
         });
     }
@@ -399,22 +454,29 @@
         fi.click();
     }
 
-    function insertEmoji(num) {
-        insertText('[e:' + num + ']');
+    /* ⭐ v8: لا تغلق — أضف فقط + وميض */
+    function insertEmoji(num, tileEl) {
+        insertText('[e:' + num + ']', tileEl);
     }
-    function insertCustom(url) {
-        insertText('[cu:' + url + ']');
+    function insertCustom(url, tileEl) {
+        insertText('[cu:' + url + ']', tileEl);
     }
-    function insertText(token) {
+
+    function insertText(token, tileEl) {
         var targetId = (currentContext === 'private') ? 'pc-input' : 'message-input';
         var inp = document.getElementById(targetId);
         if (inp) {
             var cur = inp.value;
             inp.value = (cur ? cur + ' ' : '') + token + ' ';
-            inp.focus();
-            try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) {}
         }
-        MediaPicker.close();
+        /* وميض أخضر على الرمز */
+        if (tileEl) {
+            tileEl.classList.add('just-picked');
+            setTimeout(function () { tileEl.classList.remove('just-picked'); }, 400);
+        }
+        _insertedCount++;
+        _updateCounter();
+        /* ⭐ v8: لا نغلق — ولا نركز */
     }
 
     function parseTokens(text) {
@@ -518,7 +580,9 @@
     window.MediaPicker = {
         open: async function (context) {
             currentContext = context || 'private';
+            _insertedCount = 0;
             buildUI();
+            _updateCounter();
             document.getElementById('media-picker-overlay').classList.add('active');
             var c = document.getElementById('media-picker-content');
             if (c) c.innerHTML = '<div class="mp-empty">⏳ جاري التحميل...</div>';
@@ -528,6 +592,19 @@
         close: function () {
             var ov = document.getElementById('media-picker-overlay');
             if (ov) ov.classList.remove('active');
+            /* ⭐ v8: ركّز على الإدخال بعد الإغلاق */
+            var hadInsertions = _insertedCount > 0;
+            _insertedCount = 0;
+            _updateCounter();
+            if (hadInsertions) {
+                var targetId = (currentContext === 'private') ? 'pc-input' : 'message-input';
+                var inp = document.getElementById(targetId);
+                if (inp) {
+                    setTimeout(function () {
+                        try { inp.focus(); } catch (e) {}
+                    }, 100);
+                }
+            }
         }
     };
 
@@ -537,5 +614,5 @@
         installObserver();
     }
 
-    console.log('✅ media-picker.js v7 loaded — jsDelivr CDN, no rate limit');
+    console.log('✅ media-picker.js v8 loaded — multi-select mode');
 })();
