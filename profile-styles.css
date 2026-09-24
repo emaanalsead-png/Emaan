@@ -1,11 +1,5 @@
 /* ==============================================
-   profile-styles.css v9
-   ==============================================
-   ✅ v9:
-     1. شفافية أقوى للقوائم (0.25-0.35)
-     2. أنماط للسينمائية (name-cinema-*-grid)
-     3. أنماط .nc (حروف الأنماط المقسّمة)
-     4. تحسين عرض الأصدقاء/الإحصائيات
+   profile-styles.css v10
    ============================================== */
 
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -24,11 +18,9 @@
     --glow-color: transparent;
 }
 
-/* ══════════════════════════════════════════════ */
-/* body                                            */
-/* ══════════════════════════════════════════════ */
+/* ⭐ v10: خلفية صلبة بدل شفافة */
 html, body {
-    background: transparent;
+    background: #050508;
     color: var(--text);
     font-family: 'Cairo', sans-serif;
     width: 100%;
@@ -40,9 +32,6 @@ html, body {
     padding: 0;
 }
 
-/* ══════════════════════════════════════════════ */
-/* حاوية البروفايل                                */
-/* ══════════════════════════════════════════════ */
 .profile {
     position: relative;
     width: 100%;
@@ -99,9 +88,6 @@ html, body {
     }
 }
 
-/* ══════════════════════════════════════════════ */
-/* الغلاف                                          */
-/* ══════════════════════════════════════════════ */
 .cover {
     position: relative;
     min-height: 260px;
@@ -150,16 +136,6 @@ html, body {
     pointer-events: none;
 }
 
-.cover-video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: 0;
-    pointer-events: none;
-}
-
 .cover-moon {
     position: absolute;
     top: 14px;
@@ -195,7 +171,6 @@ html, body {
     50%      { transform: translateX(-50%) translateY(-5px) scale(1.03); }
 }
 
-/* زر معاينة كزائر (owner) */
 #btn-visitor-view-cover {
     position: absolute;
     top: 12px;
@@ -225,7 +200,6 @@ body.owner-mode #btn-visitor-view-cover { display: flex; }
 }
 #btn-visitor-view-cover:active { transform: scale(0.95); }
 
-/* زر الطي (visitor) */
 #btn-collapse-info {
     position: absolute;
     top: 12px;
@@ -255,7 +229,6 @@ body.visitor-mode #btn-collapse-info { display: flex; }
 }
 #btn-collapse-info:active { transform: scale(0.95); }
 
-/* زر الإغلاق */
 #btn-close {
     position: absolute;
     top: 12px;
@@ -284,7 +257,6 @@ body.visitor-mode #btn-collapse-info { display: flex; }
     transform: scale(1.1);
 }
 
-/* الأفاتار */
 .avatar-cont {
     position: relative;
     z-index: 10;
@@ -327,7 +299,6 @@ body.visitor-mode #btn-collapse-info { display: flex; }
     display: block;
 }
 
-/* زر الموسيقى */
 .music-toggle-mini {
     position: relative;
     z-index: 10;
@@ -363,7 +334,6 @@ body.visitor-mode .music-toggle-mini { display: flex; }
     50%      { box-shadow: 0 6px 35px rgba(255, 215, 0, 1); }
 }
 
-/* الهوية */
 .header {
     position: relative;
     z-index: 10;
@@ -472,9 +442,6 @@ body.visitor-mode .edit-pen { display: none !important; }
     z-index: 3;
 }
 
-/* ══════════════════════════════════════════════ */
-/* أزرار الزيارة                                  */
-/* ══════════════════════════════════════════════ */
 .interact-btns {
     display: flex;
     justify-content: center;
@@ -512,7 +479,6 @@ body.owner-mode .interact-btns { display: none !important; }
     transform: translateY(-2px);
 }
 .interact-btns button:active { transform: scale(0.95); }
-
 .interact-btns button.active {
     background: linear-gradient(135deg, rgba(212, 175, 55, 0.5), rgba(212, 175, 55, 0.25));
     border-color: var(--gold-light);
@@ -520,9 +486,6 @@ body.owner-mode .interact-btns { display: none !important; }
     box-shadow: 0 0 12px rgba(212, 175, 55, 0.5);
 }
 
-/* ══════════════════════════════════════════════ */
-/* منطقة المحتوى                                  */
-/* ══════════════════════════════════════════════ */
 .main-content {
     flex: 1;
     display: flex;
@@ -552,7 +515,6 @@ body.owner-mode .interact-btns { display: none !important; }
     inset: 0;
 }
 
-/* ⭐ v9: تبويبات شفافة أكثر */
 .tabs {
     display: flex;
     gap: 4px;
@@ -649,7 +611,6 @@ body.owner-mode .interact-btns { display: none !important; }
     cursor: pointer;
 }
 
-/* ⭐ v9: info-grid شفاف أكثر */
 .info-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -687,7 +648,6 @@ body.owner-mode .interact-btns { display: none !important; }
     text-overflow: ellipsis;
 }
 
-/* ⭐ v9: الإحصائيات شفافة */
 .stats {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -714,7 +674,6 @@ body.owner-mode .interact-btns { display: none !important; }
 .stat-value { font-size: 13px; font-weight: 900; color: #fff; display: block; }
 .stat-label { font-size: 8.5px; color: var(--text-dim); margin-top: 2px; display: block; font-weight: 700; }
 
-/* الإنجازات */
 .achievements-row {
     display: flex;
     gap: 8px;
@@ -750,7 +709,6 @@ body.owner-mode .interact-btns { display: none !important; }
 .achievement-icon { font-size: 23px; }
 .achievement-name { font-size: 8px; color: #ccc; font-weight: 700; line-height: 1.2; }
 
-/* اللحظات */
 .moments-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -784,7 +742,6 @@ body.owner-mode .interact-btns { display: none !important; }
 .moment-tile-icon { font-size: 32px; margin-bottom: 6px; }
 .moment-tile-name { font-size: 10px; color: #fff; font-weight: 900; text-align: center; word-break: break-word; }
 
-/* الأصدقاء */
 .friends-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
@@ -859,7 +816,6 @@ body.owner-mode .interact-btns { display: none !important; }
     text-shadow: 0 1px 4px rgba(0,0,0,0.9);
 }
 
-/* آخر الزوار */
 .visitors-row {
     display: flex;
     gap: 9px;
@@ -901,7 +857,6 @@ body.owner-mode .interact-btns { display: none !important; }
 }
 .visitor-name { font-size: 10.5px; color: #fff; font-weight: 700; white-space: nowrap; }
 
-/* قسم الشعر */
 .poetry-section {
     position: relative;
     z-index: 1;
@@ -946,10 +901,6 @@ body.owner-mode .interact-btns { display: none !important; }
     cursor: pointer;
 }
 
-/* ══════════════════════════════════════════════ */
-/* الإعدادات — Drill-down                          */
-/* ══════════════════════════════════════════════ */
-/* ⭐ v9: settings-page شفاف أكثر */
 .settings-page {
     display: none;
     padding: 6px 0 20px;
@@ -997,7 +948,6 @@ body.owner-mode .interact-btns { display: none !important; }
     gap: 8px;
 }
 
-/* ⭐ v9: settings-group شفاف */
 .settings-group {
     background: linear-gradient(135deg, rgba(20, 15, 35, 0.5), rgba(10, 8, 20, 0.6));
     backdrop-filter: blur(10px);
@@ -1088,9 +1038,6 @@ body.owner-mode .interact-btns { display: none !important; }
 }
 .setting-select option { background: #110724; }
 
-/* ══════════════════════════════════════════════ */
-/* شبكات الاختيار                                 */
-/* ══════════════════════════════════════════════ */
 .name-grid {
     display: flex;
     flex-direction: column;
@@ -1134,7 +1081,6 @@ body.owner-mode .interact-btns { display: none !important; }
     justify-content: center;
 }
 
-/* ⭐ v9: أنماط الأنماط السينمائية — حروف مقسّمة */
 .name-styled.cinema-split,
 .name-styled.cinema-split-bg {
     display: inline-block;
@@ -1145,22 +1091,18 @@ body.owner-mode .interact-btns { display: none !important; }
     transition: transform 0.15s;
 }
 
-/* multicolor: النص */
 .name-styled[data-cinema-text="multicolor"].cinema-split .nc {
     display: inline-block;
 }
-/* multicolor: الخلفية */
 .name-styled[data-cinema-bg="multicolor"].cinema-split-bg .nc {
     display: inline-block;
     border-radius: 3px;
     padding: 0 1px;
 }
 
-/* sugar: النص */
 .name-styled[data-cinema-text="sugar"].cinema-split .nc {
     display: inline-block;
 }
-/* sugar: الخلفية */
 .name-styled[data-cinema-bg="sugar"].cinema-split-bg .nc {
     display: inline-block;
     border-radius: 4px;
@@ -1168,7 +1110,6 @@ body.owner-mode .interact-btns { display: none !important; }
     margin: 0 1px;
 }
 
-/* شبكة ألوان التوهج */
 .glow-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -1204,7 +1145,6 @@ body.owner-mode .interact-btns { display: none !important; }
     position: relative;
 }
 
-/* شبكة إطارات الأفاتار */
 .frames-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -1266,9 +1206,6 @@ body.owner-mode .interact-btns { display: none !important; }
     z-index: 2;
 }
 
-/* ══════════════════════════════════════════════ */
-/* أزرار الحذف/الرفع                              */
-/* ══════════════════════════════════════════════ */
 .danger-section {
     margin-top: 14px;
     padding-top: 12px;
@@ -1351,9 +1288,6 @@ body.owner-mode .interact-btns { display: none !important; }
     height: 200px;
 }
 
-/* ══════════════════════════════════════════════ */
-/* الأوامر (admin tab)                            */
-/* ══════════════════════════════════════════════ */
 .action-category { margin-bottom: 14px; padding: 0 12px; }
 .action-category-title {
     font-size: 11px;
@@ -1395,9 +1329,6 @@ body.owner-mode .interact-btns { display: none !important; }
 .action-btn.warning { border-color: rgba(255, 152, 0, 0.4); color: #ffcc88; }
 .action-btn.warning i { color: #ffbb66; }
 
-/* ══════════════════════════════════════════════ */
-/* زر الطي — يخفي المحتوى                        */
-/* ══════════════════════════════════════════════ */
 body.visitor-collapsed .scroll-box > * {
     display: none !important;
 }
@@ -1408,9 +1339,6 @@ body.visitor-collapsed .interact-btns {
     display: none !important;
 }
 
-/* ══════════════════════════════════════════════ */
-/* Modals                                         */
-/* ══════════════════════════════════════════════ */
 .modal {
     position: fixed;
     top: 0; left: 0;
@@ -1474,13 +1402,9 @@ body.visitor-collapsed .interact-btns {
 }
 .modal-c button.cancel { background: rgba(255, 255, 255, 0.15); color: #fff; }
 
-/* mode switching */
 body.visitor-mode .owner-only { display: none !important; }
 body.owner-mode .visitor-only { display: none !important; }
 
-/* ══════════════════════════════════════════════ */
-/* Responsive                                     */
-/* ══════════════════════════════════════════════ */
 @media (max-width: 400px) {
     .cover { min-height: 240px; }
     .cover-moon { width: 68px; height: 68px; top: 12px; }
