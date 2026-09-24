@@ -1,12 +1,12 @@
 // ==============================================
-// uploader.js v6 — حل شامل (صورة + صوت + فيديو)
+// uploader.js v6 — النسخة النهائية
 // ==============================================
-// ✅ v6:
-//   1. حل مشكلة الموسيقى: catbox → 0x0.st → تلغرام (sendAudio)
-//   2. الصورة: imgbb → 0x0.st → تلغرام (sendDocument)
-//   3. الفيديو: تلغرام (sendVideo) → litterbox → catbox
-//   4. تحويل HEIC/HEIF/AVIF/TIFF/BMP إلى JPG
-//   5. Aliases كاملة للتوافق مع الكود القديم
+// ✅ القرارات النهائية:
+//   1. صورة → imgbb → 0x0.st → تلغرام
+//   2. صوت  → catbox.moe → 0x0.st → تلغرام (sendAudio)
+//   3. فيديو → تلغرام فقط (sendVideo + supports_streaming)
+//   4. نحفظ tgMessageId للفيديو (لحذفه لاحقاً من تلغرام)
+//   5. تحويل HEIC/HEIF/AVIF/TIFF/BMP إلى JPG
 // ==============================================
 
 (function () {
@@ -18,6 +18,9 @@
     var TG_CHAT_ID = '-1003978647266';
     var TG_API = 'https://api.telegram.org/bot' + TG_TOKEN;
     var IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
+
+    /* meta آخر عملية رفع (لحفظ tgMessageId) */
+    var _lastMeta = null;
 
     /* ══════════════════════════════════════════════ */
     /* تلغرام — sendDocument (عام)                    */
@@ -33,11 +36,13 @@
             throw new Error('tg doc: ' + (data.description || 'bad'));
         }
         var fileId = data.result.document.file_id;
+        var messageId = data.result.message_id;
         var fileRes = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fileId));
         var fileData = await fileRes.json();
         if (!fileData.ok || !fileData.result || !fileData.result.file_path) {
             throw new Error('tg getFile failed');
         }
+        _lastMeta = { service: 'telegram', tgMessageId: messageId, fileId: fileId };
         return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fileData.result.file_path;
     }
 
@@ -59,11 +64,13 @@
         else if (data.result.document && data.result.document.file_id) fileId = data.result.document.file_id;
         else if (data.result.voice && data.result.voice.file_id) fileId = data.result.voice.file_id;
         if (!fileId) throw new Error('tg audio: no file_id');
+        var messageId = data.result.message_id;
         var fileRes = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fileId));
         var fileData = await fileRes.json();
         if (!fileData.ok || !fileData.result || !fileData.result.file_path) {
             throw new Error('tg getFile failed');
         }
+        _lastMeta = { service: 'telegram', tgMessageId: messageId, fileId: fileId };
         return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fileData.result.file_path;
     }
 
@@ -86,16 +93,18 @@
         else if (data.result.animation && data.result.animation.file_id) fileId = data.result.animation.file_id;
         else if (data.result.document && data.result.document.file_id) fileId = data.result.document.file_id;
         if (!fileId) throw new Error('tg video: no file_id');
+        var messageId = data.result.message_id;
         var fileRes = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fileId));
         var fileData = await fileRes.json();
         if (!fileData.ok || !fileData.result || !fileData.result.file_path) {
             throw new Error('tg getFile failed');
         }
+        _lastMeta = { service: 'telegram', tgMessageId: messageId, fileId: fileId };
         return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fileData.result.file_path;
     }
 
     /* ══════════════════════════════════════════════ */
-    /* catbox.moe — للصوت (دائم)                      */
+    /* catbox.moe — للصوت                             */
     /* ══════════════════════════════════════════════ */
     async function uploadCatbox(file) {
         var fd = new FormData();
@@ -107,11 +116,12 @@
         if (!text || text.indexOf('https://') !== 0) {
             throw new Error('catbox: ' + text.substring(0, 100));
         }
+        _lastMeta = { service: 'catbox', tgMessageId: null, fileId: null };
         return text;
     }
 
     /* ══════════════════════════════════════════════ */
-    /* 0x0.st — للملفات الصغيرة (30 يوم)              */
+    /* 0x0.st — خدمة احتياطية                         */
     /* ══════════════════════════════════════════════ */
     async function upload0x0(file) {
         var fd = new FormData();
@@ -122,30 +132,7 @@
         if (!text || text.indexOf('https://') !== 0) {
             throw new Error('0x0: ' + text.substring(0, 100));
         }
-        return text;
-    }
-
-    /* ══════════════════════════════════════════════ */
-    /* litterbox — للفيديو المؤقت (24h مع الحالة)     */
-    /* ══════════════════════════════════════════════ */
-    async function uploadLitterbox(file, hours) {
-        hours = hours || 24;
-        var time = hours <= 1 ? '1h' :
-                   hours <= 12 ? '12h' :
-                   hours <= 24 ? '24h' : '72h';
-        var fd = new FormData();
-        fd.append('reqtype', 'fileupload');
-        fd.append('time', time);
-        fd.append('fileToUpload', file);
-        var res = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
-            method: 'POST',
-            body: fd
-        });
-        if (!res.ok) throw new Error('litterbox HTTP ' + res.status);
-        var text = (await res.text()).trim();
-        if (!text || text.indexOf('https://') !== 0) {
-            throw new Error('litterbox: ' + text.substring(0, 100));
-        }
+        _lastMeta = { service: '0x0', tgMessageId: null, fileId: null };
         return text;
     }
 
@@ -161,6 +148,7 @@
         if (!data.success || !data.data || !data.data.url) {
             throw new Error('imgbb: ' + (data.error && data.error.message || 'unknown'));
         }
+        _lastMeta = { service: 'imgbb', tgMessageId: null, fileId: null };
         return data.data.url;
     }
 
@@ -205,7 +193,7 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Chain helper — يجرب بالترتيب                   */
+    /* Chain helper                                   */
     /* ══════════════════════════════════════════════ */
     async function tryChain(attempts) {
         var errors = [];
@@ -226,7 +214,7 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* الصورة — imgbb → 0x0 → تلغرام                  */
+    /* uploadImage                                    */
     /* ══════════════════════════════════════════════ */
     async function uploadImage(file) {
         var imgFile = file;
@@ -235,34 +223,28 @@
             catch (e) { console.warn('⚠️ conversion failed:', e); }
         }
         return await tryChain([
-            { name: 'imgbb', fn: function () { return uploadImgbb(imgFile); } },
-            { name: '0x0.st', fn: function () { return upload0x0(imgFile); } },
+            { name: 'imgbb',    fn: function () { return uploadImgbb(imgFile); } },
+            { name: '0x0.st',   fn: function () { return upload0x0(imgFile); } },
             { name: 'telegram', fn: function () { return uploadTelegramDocument(imgFile); } }
         ]);
     }
 
     /* ══════════════════════════════════════════════ */
-    /* الصوت — catbox → 0x0 → تلغرام                  */
+    /* uploadAudio                                    */
     /* ══════════════════════════════════════════════ */
     async function uploadAudio(file) {
         return await tryChain([
             { name: 'catbox.moe', fn: function () { return uploadCatbox(file); } },
-            { name: '0x0.st', fn: function () { return upload0x0(file); } },
-            { name: 'telegram-audio', fn: function () { return uploadTelegramAudio(file); } }
+            { name: '0x0.st',     fn: function () { return upload0x0(file); } },
+            { name: 'telegram',   fn: function () { return uploadTelegramAudio(file); } }
         ]);
     }
 
     /* ══════════════════════════════════════════════ */
-    /* الفيديو — تلغرام → litterbox → catbox          */
+    /* uploadVideo — تلغرام فقط                       */
     /* ══════════════════════════════════════════════ */
-    async function uploadVideo(file, options) {
-        options = options || {};
-        var hours = options.hours || 24;
-        return await tryChain([
-            { name: 'telegram-video', fn: function () { return uploadTelegramVideo(file); } },
-            { name: 'litterbox', fn: function () { return uploadLitterbox(file, hours); } },
-            { name: 'catbox.moe', fn: function () { return uploadCatbox(file); } }
-        ]);
+    async function uploadVideo(file) {
+        return await uploadTelegramVideo(file);
     }
 
     /* ══════════════════════════════════════════════ */
@@ -274,18 +256,17 @@
         var type = file.type || '';
         if (type.indexOf('image/') === 0) return await uploadImage(file);
         if (type.indexOf('audio/') === 0) return await uploadAudio(file);
-        if (type.indexOf('video/') === 0) return await uploadVideo(file, options);
-        // نوع آخر → تلغرام document
+        if (type.indexOf('video/') === 0) return await uploadVideo(file);
         return await uploadTelegramDocument(file);
     }
 
     /* ══════════════════════════════════════════════ */
-    /* التصدير + Aliases                              */
+    /* التصدير                                        */
     /* ══════════════════════════════════════════════ */
     window.UploadService = {
         // الدالة الموحدة
         upload: upload,
-        // الدوال الأساسية
+        // الأساسية
         uploadImage: uploadImage,
         uploadAudio: uploadAudio,
         uploadVideo: uploadVideo,
@@ -296,18 +277,21 @@
         uploadTelegramVideo: uploadTelegramVideo,
         uploadImgbb: uploadImgbb,
         uploadCatbox: uploadCatbox,
-        uploadLitterbox: uploadLitterbox,
         upload0x0: upload0x0,
+        // meta آخر عملية
+        getLastMeta: function () { return _lastMeta; },
+        clearLastMeta: function () { _lastMeta = null; },
         // أدوات
         convertImageToJpg: convertImageToJpg,
         needsConversion: needsConversion,
-        // Aliases للتوافق مع الكود القديم
-        uploadUguu: function (file) { return uploadTelegramDocument(file); },
-        uploadTmpfiles: function (file) { return uploadTelegramDocument(file); },
-        uploadGofile: function (file) { return uploadTelegramDocument(file); },
-        uploadBashupload: function (file) { return uploadTelegramDocument(file); },
+        // Aliases للتوافق
+        uploadUguu: function (f) { return uploadTelegramDocument(f); },
+        uploadTmpfiles: function (f) { return uploadTelegramDocument(f); },
+        uploadGofile: function (f) { return uploadTelegramDocument(f); },
+        uploadBashupload: function (f) { return uploadTelegramDocument(f); },
+        uploadLitterbox: function (f) { return uploadTelegramDocument(f); },
         version: 6
     };
 
-    console.log('📤 uploader.js v6 loaded — image+audio+video | catbox+0x0+imgbb+telegram+litterbox');
+    console.log('📤 uploader.js v6 loaded — imgbb→0x0→tg | catbox→0x0→tg | video→tg only');
 })();
