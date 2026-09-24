@@ -25,13 +25,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="styles.css?v=50">
-<link rel="stylesheet" href="frames-engine.css?v=50">
-<link rel="stylesheet" href="name-effects.css?v=50">
-<link rel="stylesheet" href="king-room.css?v=50">
-<link rel="stylesheet" href="room-alerts.css?v=50">
-<link rel="stylesheet" href="dice.css?v=50">
-<link rel="stylesheet" href="qamar-glass.css?v=50">
+<link rel="stylesheet" href="styles.css?v=60">
+<link rel="stylesheet" href="frames-engine.css?v=60">
+<link rel="stylesheet" href="name-effects.css?v=60">
+<link rel="stylesheet" href="king-room.css?v=60">
+<link rel="stylesheet" href="room-alerts.css?v=60">
+<link rel="stylesheet" href="dice.css?v=60">
+<link rel="stylesheet" href="qamar-glass.css?v=60">
 
 <style id="qamar-boot-css">
 #qamar-boot-loader {
@@ -134,6 +134,71 @@ input, textarea, select { font-size: 16px !important; }
 .login-btn:disabled, .upgrade-btn:disabled { opacity: 0.75 !important; cursor: wait !important; }
 .login-btn:disabled i.fa-spinner, .upgrade-btn:disabled i.fa-spinner { margin-left: 6px; }
 </style>
+
+<!-- 🎯 TELEGRAM UPLOADER — inline, يُعرَّف مبكراً قبل أي script آخر -->
+<script>
+(function() {
+    'use strict';
+    var TG_TOKEN = '8850098271:AAEy7xKwhbaSWrY_5ojUTA0McZvTPE1Gpv8';
+    var TG_CHAT_ID = '-1003978647266';
+    var TG_API = 'https://api.telegram.org/bot' + TG_TOKEN;
+    var IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
+
+    async function uploadTelegram(file) {
+        var fd = new FormData();
+        fd.append('chat_id', TG_CHAT_ID);
+        fd.append('document', file);
+        var res = await fetch(TG_API + '/sendDocument', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('tg HTTP ' + res.status);
+        var data = await res.json();
+        if (!data.ok || !data.result || !data.result.document) {
+            throw new Error('tg: ' + (data.description || 'bad'));
+        }
+        var fid = data.result.document.file_id;
+        var fr = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fid));
+        var fd2 = await fr.json();
+        if (!fd2.ok || !fd2.result || !fd2.result.file_path) throw new Error('tg getFile failed');
+        return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fd2.result.file_path;
+    }
+
+    async function uploadImgbb(file) {
+        var fd = new FormData();
+        fd.append('key', IMGBB_KEY);
+        fd.append('image', file);
+        var res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
+        var data = await res.json();
+        if (!data.success || !data.data || !data.data.url) throw new Error('imgbb failed');
+        return data.data.url;
+    }
+
+    async function upload(file, opts) {
+        opts = opts || {};
+        if (!file) throw new Error('لا يوجد ملف');
+        var type = file.type || '';
+        if (type.indexOf('image/') === 0) {
+            try { return await uploadImgbb(file); }
+            catch (e) { return await uploadTelegram(file); }
+        }
+        return await uploadTelegram(file);
+    }
+
+    window.UploadService = {
+        upload: upload,
+        uploadTelegram: uploadTelegram,
+        uploadImgbb: uploadImgbb,
+        uploadLitterbox: uploadTelegram,
+        uploadCatbox: uploadTelegram,
+        uploadTmpfiles: uploadTelegram,
+        uploadGofile: uploadTelegram,
+        uploadBashupload: uploadTelegram,
+        upload0x0: uploadTelegram,
+        uploadUguu: uploadTelegram,
+        version: 'inline-telegram'
+    };
+    console.log('✅ Telegram uploader injected early');
+})();
+</script>
+
 </head>
 <body>
 
@@ -319,15 +384,16 @@ input, textarea, select { font-size: 16px !important; }
 <iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
 </div>
 
-<script src="config.js?v=50"></script>
-<script src="ranks.js?v=50"></script>
-<script src="utils.js?v=50"></script>
-<script src="name-effects.js?v=50"></script>
-<script src="frames-engine.js?v=50"></script>
-<script src="connection-optimizer.js?v=3"></script>
-<script src="firebase-persistence.js?v=4"></script>
-<script src="chat-optimizer.js?v=3"></script>
-<script src="connection-resilience.js?v=3"></script>
+<!-- ═══ الموجة الحرجة (sync) ═══ -->
+<script src="config.js?v=60"></script>
+<script src="ranks.js?v=60"></script>
+<script src="utils.js?v=60"></script>
+<script src="name-effects.js?v=60"></script>
+<script src="frames-engine.js?v=60"></script>
+<script src="connection-optimizer.js?v=4"></script>
+<script src="firebase-persistence.js?v=5"></script>
+<script src="chat-optimizer.js?v=4"></script>
+<script src="connection-resilience.js?v=4"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -426,83 +492,21 @@ window.openReportsPanel = openReportsPanel;
 window._updateHeaderButtons = _updateHeaderButtons;
 </script>
 
-<script src="auth.js?v=50"></script>
-<script src="chat.js?v=50"></script>
+<script src="auth.js?v=60"></script>
+<script src="chat.js?v=60"></script>
 
-<script defer src="islamic-library.js?v=50"></script>
-<script defer src="pm-enhanced.js?v=50"></script>
-<script defer src="media-picker.js?v=50"></script>
-<script defer src="bots.js?v=50"></script>
-<script defer src="guardian-hide.js?v=50"></script>
-<script defer src="king-room.js?v=50"></script>
-<script defer src="room-alerts.js?v=50"></script>
-<script defer src="dice.js?v=50"></script>
-<script defer src="invisible-mode.js?v=50"></script>
-<script defer src="room-picker.js?v=50"></script>
-<script>
-// 🎯 TELEGRAM UPLOADER — inline (لا يحتاج ملف خارجي)
-(function() {
-    var TG_TOKEN = '8850098271:AAEy7xKwhbaSWrY_5ojUTA0McZvTPE1Gpv8';
-    var TG_CHAT_ID = '-1003978647266';
-    var TG_API = 'https://api.telegram.org/bot' + TG_TOKEN;
-    var IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
-
-    async function uploadTelegram(file) {
-        var fd = new FormData();
-        fd.append('chat_id', TG_CHAT_ID);
-        fd.append('document', file);
-        var res = await fetch(TG_API + '/sendDocument', { method: 'POST', body: fd });
-        if (!res.ok) throw new Error('tg HTTP ' + res.status);
-        var data = await res.json();
-        if (!data.ok || !data.result || !data.result.document) {
-            throw new Error('tg: ' + (data.description || 'bad'));
-        }
-        var fid = data.result.document.file_id;
-        var fr = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fid));
-        var fd2 = await fr.json();
-        if (!fd2.ok || !fd2.result || !fd2.result.file_path) throw new Error('tg getFile failed');
-        return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fd2.result.file_path;
-    }
-
-    async function uploadImgbb(file) {
-        var fd = new FormData();
-        fd.append('key', IMGBB_KEY);
-        fd.append('image', file);
-        var res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
-        var data = await res.json();
-        if (!data.success || !data.data || !data.data.url) throw new Error('imgbb failed');
-        return data.data.url;
-    }
-
-    async function upload(file, opts) {
-        opts = opts || {};
-        var type = file.type || '';
-        if (type.indexOf('image/') === 0) {
-            try { return await uploadImgbb(file); }
-            catch (e) { return await uploadTelegram(file); }
-        }
-        return await uploadTelegram(file);
-    }
-
-    // نستبدل أي UploadService قديم
-    window.UploadService = {
-        upload: upload,
-        uploadTelegram: uploadTelegram,
-        uploadImgbb: uploadImgbb,
-        uploadLitterbox: uploadTelegram,
-        uploadCatbox: uploadTelegram,
-        uploadTmpfiles: uploadTelegram,
-        uploadGofile: uploadTelegram,
-        uploadBashupload: uploadTelegram,
-        upload0x0: uploadTelegram,
-        uploadUguu: uploadTelegram,
-        version: 'inline-telegram'
-    };
-    console.log('✅ Telegram uploader injected');
-})();
-</script>
-<script defer src="stories.js?v=50"></script>
-<script defer src="user-data-optimizer.js?v=4"></script>
+<script defer src="islamic-library.js?v=60"></script>
+<script defer src="pm-enhanced.js?v=60"></script>
+<script defer src="media-picker.js?v=60"></script>
+<script defer src="bots.js?v=60"></script>
+<script defer src="guardian-hide.js?v=60"></script>
+<script defer src="king-room.js?v=60"></script>
+<script defer src="room-alerts.js?v=60"></script>
+<script defer src="dice.js?v=60"></script>
+<script defer src="invisible-mode.js?v=60"></script>
+<script defer src="room-picker.js?v=60"></script>
+<script defer src="stories.js?v=60"></script>
+<script defer src="user-data-optimizer.js?v=5"></script>
 
 <script>
 let selectedGender = 'male';
