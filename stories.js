@@ -1,11 +1,18 @@
 // ==============================================
-// stories.js v3 — 20MB video + delete in viewer
+// stories.js v4 (TEST) — Mini mode + 20MB + delete
+// ==============================================
+// ✅ v4:
+//   1. window.openStoryViewer يُصدَّر صريحاً (مع options.mini)
+//   2. وضع مصغّر (mini) — عند الفتح من تبويب اللحظات في البروفايل
+//   3. 20MB فيديو + زر 🗑️ (من v3)
+//   4. يستخدم UploadService v7 (فيديو تلغرام فقط)
+//   5. إدارة محسّنة للفيديو (cleanup + currentVideoEl)
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__storiesV3) return;
-    window.__storiesV3 = true;
+    if (window.__storiesV4) return;
+    window.__storiesV4 = true;
 
     var STORY_LIFETIME_MS = 24 * 60 * 60 * 1000;
     var TEXT_DURATION_MS = 5000;
@@ -38,11 +45,11 @@
         progressStart: 0,
         progressElapsed: 0,
         isPaused: false,
-        overlay: null,
         publishing: false,
         currentVideoEl: null,
         videoDurationMs: 0,
-        videoEndedHandler: null
+        videoEndedHandler: null,
+        miniMode: false
     };
 
     function getMe() { return (typeof getCurrentUser === 'function') ? getCurrentUser() : null; }
@@ -56,10 +63,13 @@
         return 'قبل ' + Math.floor(h/24) + 'ي';
     }
 
+    /* ══════════════════════════════════════════════ */
+    /* CSS                                            */
+    /* ══════════════════════════════════════════════ */
     (function injectCSS() {
-        if (document.getElementById('stories-css-v3')) return;
+        if (document.getElementById('stories-css-v4')) return;
         var s = document.createElement('style');
-        s.id = 'stories-css-v3';
+        s.id = 'stories-css-v4';
         s.textContent = `
 #stories-section { padding: 8px 6px 10px; border-bottom: 1px solid rgba(255,215,0,0.18); margin-bottom: 6px; }
 #stories-section h4 { color: #ffd700; font-size: 11px; font-weight: 900; margin: 0 0 8px 2px; display: flex; align-items: center; gap: 5px; }
@@ -74,14 +84,16 @@
 .story-avatar { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; border: 2px solid #050508; background: #111; position: relative; z-index: 1; }
 .story-avatar-wrap.is-add .story-avatar { background: linear-gradient(135deg,#4a148c,#d4af37); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; font-weight: 900; }
 .story-name { font-size: 10px; color: #fff; font-weight: 700; max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+
+/* ═══ Viewer ═══ */
 #story-viewer { position: fixed; inset: 0; background: #000; z-index: 999998; display: none; flex-direction: column; direction: rtl; font-family: Cairo, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
 #story-viewer.active { display: flex; }
 #story-progress-bar { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; gap: 3px; z-index: 10; }
 .story-progress-segment { flex: 1; height: 3px; background: rgba(255,255,255,0.3); border-radius: 3px; overflow: hidden; }
 .story-progress-fill { height: 100%; width: 0%; background: #fff; transition: width 0.05s linear; }
 #story-viewer-header { position: absolute; top: 20px; left: 8px; right: 8px; display: flex; align-items: center; gap: 10px; z-index: 11; padding: 8px 10px; background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent); }
-#story-viewer-header img { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #ffd700; object-fit: cover; }
-#story-viewer-header .sv-name { flex: 1; color: #fff; font-weight: 900; font-size: 14px; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+#story-viewer-header img { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #ffd700; object-fit: cover; cursor: pointer; }
+#story-viewer-header .sv-name { flex: 1; color: #fff; font-weight: 900; font-size: 14px; text-shadow: 0 1px 3px rgba(0,0,0,0.9); cursor: pointer; }
 #story-viewer-header .sv-time { color: #ccc; font-size: 11px; }
 #story-viewer-delete { background: rgba(255,68,68,0.25); border: 1px solid rgba(255,68,68,0.6); color: #fff; font-size: 18px; cursor: pointer; padding: 6px 10px; border-radius: 8px; margin-right: 4px; line-height: 1; }
 #story-viewer-delete:active { background: rgba(255,68,68,0.5); }
@@ -103,6 +115,55 @@
 #story-reactions-popup span:active { transform: scale(1.3); }
 .story-meta { position: absolute; bottom: 90px; left: 12px; right: 12px; display: flex; align-items: center; gap: 8px; justify-content: center; flex-wrap: wrap; z-index: 9; pointer-events: none; }
 .story-meta-badge { background: rgba(0,0,0,0.6); border: 1px solid rgba(255,215,0,0.3); border-radius: 20px; padding: 4px 12px; color: #fff; font-size: 12px; font-weight: 700; pointer-events: auto; }
+
+/* ⭐ v4: الوضع المصغّر — للفتح من تبويب اللحظات */
+#story-viewer.mini {
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    padding: 20px;
+    justify-content: center;
+    align-items: center;
+}
+#story-viewer.mini #story-viewer-body {
+    position: relative;
+    max-width: 320px;
+    max-height: 480px;
+    width: 85vw;
+    height: 70vh;
+    border: 2px solid #ffd700;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(255,215,0,0.3);
+    flex: none;
+}
+#story-viewer.mini #story-progress-bar {
+    top: -40px;
+    left: 0;
+    right: 0;
+}
+#story-viewer.mini #story-viewer-header {
+    top: -75px;
+    left: 0;
+    right: 0;
+    padding: 0;
+    background: none;
+}
+#story-viewer.mini #story-viewer-header img { width: 36px; height: 36px; }
+#story-viewer.mini #story-viewer-header .sv-name { font-size: 13px; }
+#story-viewer.mini #story-viewer-footer {
+    position: static;
+    background: none;
+    padding: 12px 0 0;
+    max-width: 320px;
+    width: 85vw;
+}
+#story-viewer.mini #story-viewer-footer input { font-size: 12px; padding: 8px 12px; }
+#story-viewer.mini .story-react-btn { width: 34px; height: 34px; font-size: 15px; }
+#story-viewer.mini .story-meta { display: none; }
+#story-viewer.mini #story-reactions-popup { bottom: 60px; right: 5px; }
+
+/* ═══ Publish Modal ═══ */
 #story-publish-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 999999; padding: 16px; direction: rtl; font-family: Cairo, sans-serif; }
 #story-publish-modal.active { display: flex; }
 #story-publish-box { background: #110724; border: 2px solid #ffd700; border-radius: 18px; padding: 18px; width: 100%; max-width: 400px; max-height: 92vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
@@ -110,7 +171,6 @@
 .story-tabs { display: flex; gap: 6px; }
 .story-tab { flex: 1; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,215,0,0.3); border-radius: 10px; color: #fff; font-family: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
 .story-tab.active { background: rgba(255,215,0,0.25); border-color: #ffd700; color: #ffd700; }
-.story-tab:disabled { opacity: 0.4; cursor: not-allowed; }
 #story-text-area { width: 100%; min-height: 140px; padding: 16px; background: rgba(0,0,0,0.4); border: 2px solid rgba(255,215,0,0.3); border-radius: 12px; color: #fff; font-family: inherit; font-size: 18px; font-weight: 700; text-align: center; outline: none; resize: none; line-height: 1.4; box-sizing: border-box; }
 .story-bg-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .story-bg-item { aspect-ratio: 1; border-radius: 50%; cursor: pointer; border: 2px solid rgba(255,255,255,0.15); transition: transform 0.15s; }
@@ -133,10 +193,14 @@
 .story-viewers-list { max-height: 200px; overflow-y: auto; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,215,0,0.2); }
 .story-viewer-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12px; color: #fff; }
 .story-viewer-row img { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #ffd700; object-fit: cover; }
+.story-viewer-row .sv-name-click { flex: 1; cursor: pointer; }
         `;
         document.head.appendChild(s);
     })();
 
+    /* ══════════════════════════════════════════════ */
+    /* _canViewStory                                  */
+    /* ══════════════════════════════════════════════ */
     async function _canViewStory(story, myUid) {
         if (!story) return false;
         if (story.uid === myUid) return true;
@@ -149,7 +213,7 @@
                 var s = await db.ref('users/' + story.uid + '/friends/' + myUid).once('value');
                 var f = s.val();
                 return !!(f && (!f.status || f.status === 'accepted'));
-            } catch(e) { return false; }
+            } catch (e) { return false; }
         }
         if (privacy === 'online') {
             try {
@@ -159,14 +223,17 @@
                 if ((Date.now() - (d.lastChanged || 0)) >= 120000) return false;
                 var myRoom = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
                 return d.room === myRoom;
-            } catch(e) { return false; }
+            } catch (e) { return false; }
         }
         return false;
     }
 
+    /* ══════════════════════════════════════════════ */
+    /* fetchStoriesForSidebar                         */
+    /* ══════════════════════════════════════════════ */
     async function fetchStoriesForSidebar() {
         var me = getMe();
-        if (!me) return { my: [], others: [] };
+        if (!me) return { my: null, others: [] };
         try {
             var snap = await db.ref('stories').limitToLast(100).once('value');
             var data = snap.val() || {};
@@ -179,7 +246,7 @@
                 var keys = Object.keys(userStories);
                 var newest = 0;
                 var storyItems = [];
-                keys.forEach(function(sid) {
+                keys.forEach(function (sid) {
                     var st = userStories[sid];
                     if (!st || Date.now() > (st.expiresAt || 0)) return;
                     st._id = sid;
@@ -198,17 +265,20 @@
                 try {
                     var b1 = await db.ref('user_private_blocks/' + me.uid + '/' + uid).once('value');
                     if (b1.exists()) continue;
-                } catch(e) {}
+                } catch (e) {}
                 others.push({ uid: uid, stories: storyItems, newest: newest });
             }
-            others.sort(function(a, b) { return (b.newest || 0) - (a.newest || 0); });
+            others.sort(function (a, b) { return (b.newest || 0) - (a.newest || 0); });
             return { my: mine, others: others };
-        } catch(e) {
+        } catch (e) {
             console.warn('fetchStories error:', e);
             return { my: null, others: [] };
         }
     }
 
+    /* ══════════════════════════════════════════════ */
+    /* renderStoriesSection (في sidebar المتواجدين)   */
+    /* ══════════════════════════════════════════════ */
     async function renderStoriesSection() {
         var content = document.getElementById('users-list-content');
         if (!content) return;
@@ -235,7 +305,7 @@
                     '<div class="story-name">' + esc(me.name || 'أنا') + '</div>' +
                  '</div>';
         }
-        data.others.forEach(function(item) {
+        data.others.forEach(function (item) {
             var u = item.stories[0] || {};
             var name = u.userName || '—';
             var av = u.userAvatar || 'https://ui-avatars.com/api/?name=U&background=333&color=fff';
@@ -251,19 +321,22 @@
         section.innerHTML = h;
         content.insertBefore(section, content.firstChild);
         var addBtn = section.querySelector('#story-add-btn');
-        if (addBtn) addBtn.onclick = function() { openPublishModal(); };
-        section.querySelectorAll('[data-story-mine]').forEach(function(el) {
-            el.onclick = function() { openStoryViewer(data.my.stories, data.my.uid, true); };
+        if (addBtn) addBtn.onclick = function () { openPublishModal(); };
+        section.querySelectorAll('[data-story-mine]').forEach(function (el) {
+            el.onclick = function () { openStoryViewer(data.my.stories, data.my.uid, true); };
         });
-        section.querySelectorAll('[data-story-uid]').forEach(function(el) {
+        section.querySelectorAll('[data-story-uid]').forEach(function (el) {
             var uid = el.getAttribute('data-story-uid');
-            el.onclick = function() {
-                var item = data.others.find(function(x) { return x.uid === uid; });
+            el.onclick = function () {
+                var item = data.others.find(function (x) { return x.uid === uid; });
                 if (item) openStoryViewer(item.stories, uid, false);
             };
         });
     }
 
+    /* ══════════════════════════════════════════════ */
+    /* Viewer                                         */
+    /* ══════════════════════════════════════════════ */
     function ensureViewer() {
         var v = document.getElementById('story-viewer');
         if (v) return v;
@@ -286,7 +359,7 @@
                 '<div id="story-content-holder" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;"></div>' +
             '</div>' +
             '<div class="story-meta" id="story-meta"></div>' +
-            '<div id="story-reactions-popup">' + REACTIONS.map(function(r){ return '<span data-r="' + r + '">' + r + '</span>'; }).join('') + '</div>' +
+            '<div id="story-reactions-popup">' + REACTIONS.map(function (r) { return '<span data-r="' + r + '">' + r + '</span>'; }).join('') + '</div>' +
             '<div id="story-viewer-footer">' +
                 '<button class="story-react-btn" id="story-react-trigger" type="button">😊</button>' +
                 '<input type="text" id="story-reply-input" placeholder="اكتب رداً..." maxlength="200">' +
@@ -298,12 +371,12 @@
         v.querySelector('#story-viewer-delete').onclick = deleteCurrentStory;
         v.querySelector('#story-prev-zone').onclick = goPrev;
         v.querySelector('#story-next-zone').onclick = goNext;
-        v.querySelector('#story-react-trigger').onclick = function() {
+        v.querySelector('#story-react-trigger').onclick = function () {
             var p = document.getElementById('story-reactions-popup');
             p.classList.toggle('active');
         };
-        v.querySelectorAll('#story-reactions-popup span').forEach(function(sp) {
-            sp.onclick = function() {
+        v.querySelectorAll('#story-reactions-popup span').forEach(function (sp) {
+            sp.onclick = function () {
                 var emoji = this.getAttribute('data-r');
                 addReaction(emoji);
                 document.getElementById('story-reactions-popup').classList.remove('active');
@@ -311,13 +384,43 @@
         });
         v.querySelector('#story-send-reply').onclick = sendReply;
         var replyInp = v.querySelector('#story-reply-input');
-        if (replyInp) replyInp.onkeydown = function(e) {
+        if (replyInp) replyInp.onkeydown = function (e) {
             if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
         };
+
+        /* ضغطة الصورة/الاسم → بروفايل */
+        var av = v.querySelector('#story-viewer-avatar');
+        var nm = v.querySelector('#story-viewer-name');
+        if (av) av.onclick = function () { _openStoryOwnerProfile(); };
+        if (nm) nm.onclick = function () { _openStoryOwnerProfile(); };
+
         return v;
     }
 
-    /* ⭐ v3: زر الحذف */
+    function _openStoryOwnerProfile() {
+        if (!St.currentViewer || !St.currentViewer.ownerUid) return;
+        if (St.currentViewer.isMine) return;
+        var uid = St.currentViewer.ownerUid;
+        var curStory = St.currentList[St.currentIndex];
+        var name = curStory ? curStory.userName : '';
+        try {
+            if (typeof window.openUserProfile === 'function') {
+                window.openUserProfile(uid, name);
+                return;
+            }
+        } catch (e) {}
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ action: 'openUserProfile', uid: uid, name: name }, '*');
+                return;
+            }
+        } catch (e) {}
+        if (typeof _openUserProfile === 'function') {
+            _openUserProfile(uid, name);
+        }
+    }
+
+    /* ⭐ v4: delete current story */
     function deleteCurrentStory() {
         var me = getMe();
         if (!me || !St.currentViewer || !St.currentViewer.isMine) return;
@@ -329,9 +432,8 @@
         _cleanupVideo();
 
         db.ref('stories/' + story.uid + '/' + story._id).remove()
-            .then(function() {
+            .then(function () {
                 if (typeof showToast === 'function') showToast('fa-check', '✅ تم الحذف');
-                // أزل من القائمة
                 St.currentList.splice(St.currentIndex, 1);
                 if (St.currentList.length === 0) {
                     closeViewer();
@@ -342,34 +444,37 @@
                     renderProgressBar();
                     renderCurrentStory();
                 }
-                // حدّث الواجهات
                 if (typeof window.renderStoriesSection === 'function') window.renderStoriesSection();
-                if (typeof window.renderMomentsTab === 'function') {
-                    // حاول إعادة تحميل لحظات في البروفايل
-                    try {
-                        var grid = document.getElementById('moments-grid');
-                        if (grid && window.Stories && window.Stories.renderMyTab) {
-                            var wrapper = grid.querySelector('div');
-                            if (wrapper) window.Stories.renderMyTab(wrapper);
-                        }
-                    } catch(e) {}
-                }
+                try {
+                    var grid = document.getElementById('moments-grid');
+                    if (grid && window.Stories && window.Stories.renderMyTab) {
+                        var wrapper = grid.querySelector('div');
+                        if (wrapper) window.Stories.renderMyTab(wrapper);
+                    }
+                } catch (e) {}
             })
-            .catch(function(e) {
+            .catch(function (e) {
                 console.error('Delete story failed:', e);
                 if (typeof showToast === 'function') showToast('fa-times', '⚠️ فشل الحذف');
             });
     }
 
-    function openStoryViewer(stories, ownerUid, isMine) {
+    /* ⭐ v4: openStoryViewer مع options.mini */
+    function openStoryViewer(stories, ownerUid, isMine, options) {
+        options = options || {};
         if (!stories || !stories.length) return;
         var me = getMe();
         if (!me) return;
-        St.currentList = stories.slice().sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
+        St.currentList = stories.slice().sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
         St.currentIndex = 0;
         St.currentViewer = { ownerUid: ownerUid, isMine: !!isMine };
+        St.miniMode = options.mini === true;
+
         _markViews();
         var v = ensureViewer();
+        if (St.miniMode) v.classList.add('mini');
+        else v.classList.remove('mini');
+
         v.classList.add('active');
         renderProgressBar();
         renderCurrentStory();
@@ -378,13 +483,13 @@
     function _markViews() {
         var me = getMe();
         if (!me || St.currentViewer.isMine) return;
-        St.currentList.forEach(function(st) {
+        St.currentList.forEach(function (st) {
             if (st.uid === me.uid) return;
             db.ref('stories/' + st.uid + '/' + st._id + '/views/' + me.uid).set({
                 at: Date.now(),
                 name: me.name || 'زائر',
                 avatar: me.avatar || ''
-            }).catch(function(){});
+            }).catch(function () {});
         });
     }
 
@@ -392,7 +497,7 @@
         var bar = document.getElementById('story-progress-bar');
         if (!bar) return;
         bar.innerHTML = '';
-        St.currentList.forEach(function(_, i) {
+        St.currentList.forEach(function (_, i) {
             var seg = document.createElement('div');
             seg.className = 'story-progress-segment';
             var fill = document.createElement('div');
@@ -432,11 +537,8 @@
         document.getElementById('story-viewer-name').textContent = story.userName || '—';
         document.getElementById('story-viewer-time').textContent = timeAgo(story.createdAt);
 
-        // ⭐ v3: إظهار/إخفاء زر الحذف
         var delBtn = document.getElementById('story-viewer-delete');
-        if (delBtn) {
-            delBtn.style.display = St.currentViewer.isMine ? 'block' : 'none';
-        }
+        if (delBtn) delBtn.style.display = St.currentViewer.isMine ? 'block' : 'none';
 
         if (story.type === 'video' && story.videoUrl) {
             var vid = document.createElement('video');
@@ -471,7 +573,7 @@
             holder.appendChild(vid);
             if (story.text) {
                 var ov = document.createElement('div');
-                ov.style.cssText = 'position:absolute;bottom:150px;left:20px;right:20px;color:#fff;font-size:18px;font-weight:900;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,0.9);padding:12px;background:rgba(0,0,0,0.5);border-radius:12px;';
+                ov.style.cssText = 'position:absolute;bottom:80px;left:15px;right:15px;color:#fff;font-size:14px;font-weight:900;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,0.9);padding:8px;background:rgba(0,0,0,0.5);border-radius:10px;';
                 ov.textContent = story.text;
                 holder.appendChild(ov);
             }
@@ -482,7 +584,7 @@
             holder.appendChild(img);
             if (story.text) {
                 var ov2 = document.createElement('div');
-                ov2.style.cssText = 'position:absolute;bottom:150px;left:20px;right:20px;color:#fff;font-size:18px;font-weight:900;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,0.9);padding:12px;background:rgba(0,0,0,0.5);border-radius:12px;';
+                ov2.style.cssText = 'position:absolute;bottom:80px;left:15px;right:15px;color:#fff;font-size:14px;font-weight:900;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,0.9);padding:8px;background:rgba(0,0,0,0.5);border-radius:10px;';
                 ov2.textContent = story.text;
                 holder.appendChild(ov2);
             }
@@ -502,7 +604,7 @@
             var vCount = story.views ? Object.keys(story.views).length : 0;
             var rCount = 0;
             if (story.reactions) {
-                Object.keys(story.reactions).forEach(function(k) {
+                Object.keys(story.reactions).forEach(function (k) {
                     var arr = story.reactions[k];
                     rCount += Array.isArray(arr) ? arr.length : Object.keys(arr || {}).length;
                 });
@@ -515,11 +617,7 @@
         }
 
         var footer = document.getElementById('story-viewer-footer');
-        if (St.currentViewer.isMine) {
-            footer.style.display = 'none';
-        } else {
-            footer.style.display = 'flex';
-        }
+        footer.style.display = St.currentViewer.isMine ? 'none' : 'flex';
     }
 
     function startProgress() {
@@ -534,7 +632,7 @@
         var fill = document.getElementById('story-fill-' + St.currentIndex);
         if (!fill) return;
         fill.style.width = '0%';
-        var tick = function() {
+        var tick = function () {
             if (St.isPaused) return;
             if (story.type === 'video' && St.currentVideoEl && !St.currentVideoEl.paused) {
                 var cur = St.currentVideoEl.currentTime * 1000;
@@ -584,10 +682,14 @@
         stopProgress();
         _cleanupVideo();
         var v = document.getElementById('story-viewer');
-        if (v) v.classList.remove('active');
+        if (v) {
+            v.classList.remove('active');
+            v.classList.remove('mini');
+        }
         St.currentViewer = null;
         St.currentList = [];
         St.currentIndex = 0;
+        St.miniMode = false;
     }
 
     function addReaction(emoji) {
@@ -596,7 +698,7 @@
         var story = St.currentList[St.currentIndex];
         if (!story) return;
         var ref = db.ref('stories/' + story.uid + '/' + story._id + '/reactions/' + emoji + '/' + me.uid);
-        ref.set({ at: Date.now(), name: me.name || 'زائر' }).catch(function(){});
+        ref.set({ at: Date.now(), name: me.name || 'زائر' }).catch(function () {});
         if (typeof showToast === 'function') showToast('fa-check', '✅ ' + emoji);
     }
 
@@ -615,14 +717,17 @@
             fromAvatar: me.avatar || '',
             text: txt.substring(0, 200),
             at: Date.now()
-        }).then(function() {
+        }).then(function () {
             if (typeof showToast === 'function') showToast('fa-check', '✅ تم إرسال الرد');
             inp.value = '';
-        }).catch(function() {
+        }).catch(function () {
             if (typeof showToast === 'function') showToast('fa-times', '⚠️ فشل');
         });
     }
 
+    /* ══════════════════════════════════════════════ */
+    /* Publish Modal                                  */
+    /* ══════════════════════════════════════════════ */
     function ensurePublishModal() {
         var m = document.getElementById('story-publish-modal');
         if (m) return m;
@@ -630,7 +735,7 @@
         m.id = 'story-publish-modal';
         m.innerHTML = '<div id="story-publish-box"></div>';
         document.body.appendChild(m);
-        m.addEventListener('click', function(e) { if (e.target === m) closePublishModal(); });
+        m.addEventListener('click', function (e) { if (e.target === m) closePublishModal(); });
         return m;
     }
 
@@ -639,7 +744,7 @@
         var box = m.querySelector('#story-publish-box');
         St.publishing = false;
         var defaultPrivacy = 'public';
-        try { defaultPrivacy = localStorage.getItem('story_default_privacy') || 'public'; } catch(e) {}
+        try { defaultPrivacy = localStorage.getItem('story_default_privacy') || 'public'; } catch (e) {}
         St._pubState = {
             type: 'text', text: '', bgId: STORY_BGS[0].id,
             imageFile: null, imagePreview: null, imageUrl: null,
@@ -667,19 +772,18 @@
                 '<button class="story-publish-go" id="story-pub-go" type="button">📤 نشر</button>' +
             '</div>';
         _renderPublishBody(box);
-        box.querySelectorAll('.story-tab').forEach(function(t) {
-            t.onclick = function() {
-                if (t.disabled) return;
-                box.querySelectorAll('.story-tab').forEach(function(x) { x.classList.remove('active'); });
+        box.querySelectorAll('.story-tab').forEach(function (t) {
+            t.onclick = function () {
+                box.querySelectorAll('.story-tab').forEach(function (x) { x.classList.remove('active'); });
                 t.classList.add('active');
                 St._pubState.type = t.getAttribute('data-t');
                 _renderPublishBody(box);
             };
         });
-        box.querySelectorAll('[data-p]').forEach(function(b) {
+        box.querySelectorAll('[data-p]').forEach(function (b) {
             b.classList.toggle('active', b.getAttribute('data-p') === St._pubState.privacy);
-            b.onclick = function() {
-                box.querySelectorAll('[data-p]').forEach(function(x) { x.classList.remove('active'); });
+            b.onclick = function () {
+                box.querySelectorAll('[data-p]').forEach(function (x) { x.classList.remove('active'); });
                 b.classList.add('active');
                 St._pubState.privacy = b.getAttribute('data-p');
             };
@@ -699,19 +803,19 @@
             ta.maxLength = MAX_TEXT_LEN;
             ta.placeholder = 'اكتب حالتك...';
             ta.value = st.text || '';
-            var bg = STORY_BGS.find(function(b){ return b.id === st.bgId; });
+            var bg = STORY_BGS.find(function (b) { return b.id === st.bgId; });
             ta.style.background = bg ? bg.css : STORY_BGS[0].css;
-            ta.oninput = function() { st.text = this.value; };
+            ta.oninput = function () { st.text = this.value; };
             holder.appendChild(ta);
             var grid = document.createElement('div');
             grid.className = 'story-bg-grid';
-            STORY_BGS.forEach(function(b) {
+            STORY_BGS.forEach(function (b) {
                 var d = document.createElement('div');
                 d.className = 'story-bg-item' + (b.id === st.bgId ? ' active' : '');
                 d.style.background = b.css;
-                d.onclick = function() {
+                d.onclick = function () {
                     st.bgId = b.id;
-                    grid.querySelectorAll('.story-bg-item').forEach(function(x){ x.classList.remove('active'); });
+                    grid.querySelectorAll('.story-bg-item').forEach(function (x) { x.classList.remove('active'); });
                     d.classList.add('active');
                     var ta2 = document.getElementById('story-text-area');
                     if (ta2) ta2.style.background = b.css;
@@ -734,7 +838,7 @@
                 ta2.value = st.text || '';
                 ta2.style.minHeight = '70px';
                 ta2.style.fontSize = '14px';
-                ta2.oninput = function() { st.text = this.value; };
+                ta2.oninput = function () { st.text = this.value; };
                 wrap.appendChild(ta2);
             } else {
                 var pick = document.createElement('button');
@@ -742,7 +846,7 @@
                 pick.className = 'story-publish-go';
                 pick.textContent = '📤 اختر صورة';
                 pick.style.padding = '20px';
-                pick.onclick = function() {
+                pick.onclick = function () {
                     var fi = document.getElementById('story-file-input');
                     if (fi) fi.click();
                 };
@@ -755,16 +859,16 @@
             holder.appendChild(wrap);
             var fi = document.getElementById('story-file-input');
             if (fi) {
-                fi.onchange = function() {
+                fi.onchange = function () {
                     var f = this.files && this.files[0];
                     if (!f) return;
-                    if (f.size / (1024*1024) > MAX_IMAGE_MB) {
+                    if (f.size / (1024 * 1024) > MAX_IMAGE_MB) {
                         if (typeof showToast === 'function') showToast('fa-exclamation-triangle', '⚠️ الحد ' + MAX_IMAGE_MB + 'MB');
                         return;
                     }
                     St._pubState.imageFile = f;
                     var rd = new FileReader();
-                    rd.onload = function(ev) {
+                    rd.onload = function (ev) {
                         St._pubState.imagePreview = ev.target.result;
                         _renderPublishBody(box);
                     };
@@ -789,7 +893,7 @@
                 ta3.value = st.text || '';
                 ta3.style.minHeight = '60px';
                 ta3.style.fontSize = '14px';
-                ta3.oninput = function() { st.text = this.value; };
+                ta3.oninput = function () { st.text = this.value; };
                 wrap2.appendChild(ta3);
             } else {
                 var pick2 = document.createElement('button');
@@ -797,29 +901,29 @@
                 pick2.className = 'story-publish-go';
                 pick2.textContent = '🎥 اختر فيديو';
                 pick2.style.padding = '20px';
-                pick2.onclick = function() {
+                pick2.onclick = function () {
                     var vi = document.getElementById('story-video-input');
                     if (vi) vi.click();
                 };
                 wrap2.appendChild(pick2);
                 var hint2 = document.createElement('div');
                 hint2.style.cssText = 'color:#888;font-size:11px;text-align:center;';
-                hint2.textContent = '💡 الحد الأقصى: ' + MAX_VIDEO_MB + 'MB';
+                hint2.textContent = '💡 الحد الأقصى: ' + MAX_VIDEO_MB + 'MB (Telegram)';
                 wrap2.appendChild(hint2);
             }
             holder.appendChild(wrap2);
             var vi = document.getElementById('story-video-input');
             if (vi) {
-                vi.onchange = function() {
+                vi.onchange = function () {
                     var f = this.files && this.files[0];
                     if (!f) return;
-                    if (f.size / (1024*1024) > MAX_VIDEO_MB) {
+                    if (f.size / (1024 * 1024) > MAX_VIDEO_MB) {
                         if (typeof showToast === 'function') showToast('fa-exclamation-triangle', '⚠️ الحد ' + MAX_VIDEO_MB + 'MB');
                         return;
                     }
                     St._pubState.videoFile = f;
                     var rd2 = new FileReader();
-                    rd2.onload = function(ev) {
+                    rd2.onload = function (ev) {
                         St._pubState.videoPreview = ev.target.result;
                         _renderPublishBody(box);
                     };
@@ -868,6 +972,7 @@
             }
             if (st.type === 'video' && st.videoFile && !st.videoUrl) {
                 if (typeof showToast === 'function') showToast('fa-spinner', '⏳ جاري رفع الفيديو...');
+                /* v7: الفيديو يروح تلغرام فقط */
                 videoUrl = await window.UploadService.upload(st.videoFile);
                 st.videoUrl = videoUrl;
             }
@@ -878,7 +983,7 @@
                 userAvatar: me.avatar || '',
                 type: st.type,
                 text: (st.text || '').substring(0, MAX_TEXT_LEN),
-                bgColor: st.type === 'text' ? (STORY_BGS.find(function(b){return b.id===st.bgId;}) || STORY_BGS[0]).css : null,
+                bgColor: st.type === 'text' ? (STORY_BGS.find(function (b) { return b.id === st.bgId; }) || STORY_BGS[0]).css : null,
                 imageUrl: imageUrl,
                 videoUrl: videoUrl,
                 privacy: st.privacy,
@@ -890,7 +995,7 @@
             if (typeof showToast === 'function') showToast('fa-check', '✅ نُشرت الحالة');
             closePublishModal();
             renderStoriesSection();
-        } catch(e) {
+        } catch (e) {
             console.error('publishStory error:', e);
             if (typeof showToast === 'function') showToast('fa-times', '⚠️ فشل: ' + (e.message || ''));
         }
@@ -898,6 +1003,9 @@
         if (goBtn) { goBtn.disabled = false; goBtn.textContent = '📤 نشر'; }
     }
 
+    /* ══════════════════════════════════════════════ */
+    /* renderMyStoryTab (يستدعيها profile-core v15)   */
+    /* ══════════════════════════════════════════════ */
     async function renderMyStoryTab(container) {
         if (!container) return;
         container.innerHTML = '<div style="text-align:center;color:#888;padding:20px;font-size:12px;">⏳ جاري التحميل...</div>';
@@ -910,12 +1018,12 @@
             var snap = await db.ref('stories/' + me.uid).once('value');
             var data = snap.val() || {};
             var now = Date.now();
-            var stories = Object.keys(data).map(function(k) {
+            var stories = Object.keys(data).map(function (k) {
                 var st = data[k]; st._id = k; return st;
-            }).filter(function(st) { return (st.expiresAt || 0) > now; })
-              .sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
+            }).filter(function (st) { return (st.expiresAt || 0) > now; })
+              .sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
             var defaultPriv = 'public';
-            try { defaultPriv = localStorage.getItem('story_default_privacy') || 'public'; } catch(e) {}
+            try { defaultPriv = localStorage.getItem('story_default_privacy') || 'public'; } catch (e) {}
             var h = '';
             h += '<button class="story-publish-go" id="story-tab-add" type="button" style="width:100%;padding:12px;border-radius:12px;font-size:14px;font-weight:900;cursor:pointer;margin-bottom:14px;">📸 أضف حالة جديدة</button>';
             h += '<div style="display:flex;flex-direction:column;gap:10px;">';
@@ -923,7 +1031,7 @@
             h += '<div style="display:flex;align-items:center;gap:8px;justify-content:space-between;padding:8px 0;">';
             h += '<span style="color:#fff;font-size:12px;">الخصوصية الافتراضية:</span>';
             h += '<select id="story-default-privacy" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,215,0,0.3);color:#fff;border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12px;">';
-            ['public','friends','online','private'].forEach(function(p) {
+            ['public','friends','online','private'].forEach(function (p) {
                 var names = { public: '🌍 عام', friends: '👥 أصدقاء', online: '🟢 متواجدون', private: '🔒 أنا فقط' };
                 h += '<option value="' + p + '"' + (p === defaultPriv ? ' selected' : '') + '>' + names[p] + '</option>';
             });
@@ -935,20 +1043,20 @@
             container.innerHTML = h;
             document.getElementById('story-tab-add').onclick = openPublishModal;
             var sel = document.getElementById('story-default-privacy');
-            if (sel) sel.onchange = function() {
-                try { localStorage.setItem('story_default_privacy', this.value); } catch(e) {}
+            if (sel) sel.onchange = function () {
+                try { localStorage.setItem('story_default_privacy', this.value); } catch (e) {}
                 if (typeof showToast === 'function') showToast('fa-check', '✅ تم');
             };
             var listEl = document.getElementById('story-mine-list');
             if (!stories.length) {
                 listEl.innerHTML = '<div style="text-align:center;color:#888;padding:16px;font-size:12px;">لا توجد حالات منشورة</div>';
             } else {
-                stories.forEach(function(st) {
+                stories.forEach(function (st) {
                     var card = document.createElement('div');
                     card.className = 'story-mine-card';
                     var vCount = st.views ? Object.keys(st.views).length : 0;
                     var rCount = 0;
-                    if (st.reactions) Object.keys(st.reactions).forEach(function(k){
+                    if (st.reactions) Object.keys(st.reactions).forEach(function (k) {
                         var arr = st.reactions[k];
                         rCount += Array.isArray(arr) ? arr.length : Object.keys(arr || {}).length;
                     });
@@ -982,11 +1090,11 @@
                     if (st.views && Object.keys(st.views).length > 0) {
                         var vh = '<div style="color:#ffd700;font-size:11px;font-weight:900;margin-top:8px;">👁️ المشاهدون:</div>';
                         vh += '<div class="story-viewers-list">';
-                        Object.keys(st.views).forEach(function(vid) {
+                        Object.keys(st.views).forEach(function (vid) {
                             var vd = st.views[vid] || {};
                             vh += '<div class="story-viewer-row">' +
                                     '<img src="' + esc(vd.avatar || 'https://ui-avatars.com/api/?name=U&background=333&color=fff') + '">' +
-                                    '<span style="flex:1;">' + esc(vd.name || '—') + '</span>' +
+                                    '<span class="sv-name-click" data-vuid="' + esc(vid) + '" data-vname="' + esc(vd.name || '') + '">' + esc(vd.name || '—') + '</span>' +
                                     '<span style="color:#888;font-size:10px;">' + timeAgo(vd.at) + '</span>' +
                                   '</div>';
                         });
@@ -998,12 +1106,12 @@
                     if (st.replies && Object.keys(st.replies).length > 0) {
                         var rh = '<div style="color:#ffd700;font-size:11px;font-weight:900;margin-top:8px;">💬 الردود:</div>';
                         rh += '<div class="story-viewers-list">';
-                        Object.keys(st.replies).forEach(function(rid) {
+                        Object.keys(st.replies).forEach(function (rid) {
                             var rp = st.replies[rid] || {};
                             rh += '<div class="story-viewer-row">' +
                                     '<img src="' + esc(rp.fromAvatar || 'https://ui-avatars.com/api/?name=U&background=333&color=fff') + '">' +
                                     '<div style="flex:1;min-width:0;">' +
-                                        '<div style="font-weight:900;font-size:11px;">' + esc(rp.fromName || '—') + '</div>' +
+                                        '<div style="font-weight:900;font-size:11px;cursor:pointer;" data-vuid="' + esc(rp.fromUid || '') + '" data-vname="' + esc(rp.fromName || '') + '">' + esc(rp.fromName || '—') + '</div>' +
                                         '<div style="color:#ccc;font-size:11px;word-break:break-word;">' + esc(rp.text || '') + '</div>' +
                                     '</div>' +
                                   '</div>';
@@ -1015,24 +1123,37 @@
                     }
                     listEl.appendChild(card);
                 });
-                listEl.querySelectorAll('[data-del]').forEach(function(b) {
-                    b.onclick = function() {
+                /* حذف */
+                listEl.querySelectorAll('[data-del]').forEach(function (b) {
+                    b.onclick = function () {
                         var sid = this.getAttribute('data-del');
                         if (!confirm('حذف هذه الحالة؟')) return;
-                        db.ref('stories/' + me.uid + '/' + sid).remove().then(function() {
+                        db.ref('stories/' + me.uid + '/' + sid).remove().then(function () {
                             if (typeof showToast === 'function') showToast('fa-check', '✅ حُذفت');
                             renderMyStoryTab(container);
-                        }).catch(function() {
+                        }).catch(function () {
                             if (typeof showToast === 'function') showToast('fa-times', '⚠️ فشل');
                         });
                     };
                 });
+                /* ⭐ v4: كليكات على المشاهدين + الردود → بروفايل */
+                listEl.querySelectorAll('[data-vuid]').forEach(function (b) {
+                    b.onclick = function (e) {
+                        e.stopPropagation();
+                        var uid = this.getAttribute('data-vuid');
+                        var name = this.getAttribute('data-vname');
+                        if (uid && uid !== me.uid) _openUserProfile(uid, name);
+                    };
+                });
             }
-        } catch(e) {
+        } catch (e) {
             container.innerHTML = '<div style="text-align:center;color:#ff6666;padding:20px;font-size:12px;">⚠️ خطأ: ' + esc(e.message) + '</div>';
         }
     }
 
+    /* ══════════════════════════════════════════════ */
+    /* Cleanup expired (محلي — الطرف الآخر)          */
+    /* ══════════════════════════════════════════════ */
     async function cleanupExpiredStories() {
         if (typeof db === 'undefined' || !db) return;
         var me = getMe();
@@ -1042,11 +1163,11 @@
             var data = snap.val() || {};
             var now = Date.now();
             var promises = [];
-            Object.keys(data).forEach(function(sid) {
+            Object.keys(data).forEach(function (sid) {
                 var st = data[sid];
                 if (!st || !st.expiresAt) return;
                 if (st.expiresAt < now) {
-                    promises.push(db.ref('stories/' + me.uid + '/' + sid).remove().catch(function(){}));
+                    promises.push(db.ref('stories/' + me.uid + '/' + sid).remove().catch(function () {}));
                 }
             });
             if (promises.length) await Promise.all(promises);
@@ -1058,8 +1179,8 @@
         var me = getMe();
         if (!me) { setTimeout(setupStoriesListener, 1500); return; }
         cleanupExpiredStories();
-        setInterval(function() { cleanupExpiredStories(); }, 30 * 60 * 1000);
-        console.log('📸 stories.js v3: ready');
+        setInterval(function () { cleanupExpiredStories(); }, 30 * 60 * 1000);
+        console.log('📸 stories.js v4: ready');
     }
 
     function patchUsersSidebar() {
@@ -1067,15 +1188,15 @@
         if (window.__storiesPatchedShowUsers) return;
         window.__storiesPatchedShowUsers = true;
         var _orig = window.showOnlineUsers;
-        window.showOnlineUsers = async function() {
+        window.showOnlineUsers = async function () {
             await _orig.apply(this, arguments);
-            setTimeout(function() { renderStoriesSection(); }, 100);
+            setTimeout(function () { renderStoriesSection(); }, 100);
         };
-        console.log('📸 stories.js v3: users-sidebar patched');
+        console.log('📸 stories.js v4: users-sidebar patched');
     }
 
     function init() {
-        var t = setInterval(function() {
+        var t = setInterval(function () {
             if (typeof getCurrentUser === 'function' && getCurrentUser() && typeof db !== 'undefined' && db) {
                 clearInterval(t);
                 setupStoriesListener();
@@ -1088,6 +1209,7 @@
         document.addEventListener('DOMContentLoaded', init);
     } else { init(); }
 
+    /* ⭐ v4: التصدير — مع openStoryViewer صريح */
     window.Stories = {
         publish: openPublishModal,
         renderMyTab: renderMyStoryTab,
@@ -1096,6 +1218,7 @@
     };
     window.renderStoriesSection = renderStoriesSection;
     window.openStoryPublish = openPublishModal;
+    window.openStoryViewer = openStoryViewer;   /* ⭐ v4: مهم للـ profile-core v15 */
 
-    console.log('📸 stories.js v3 loaded — 20MB video + delete in viewer');
+    console.log('📸 stories.js v4 (TEST) loaded — 20MB video + mini mode + delete');
 })();
