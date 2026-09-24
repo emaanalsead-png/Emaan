@@ -1,5 +1,14 @@
 // ==============================================
-// profile-core.js v14 — music 10MB + name 35 chars
+// profile-core.js v15 (TEST)
+// ==============================================
+// ✅ v15 (فوق v14):
+//   1. presence listener — آخر تواجد حقيقي + مكان تواجد صحيح
+//   2. UID في info-grid + زر نسخ
+//   3. tab "أوامر": + ترقية/تخفيض + زر مراقبة الملك (PmMonitor.openFor)
+//   4. اسم 35 حرف — فحص كامل
+//   5. الاسم/الصورة قابلان للنقر (فتح بروفايل عند الحاجة)
+//   6. توافق كامل مع profile-optimizer v2 + stories v4
+//   7. إصلاح _formatLastSeen + _getCurrentRoom
 // ==============================================
 
 const ProfileState = {
@@ -10,11 +19,14 @@ const ProfileState = {
     poetry: { text: '', bg: null, attachment: null },
     likes: { isLiked: false, count: 0 },
     friends: { state: 'off', count: 0 },
-    blocked: { isBlocked: false }
+    blocked: { isBlocked: false },
+    presence: null,                  /* ⭐ v15 */
+    presenceInterval: null           /* ⭐ v15 */
 };
 
 const IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
 const MAX_AUDIO_MB = 10;
+const MAX_NAME_LENGTH = 35;          /* ⭐ v15 */
 
 const NAME_GRADIENTS = [
     ['#d4af37','#ffec8b'], ['#b8860b','#ffd700'], ['#ffd700','#ff8c00'],
@@ -56,6 +68,7 @@ function _getCinemaBgStyles() {
     return [{ id: '', label: 'بدون', icon: '❌' }];
 }
 
+/* ═══ Helpers ═══ */
 function _getUser() {
     try {
         return JSON.parse(
@@ -85,6 +98,11 @@ function _isAdminUser() {
     return lvl >= 65;
 }
 
+function _isKingUser() {
+    const u = ProfileState.me;
+    return !!(u && u.rank === 'King');
+}
+
 function _canView(field) {
     if (_isOwner()) return true;
     const subj = ProfileState.subject;
@@ -101,6 +119,7 @@ function _esc(s) {
     });
 }
 
+/* ⭐ v15: _formatLastSeen يستخدم presence */
 function _formatLastSeen(ts, roomId) {
     if (!ts) return '—';
     const d = new Date(ts);
@@ -111,6 +130,20 @@ function _formatLastSeen(ts, roomId) {
         result += ' · 📌 ' + QAMAR.ROOMS[roomId].name;
     }
     return result;
+}
+
+/* ⭐ v15: آخر تواجد (نسبي) */
+function _relativeLastSeen(ts) {
+    if (!ts) return '—';
+    var diff = Date.now() - ts;
+    if (diff < 60000) return 'الآن';
+    var m = Math.floor(diff / 60000);
+    if (m < 60) return 'قبل ' + m + ' دقيقة';
+    var h = Math.floor(m / 60);
+    if (h < 24) return 'قبل ' + h + ' ساعة';
+    var d = Math.floor(h / 24);
+    if (d < 30) return 'قبل ' + d + ' يوم';
+    return _formatDate(ts);
 }
 
 function _formatDate(ts) {
@@ -159,6 +192,34 @@ function _openUserProfile(uid, name) {
     }
 }
 
+/* ⭐ v15: نسخ للحافظة */
+function _copyToClipboard(text, label) {
+    if (!text) return;
+    var doFallback = function () {
+        try {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            _toast('✅ تم نسخ ' + (label || 'النص'));
+        } catch (e) { _toast('⚠️ فشل النسخ'); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+            _toast('✅ تم نسخ ' + (label || 'النص'));
+        }).catch(function () {
+            doFallback();
+        });
+    } else {
+        doFallback();
+    }
+}
+
+/* ═══ Modal ═══ */
 function openAppModal(opts) {
     opts = opts || {};
     const m = document.getElementById('app-modal');
@@ -238,8 +299,102 @@ function openAppModal(opts) {
 
 window.openAppModal = openAppModal;
 
+/* ══════════════════════════════════════════════ */
+/* ⭐ v15: Presence Listener                      */
+/* ══════════════════════════════════════════════ */
+function _startPresenceListener(uid) {
+    if (!uid) return;
+    if (typeof db === 'undefined' || !db) return;
+
+    /* تنظيف القديم */
+    if (ProfileState.presenceInterval) {
+        clearInterval(ProfileState.presenceInterval);
+        ProfileState.presenceInterval = null;
+    }
+
+    /* قراءة فورية */
+    _fetchPresence(uid);
+
+    /* listener */
+    try {
+        var ref = db.ref('user_presence/' + uid);
+        ref.on('value', function (s) {
+            var p = s.val() || {};
+            ProfileState.presence = p;
+            _applyPresenceToDOM(p);
+        }, function () {});
+    } catch (e) {}
+
+    /* polling كل 90 ثانية (احتياطي) */
+    ProfileState.presenceInterval = setInterval(function () {
+        _fetchPresence(uid);
+    }, 90000);
+}
+
+function _fetchPresence(uid) {
+    if (!uid || typeof db === 'undefined' || !db) return;
+    db.ref('user_presence/' + uid).once('value').then(function (s) {
+        var p = s.val() || {};
+        ProfileState.presence = p;
+        _applyPresenceToDOM(p);
+    }).catch(function () {});
+}
+
+function _applyPresenceToDOM(p) {
+    if (!p) return;
+
+    /* ─── dot الحالة ─── */
+    var dot = document.getElementById('status-dot');
+    if (dot) {
+        if (p.state === 'online' && (Date.now() - (p.lastChanged || 0)) < 120000) {
+            dot.className = 'status-dot online';
+            dot.title = 'متصل';
+        } else {
+            dot.className = 'status-dot offline';
+            dot.title = 'غير متصل';
+        }
+    }
+
+    /* ─── تحديث grid المعلومات ─── */
+    _updateInfoGridPresence(p);
+}
+
+function _updateInfoGridPresence(p) {
+    var grid = document.getElementById('info-grid');
+    if (!grid) return;
+
+    /* آخر تواجد */
+    var lastSeenEl = grid.querySelector('[data-info="lastSeen"] .ii-value');
+    if (lastSeenEl) {
+        var isOnline = (p.state === 'online' && (Date.now() - (p.lastChanged || 0)) < 120000);
+        if (isOnline) {
+            lastSeenEl.textContent = '🟢 متصل الآن';
+        } else {
+            var ts = (typeof p.lastChanged === 'number' && p.lastChanged > 0) ? p.lastChanged : (ProfileState.subject && ProfileState.subject.lastSeen) || 0;
+            lastSeenEl.textContent = ts ? _relativeLastSeen(ts) : '—';
+        }
+    }
+
+    /* مكان التواجد */
+    var roomEl = grid.querySelector('[data-info="room"] .ii-value');
+    if (roomEl) {
+        var roomId = p.room;
+        if (roomId && typeof QAMAR !== 'undefined' && QAMAR.ROOMS && QAMAR.ROOMS[roomId]) {
+            var room = QAMAR.ROOMS[roomId];
+            roomEl.textContent = (room.icon || '🚪') + ' ' + (room.name || roomId);
+        } else if (roomId) {
+            roomEl.textContent = '🚪 ' + roomId;
+        } else {
+            roomEl.textContent = '—';
+        }
+    }
+}
+
+/* ══════════════════════════════════════════════ */
+/* Bootstrap                                      */
+/* ══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async function () {
-    console.log('🚀 profile-core.js v14 booting...');
+    console.log('🚀 profile-core.js v15 booting...');
 
     try {
         localStorage.removeItem('saved_avatar_frame_motion');
@@ -300,6 +455,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     applyIdentityToDOM();
     _startSubjectListener();
 
+    /* ⭐ v15: presence listener */
+    if (ProfileState.subject && ProfileState.subject.uid) {
+        _startPresenceListener(ProfileState.subject.uid);
+    }
+
     if (_isOwner()) {
         _autoCleanupLegacyVideos();
     }
@@ -319,9 +479,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         renderFriendsTab();
     }, 400);
 
-    console.log('✅ profile-core.js v14 ready | Mode:', ProfileState.mode);
+    console.log('✅ profile-core.js v15 ready | Mode:', ProfileState.mode);
 });
 
+/* ═══ Legacy cleanup ═══ */
 async function _autoCleanupLegacyVideos() {
     const subj = ProfileState.subject;
     if (!subj || !subj.uid) return;
@@ -355,12 +516,10 @@ async function _autoCleanupLegacyVideos() {
         if (updates.coverType === null) ProfileState.subject.coverType = null;
         if (updates.profileBgType === null) ProfileState.subject.profileBgType = null;
         if (updates.profileBgValue === null) ProfileState.subject.profileBgValue = null;
-        console.log('🗑️ v14: removed legacy videos from Firebase');
-    } catch (e) {
-        console.warn('cleanup legacy videos failed:', e);
-    }
+    } catch (e) {}
 }
 
+/* ═══ Load Subject ═══ */
 function _loadSubjectFromCache(uid) {
     try {
         const key = uid ? ('profile_target_data_' + uid) : QAMAR.STORAGE_KEYS.CURRENT_USER;
@@ -394,6 +553,7 @@ async function _loadVisitorSubject(uid) {
             return;
         }
         ProfileState.subject = remote;
+        ProfileState.subject.uid = uid;
         try { localStorage.setItem('profile_target_data_' + uid, JSON.stringify(remote)); } catch (e) {}
         if (ProfileState.me && ProfileState.me.uid && ProfileState.me.uid !== uid) {
             db.ref('users/' + uid + '/visitors/' + ProfileState.me.uid).set({
@@ -424,10 +584,18 @@ function _mergeIdentity(cachedUser, remoteUser) {
     return Object.assign({}, remoteUser, patch);
 }
 
+/* ⭐ v15: _startSubjectListener — نبقي نفس الاسم (للـ optimizer) */
 function _startSubjectListener() {
     if (typeof db === 'undefined' || !db) return;
     const subj = ProfileState.subject;
     if (!subj || !subj.uid) return;
+
+    /* نحاول نستخدم user-data-optimizer إن وُجد */
+    if (window.__profileOptimizerV2) {
+        /* الـ optimizer رح يستخدم نسخته الخاصة */
+        console.log('📡 profile-core v15: deferring to profile-optimizer');
+        return;
+    }
 
     db.ref('users/' + subj.uid).on('value', function (snap) {
         const remote = snap.val();
@@ -437,6 +605,7 @@ function _startSubjectListener() {
         ProfileState.lastUserHash = newHash;
         if (Date.now() > ProfileState.localLockUntil) {
             ProfileState.subject = Object.assign({}, ProfileState.subject, remote);
+            ProfileState.subject.uid = subj.uid;
         }
         try {
             if (_isVisitor()) {
@@ -448,23 +617,9 @@ function _startSubjectListener() {
         applyIdentityToDOM();
         renderInfoGrid();
     });
-
-    if (_isVisitor()) {
-        db.ref('user_presence/' + subj.uid).on('value', function (snap) {
-            const p = snap.val() || {};
-            const dot = document.getElementById('status-dot');
-            if (!dot) return;
-            if (p.state === 'online') {
-                dot.className = 'status-dot online';
-                dot.title = 'متصل';
-            } else {
-                dot.className = 'status-dot offline';
-                dot.title = 'غير متصل';
-            }
-        });
-    }
 }
 
+/* ═══ Apply Identity ═══ */
 function applyIdentityToDOM() {
     const subj = ProfileState.subject;
     if (!subj) return;
@@ -657,6 +812,9 @@ function _applyMusicButton(subj) {
     }
 }
 
+/* ══════════════════════════════════════════════ */
+/* ⭐ v15: renderInfoGrid — UID + place + time   */
+/* ══════════════════════════════════════════════ */
 function renderInfoGrid() {
     const grid = document.getElementById('info-grid');
     if (!grid) return;
@@ -667,7 +825,16 @@ function renderInfoGrid() {
     }
 
     const items = [];
-    if (subj.code) items.push({ icon: '🔑', label: 'المعرّف', value: subj.code });
+
+    /* UID ⭐ */
+    if (subj.uid) {
+        items.push({ icon: '🆔', label: 'UID', value: subj.uid, key: 'uid', copy: true, label_copy: 'UID' });
+    }
+    /* code */
+    if (subj.code) {
+        items.push({ icon: '🔑', label: 'المعرّف', value: subj.code, key: 'code', copy: true, label_copy: 'الكود' });
+    }
+
     if (subj.country && _canView('country')) items.push({ icon: '🌍', label: 'الدولة', value: subj.country });
     if (subj.family && _canView('family')) items.push({ icon: '👨‍👩‍👧', label: 'العائلة', value: subj.family });
     if (subj.age && _canView('age')) items.push({ icon: '🎂', label: 'العمر', value: subj.age + ' سنة' });
@@ -676,10 +843,29 @@ function renderInfoGrid() {
         items.push({ icon: '👤', label: 'الجنس', value: g });
     }
     if (subj.createdAt && _canView('joinedAt')) items.push({ icon: '📅', label: 'الانضمام', value: _formatDate(subj.createdAt) });
-    if (subj.lastSeen && _canView('lastSeen')) {
-        const roomId = subj.currentRoom || null;
-        items.push({ icon: '🕐', label: 'آخر تواجد', value: _formatLastSeen(subj.lastSeen, roomId) });
+
+    /* آخر تواجد ⭐ */
+    if (_canView('lastSeen')) {
+        var p = ProfileState.presence || {};
+        var isOnline = (p.state === 'online' && (Date.now() - (p.lastChanged || 0)) < 120000);
+        var lastSeenText = isOnline ? '🟢 متصل الآن' : (subj.lastSeen ? _relativeLastSeen(subj.lastSeen) : '—');
+        items.push({ icon: '🕐', label: 'آخر تواجد', value: lastSeenText, key: 'lastSeen' });
     }
+
+    /* مكان التواجد ⭐ */
+    if (_canView('lastSeen')) {
+        var pRoom = (ProfileState.presence && ProfileState.presence.room) || subj.currentRoom || null;
+        var roomText = '—';
+        if (pRoom && typeof QAMAR !== 'undefined' && QAMAR.ROOMS && QAMAR.ROOMS[pRoom]) {
+            var room = QAMAR.ROOMS[pRoom];
+            roomText = (room.icon || '🚪') + ' ' + (room.name || pRoom);
+        } else if (pRoom) {
+            roomText = '🚪 ' + pRoom;
+        }
+        items.push({ icon: '📍', label: 'مكان التواجد', value: roomText, key: 'room' });
+    }
+
+    /* نقاط */
     if (_canView('points')) {
         db.ref('bot_data/quiz/scores/' + subj.uid).once('value').then(function (s) {
             const pts = s.val() || 0;
@@ -699,15 +885,37 @@ function renderInfoGrid() {
         const div = document.createElement('div');
         div.className = 'info-item';
         if (it.key) div.setAttribute('data-info', it.key);
-        div.innerHTML =
-            '<div class="ii-label">' + it.icon + ' ' + it.label + '</div>' +
-            '<div class="ii-value">' + _esc(it.value) + '</div>';
+
+        var html = '<div class="ii-label">' + it.icon + ' ' + it.label + '</div>' +
+                   '<div class="ii-value">' + _esc(it.value) + '</div>';
+
+        if (it.copy && it.value) {
+            html += '<button class="ii-copy-btn" type="button" title="نسخ">📋</button>';
+        }
+
+        div.innerHTML = html;
+
+        if (it.copy && it.value) {
+            var btn = div.querySelector('.ii-copy-btn');
+            if (btn) {
+                btn.style.cssText = 'position:absolute;top:6px;left:6px;background:rgba(255,215,0,0.15);border:1px solid rgba(255,215,0,0.4);color:#ffd700;width:26px;height:26px;border-radius:6px;font-size:12px;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;';
+                btn.onclick = (function (v, l) {
+                    return function (e) {
+                        e.stopPropagation();
+                        _copyToClipboard(v, l);
+                    };
+                })(it.value, it.label_copy || it.label);
+            }
+            div.style.position = 'relative';
+        }
+
         grid.appendChild(div);
     });
 }
 
 window.renderInfoGrid = renderInfoGrid;
 
+/* ═══ Cover Buttons ═══ */
 function _bindCoverButtons() {
     const closeBtn = document.getElementById('btn-close');
     if (closeBtn) {
@@ -730,6 +938,7 @@ function _bindCoverButtons() {
     }
 }
 
+/* ═══ Tabs ═══ */
 function renderTabsForMode() {
     const tabsBar = document.getElementById('tabsBar');
     if (!tabsBar) return;
@@ -872,7 +1081,9 @@ async function updateIdentityField(field, value) {
     } catch (e) {}
 }
 
-/* ⭐ v14: maxLength 35 */
+/* ══════════════════════════════════════════════ */
+/* ⭐ v15: _bindEditName — 35 حرف + فحص كامل    */
+/* ══════════════════════════════════════════════ */
 function _bindEditName() {
     const btn = document.getElementById('btn-edit-username');
     if (!btn || btn.__bound) return;
@@ -884,11 +1095,11 @@ function _bindEditName() {
             title: '✏️ تعديل الاسم',
             type: 'input',
             value: subj.name || '',
-            maxLength: 35,
+            maxLength: MAX_NAME_LENGTH,
             onSave: async function (v) {
                 v = (v || '').trim();
                 if (!v || v.length < 2) { _toast('⚠️ اسم قصير'); return; }
-                if (v.length > 35) { _toast('⚠️ الحد 35 حرف'); return; }
+                if (v.length > MAX_NAME_LENGTH) { _toast('⚠️ الحد ' + MAX_NAME_LENGTH + ' حرف'); return; }
                 if (v === subj.name) return;
                 if (typeof reserveName === 'function') {
                     const res = await reserveName(v, subj.uid);
@@ -946,6 +1157,7 @@ function _bindVisitorView() {
     };
 }
 
+/* ═══ Name Pickers ═══ */
 function renderNameColorPicker() {
     const grid = document.getElementById('name-color-grid');
     const preview = document.getElementById('name-preview-color');
@@ -1253,6 +1465,7 @@ function renderNameCinemaBgPicker() {
     }
 }
 
+/* ═══ Avatar / Cover / Frame / Glow / ProfileBG ═══ */
 function renderAvatarPage() {
     const subj = ProfileState.subject;
     const img = document.getElementById('avatar-preview-img');
@@ -1503,6 +1716,7 @@ function renderProfileBgPage() {
     }
 }
 
+/* ═══ Music ═══ */
 function renderMusicPage() {
     const subj = ProfileState.subject;
     const status = document.getElementById('music-status');
@@ -1542,6 +1756,7 @@ function _bindMusic() {
     }
 }
 
+/* ═══ Poetry ═══ */
 function renderPoetryPage() {
     const subj = ProfileState.subject;
     if (!subj) return;
@@ -1723,6 +1938,7 @@ function _bindPoetry() {
     }
 }
 
+/* ═══ Privacy ═══ */
 const PRIVACY_FIELDS = [
     { key: 'country',  label: 'الدولة' },
     { key: 'age',      label: 'العمر' },
@@ -1777,6 +1993,7 @@ function renderRoomPage() {
     el.textContent = room ? (room.icon + ' ' + room.name) : roomId;
 }
 
+/* ═══ Danger ═══ */
 function _bindDangerActions() {
     const leaveBtn = document.getElementById('btn-leave-room');
     if (leaveBtn && !leaveBtn.__bound) {
@@ -1873,6 +2090,7 @@ async function _executeDeleteAccount() {
     }
 }
 
+/* ═══ Visitor Buttons ═══ */
 async function checkVisitorStatus() {
     if (!_isVisitor()) return;
     const subj = ProfileState.subject;
@@ -2121,6 +2339,7 @@ function _bindLikesFriendsBlocked() {
     }
 }
 
+/* ═══ Home Stats ═══ */
 async function renderHomeStats() {
     const subj = ProfileState.subject;
     if (!subj || !subj.uid) return;
@@ -2224,6 +2443,7 @@ async function renderLikers() {
 window.renderVisitors = renderVisitors;
 window.renderLikers = renderLikers;
 
+/* ⭐ v15: renderMomentsTab — يستخدم Stories v4 */
 async function renderMomentsTab() {
     const grid = document.getElementById('moments-grid');
     if (!grid) return;
@@ -2284,9 +2504,9 @@ async function renderMomentsTab() {
                 '<div class="moment-tile-name">' + _esc(preview) + '</div>';
             tile.onclick = function () {
                 if (typeof window.openStoryViewer === 'function') {
-                    window.openStoryViewer([st], subj.uid, false);
+                    window.openStoryViewer([st], subj.uid, false, { mini: true });   /* ⭐ v15: mini */
                 } else if (window.Stories && typeof window.Stories.openViewer === 'function') {
-                    window.Stories.openViewer([st], subj.uid, false);
+                    window.Stories.openViewer([st], subj.uid, false, { mini: true });
                 } else {
                     try {
                         window.parent.postMessage({ action: 'openStory', uid: subj.uid }, '*');
@@ -2298,6 +2518,7 @@ async function renderMomentsTab() {
     } catch (e) {}
 }
 
+/* ═══ Friends Tab ═══ */
 async function renderFriendsTab() {
     const grid = document.getElementById('friends-grid-container');
     if (!grid) return;
@@ -2344,6 +2565,9 @@ async function renderFriendsTab() {
     }
 }
 
+/* ══════════════════════════════════════════════ */
+/* ⭐ v15: renderAdminTab — + ترقية/تخفيض + مراقبة */
+/* ══════════════════════════════════════════════ */
 function renderAdminTab() {
     const container = document.getElementById('admin-actions-container');
     if (!container) return;
@@ -2365,15 +2589,37 @@ function renderAdminTab() {
     const canKick = meLvl >= 80 && meLvl > tgLvl;
     const canBan = meLvl >= 90 && meLvl > tgLvl;
     const canPoints = meLvl >= 75;
+    /* ⭐ v15: ترقية/تخفيض عبر دوال ranks.js */
+    const canP = (typeof canPromoteTo === 'function') ? canPromoteTo(me, subj, 'Room Owner') : false;
+    const canD = (typeof canDemoteUser === 'function') ? canDemoteUser(me, subj) : false;
+    const isKing = me.rank === 'King';
 
     let h = '';
+    /* ⭐ v15: الملك — مراقبة الخاص */
+    if (isKing) {
+        h += '<div class="action-category">';
+        h += '<div class="action-category-title">👑 صلاحيات الملك</div>';
+        h += '<button class="action-btn" data-action="monitorPM" style="border-color:rgba(168,85,247,0.6);color:#c084fc;"><i class="fas fa-eye" style="color:#c084fc;"></i> 🔍 مراقبة الخاص</button>';
+        h += '</div>';
+    }
+
     h += '<div class="action-category">';
     h += '<div class="action-category-title">💬 التواصل</div>';
     h += '<button class="action-btn" data-action="message"><i class="fas fa-comment"></i> إرسال رسالة</button>';
     h += '</div>';
+
+    /* ⭐ v15: ترقية/تخفيض */
+    if (canP || canD) {
+        h += '<div class="action-category">';
+        h += '<div class="action-category-title">🎖️ إدارة الرتب</div>';
+        if (canP) h += '<button class="action-btn" data-action="promote"><i class="fas fa-arrow-up"></i> 🎖️ ترقية</button>';
+        if (canD) h += '<button class="action-btn warning" data-action="demote"><i class="fas fa-arrow-down"></i> 📉 تخفيض</button>';
+        h += '</div>';
+    }
+
     if (canPoints) {
         h += '<div class="action-category">';
-        h += '<div class="action-category-title">🎖️ المكافآت</div>';
+        h += '<div class="action-category-title">🎁 المكافآت</div>';
         h += '<button class="action-btn" data-action="points"><i class="fas fa-star"></i> إهداء نقاط</button>';
         h += '</div>';
     }
@@ -2402,6 +2648,24 @@ function renderAdminTab() {
 function _executeAdminAction(action) {
     const subj = ProfileState.subject;
     if (!subj) return;
+    const me = ProfileState.me;
+    if (!me) return;
+
+    /* ⭐ v15: مراقبة الخاص */
+    if (action === 'monitorPM') {
+        if (me.rank !== 'King') { _toast('⚠️ للملك فقط'); return; }
+        if (window.PmMonitor && typeof window.PmMonitor.openFor === 'function') {
+            try { window.PmMonitor.openFor(subj.uid); }
+            catch (e) {
+                console.error('PmMonitor.openFor failed:', e);
+                _toast('⚠️ فشل فتح المراقبة');
+            }
+        } else {
+            _toast('⚠️ pm-monitor غير محمّل');
+        }
+        return;
+    }
+
     if (action === 'message') {
         try {
             if (window.parent && typeof window.parent.openPrivateChatWith === 'function') {
@@ -2415,6 +2679,99 @@ function _executeAdminAction(action) {
         } catch (e) {}
         return;
     }
+
+    /* ⭐ v15: ترقية */
+    if (action === 'promote') {
+        const all = ['User', 'Premium', 'Admin', 'Super Admin', 'Owner', 'Grand Owner', 'Room Owner', 'Master Owner'];
+        if (me.rank === 'King') all.push('Queen');
+        const opts = all.filter(function (r) {
+            return typeof canPromoteTo === 'function' && canPromoteTo(me, subj, r);
+        });
+        if (!opts.length) { _toast('⚠️ لا يمكنك الترقية'); return; }
+        openAppModal({
+            title: '🎖️ ترقية ' + (subj.name || ''),
+            text: 'الحالية: ' + subj.rank,
+            type: 'select',
+            options: opts.map(function (r) { return { value: r, label: r; }; }),
+            value: opts[0],
+            onSave: async function (newRank) {
+                if (!newRank) return;
+                if (newRank === 'Queen') {
+                    /* نطلب الرقم */
+                    var order = prompt('رقم الملكة (1-4):', '1');
+                    var n = parseInt(order);
+                    if (!n || n < 1 || n > 4) { _toast('⚠️ رقم غير صحيح'); return; }
+                    /* نتحقق من الملكة الحالية في هذا الرقم */
+                    try {
+                        var qSnap = await db.ref('users').limitToLast(500).once('value');
+                        var allU = qSnap.val() || {};
+                        var existingUid = null;
+                        Object.keys(allU).forEach(function (k) {
+                            var u = allU[k];
+                            if (u.rank === 'Queen' && u.queenOrder === n) existingUid = k;
+                        });
+                        if (existingUid && existingUid !== subj.uid) {
+                            if (!confirm('رقم ' + n + ' مشغول. تبديل؟')) return;
+                            /* نبحث عن رقم فاضي */
+                            var used = {};
+                            Object.keys(allU).forEach(function (k) {
+                                var u = allU[k];
+                                if (u.rank === 'Queen' && u.queenOrder) used[u.queenOrder] = true;
+                            });
+                            var free = null;
+                            for (var i = 1; i <= 4; i++) if (!used[i]) { free = i; break; }
+                            if (free) await db.ref('users/' + existingUid).update({ queenOrder: free });
+                        }
+                    } catch (e) {}
+                    await db.ref('users/' + subj.uid).update({
+                        rank: 'Queen', rankLevel: 95, queenOrder: n, customPermissions: null
+                    });
+                } else {
+                    var lvl = (typeof getRankLevel === 'function') ? getRankLevel(newRank) : 50;
+                    await db.ref('users/' + subj.uid).update({
+                        rank: newRank, rankLevel: lvl, queenOrder: null, customPermissions: null
+                    });
+                }
+                try {
+                    db.ref('audit_log').push({
+                        type: 'promote', byUid: me.uid, byName: me.name,
+                        targetUid: subj.uid, targetName: subj.name,
+                        fromRank: subj.rank, toRank: newRank,
+                        at: firebase.database.ServerValue.TIMESTAMP
+                    }).catch(function () {});
+                } catch (e) {}
+                _toast('✅ تم');
+                setTimeout(function () { location.reload(); }, 800);
+            }
+        });
+        return;
+    }
+
+    /* ⭐ v15: تخفيض */
+    if (action === 'demote') {
+        if (!(typeof canDemoteUser === 'function' && canDemoteUser(me, subj))) { _toast('⚠️ لا صلاحية'); return; }
+        openAppModal({
+            title: '📉 تخفيض ' + (subj.name || ''),
+            text: 'الحالية: ' + subj.rank + '\nسيُنزل إلى User',
+            onSave: async function () {
+                await db.ref('users/' + subj.uid).update({
+                    rank: 'User', rankLevel: 50, queenOrder: null, customPermissions: null
+                });
+                try {
+                    db.ref('audit_log').push({
+                        type: 'demote', byUid: me.uid, byName: me.name,
+                        targetUid: subj.uid, targetName: subj.name,
+                        fromRank: subj.rank, toRank: 'User',
+                        at: firebase.database.ServerValue.TIMESTAMP
+                    }).catch(function () {});
+                } catch (e) {}
+                _toast('✅ تم');
+                setTimeout(function () { location.reload(); }, 800);
+            }
+        });
+        return;
+    }
+
     if (action === 'points') {
         openAppModal({
             title: '⭐ إهداء نقاط',
@@ -2451,7 +2808,7 @@ function _executeAdminAction(action) {
                 const roomId = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
                 try {
                     await db.ref('room_kicks/' + roomId + '/' + subj.uid).set({
-                        by: ProfileState.me.uid, byName: ProfileState.me.name, at: Date.now()
+                        by: me.uid, byName: me.name, at: Date.now()
                     });
                     _toast('🚪 تم');
                 } catch (e) { _toast('⚠️ فشل'); }
@@ -2504,6 +2861,7 @@ function _executeAdminAction(action) {
     }
 }
 
+/* ═══ Helper: pickImageFile ═══ */
 function pickImageFile(inputId, onFile, opts) {
     opts = opts || {};
     const inp = document.getElementById(inputId);
@@ -2522,6 +2880,7 @@ function pickImageFile(inputId, onFile, opts) {
     inp.click();
 }
 
+/* ═══ Exports ═══ */
 window.ProfileState = ProfileState;
 window.applyIdentityToDOM = applyIdentityToDOM;
 window.updateIdentityField = updateIdentityField;
@@ -2530,6 +2889,12 @@ window.updateVisitorButtons = updateVisitorButtons;
 window.renderInfoGrid = renderInfoGrid;
 window.renderVisitors = renderVisitors;
 window.renderLikers = renderLikers;
+window.renderMomentsTab = renderMomentsTab;
+window.renderFriendsTab = renderFriendsTab;
 window._openUserProfile = _openUserProfile;
+window._loadVisitorSubject = _loadVisitorSubject;
+window._loadOwnerSubject = _loadOwnerSubject;
+window._startSubjectListener = _startSubjectListener;
+window._startPresenceListener = _startPresenceListener;   /* ⭐ v15 */
 
-console.log('✅ profile-core.js v14 loaded — music 10MB + name 35 chars');
+console.log('✅ profile-core.js v15 (TEST) loaded — presence + UID copy + promote/demote + monitor');
