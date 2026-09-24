@@ -1,13 +1,5 @@
 // ==============================================
-// profile-core.js v12 — no-video + catbox upload
-// ==============================================
-// ✅ v12:
-//   1. _applyCover: صور فقط (no video)
-//   2. _applyProfileBackground: color/image فقط
-//   3. uploadFile: يستخدم UploadService (catbox/imgbb)
-//   4. _autoCleanupLegacyVideos: يحذف فيديوهات قديمة
-//   5. _switchBgTypeUI: بدون زر video
-//   6. باقي المنطق كما v11 بالضبط
+// profile-core.js v13 — Moments tab uses Stories.renderMyTab
 // ==============================================
 
 const ProfileState = {
@@ -22,7 +14,6 @@ const ProfileState = {
 };
 
 const IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
-const MAX_VIDEO_MB = 5;
 const MAX_AUDIO_MB = 5;
 
 const NAME_GRADIENTS = [
@@ -65,7 +56,6 @@ function _getCinemaBgStyles() {
     return [{ id: '', label: 'بدون', icon: '❌' }];
 }
 
-/* ═══ Helpers ═══ */
 function _getUser() {
     try {
         return JSON.parse(
@@ -169,7 +159,6 @@ function _openUserProfile(uid, name) {
     }
 }
 
-/* ═══ Modal ═══ */
 function openAppModal(opts) {
     opts = opts || {};
     const m = document.getElementById('app-modal');
@@ -251,7 +240,7 @@ window.openAppModal = openAppModal;
 
 /* ═══ Bootstrap ═══ */
 document.addEventListener('DOMContentLoaded', async function () {
-    console.log('🚀 profile-core.js v12 booting...');
+    console.log('🚀 profile-core.js v13 booting...');
 
     try {
         localStorage.removeItem('saved_avatar_frame_motion');
@@ -312,7 +301,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     applyIdentityToDOM();
     _startSubjectListener();
 
-    // ⭐ v12: تنظيف صامت للفيديوهات القديمة (owner فقط)
     if (_isOwner()) {
         _autoCleanupLegacyVideos();
     }
@@ -332,10 +320,9 @@ document.addEventListener('DOMContentLoaded', async function () {
         renderFriendsTab();
     }, 400);
 
-    console.log('✅ profile-core.js v12 ready | Mode:', ProfileState.mode);
+    console.log('✅ profile-core.js v13 ready | Mode:', ProfileState.mode);
 });
 
-/* ⭐ v12: تنظيف فيديوهات قديمة */
 async function _autoCleanupLegacyVideos() {
     const subj = ProfileState.subject;
     if (!subj || !subj.uid) return;
@@ -344,7 +331,6 @@ async function _autoCleanupLegacyVideos() {
     const updates = {};
     let didCleanup = false;
 
-    // غلاف فيديو قديم؟
     const cover = subj.cover;
     if (cover && (
         subj.coverType === 'video' ||
@@ -356,7 +342,6 @@ async function _autoCleanupLegacyVideos() {
         didCleanup = true;
     }
 
-    // خلفية بروفايل فيديو؟
     if (subj.profileBgType === 'video') {
         updates.profileBgType = null;
         updates.profileBgValue = null;
@@ -371,13 +356,12 @@ async function _autoCleanupLegacyVideos() {
         if (updates.coverType === null) ProfileState.subject.coverType = null;
         if (updates.profileBgType === null) ProfileState.subject.profileBgType = null;
         if (updates.profileBgValue === null) ProfileState.subject.profileBgValue = null;
-        console.log('🗑️ v12: removed legacy videos from Firebase');
+        console.log('🗑️ v13: removed legacy videos from Firebase');
     } catch (e) {
         console.warn('cleanup legacy videos failed:', e);
     }
 }
 
-/* ═══ Load Subject ═══ */
 function _loadSubjectFromCache(uid) {
     try {
         const key = uid ? ('profile_target_data_' + uid) : QAMAR.STORAGE_KEYS.CURRENT_USER;
@@ -482,7 +466,6 @@ function _startSubjectListener() {
     }
 }
 
-/* ═══ Apply Identity ═══ */
 function applyIdentityToDOM() {
     const subj = ProfileState.subject;
     if (!subj) return;
@@ -538,18 +521,15 @@ function applyIdentityToDOM() {
     }
 }
 
-/* ⭐ v12: cover — صور فقط */
 function _applyCover(subj) {
     const img = document.getElementById('profile-cover-img');
     if (!img) return;
-
     const cover = subj.cover;
     if (!cover) {
         img.style.display = 'none';
         img.removeAttribute('src');
         return;
     }
-
     img.style.display = 'block';
     if (img.src !== cover) img.src = cover;
 }
@@ -571,7 +551,6 @@ function _applyAvatar(subj) {
     }
 }
 
-/* ⭐ v12: profile bg — color/image فقط */
 function _applyProfileBackground(subj) {
     const layer = document.getElementById('profile-bg-layer');
     if (!layer) return;
@@ -602,7 +581,6 @@ function _applyProfileGlow(subj) {
     }
 }
 
-/* ⭐ v12: Music — v11 logic يبقى (base64 legacy + URL جديد) */
 function _applyMusicButton(subj) {
     const btn = document.getElementById('music-btn-mini');
     const player = document.getElementById('music-player');
@@ -620,12 +598,10 @@ function _applyMusicButton(subj) {
 
     var finalSrc = subj.musicURL;
 
-    // ⭐ legacy base64 → Blob
     if (finalSrc.indexOf('data:') === 0) {
         try {
             var cachedSrc = player.getAttribute('data-blob-src');
             var cachedUrl = player.getAttribute('data-blob-url');
-
             if (cachedSrc === finalSrc && cachedUrl) {
                 finalSrc = cachedUrl;
             } else {
@@ -635,28 +611,19 @@ function _applyMusicButton(subj) {
                     var b64 = finalSrc.substring(commaIdx + 1);
                     var mimeMatch = header.match(/:(.*?);/);
                     var mime = mimeMatch ? mimeMatch[1] : 'audio/mpeg';
-
                     var binary = atob(b64);
                     var len = binary.length;
                     var bytes = new Uint8Array(len);
-                    for (var i = 0; i < len; i++) {
-                        bytes[i] = binary.charCodeAt(i);
-                    }
+                    for (var i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
                     var blob = new Blob([bytes], { type: mime });
-
-                    if (cachedUrl) {
-                        try { URL.revokeObjectURL(cachedUrl); } catch (e) {}
-                    }
-
+                    if (cachedUrl) { try { URL.revokeObjectURL(cachedUrl); } catch (e) {} }
                     var blobUrl = URL.createObjectURL(blob);
                     player.setAttribute('data-blob-url', blobUrl);
                     player.setAttribute('data-blob-src', finalSrc);
                     finalSrc = blobUrl;
                 }
             }
-        } catch (e) {
-            console.warn('Base64→Blob failed:', e);
-        }
+        } catch (e) { console.warn('Base64→Blob failed:', e); }
     }
 
     if (player.src !== finalSrc) {
@@ -691,7 +658,6 @@ function _applyMusicButton(subj) {
     }
 }
 
-/* ═══ Info Grid ═══ */
 function renderInfoGrid() {
     const grid = document.getElementById('info-grid');
     if (!grid) return;
@@ -743,7 +709,6 @@ function renderInfoGrid() {
 
 window.renderInfoGrid = renderInfoGrid;
 
-/* ═══ Cover Buttons ═══ */
 function _bindCoverButtons() {
     const closeBtn = document.getElementById('btn-close');
     if (closeBtn) {
@@ -766,7 +731,6 @@ function _bindCoverButtons() {
     }
 }
 
-/* ═══ Tabs ═══ */
 function renderTabsForMode() {
     const tabsBar = document.getElementById('tabsBar');
     if (!tabsBar) return;
@@ -805,7 +769,6 @@ function switchTab(tabName) {
 
 window.switchTab = switchTab;
 
-/* ═══ Drill-down ═══ */
 function _resetSettingsPage() {
     ProfileState.settingsHistory = ['main'];
     _showSettingsPage('main', false);
@@ -868,7 +831,6 @@ function _bindSettingsNavigation() {
     });
 }
 
-/* ⭐ v12: uploadFile — يستخدم UploadService */
 async function uploadFile(file, options) {
     if (!window.UploadService) {
         throw new Error('UploadService غير محمّل');
@@ -911,7 +873,6 @@ async function updateIdentityField(field, value) {
     } catch (e) {}
 }
 
-/* ═══ Edit Name / Bio / Visitor View ═══ */
 function _bindEditName() {
     const btn = document.getElementById('btn-edit-username');
     if (!btn || btn.__bound) return;
@@ -984,7 +945,6 @@ function _bindVisitorView() {
     };
 }
 
-/* ═══ Name Pickers ═══ */
 function renderNameColorPicker() {
     const grid = document.getElementById('name-color-grid');
     const preview = document.getElementById('name-preview-color');
@@ -1292,7 +1252,6 @@ function renderNameCinemaBgPicker() {
     }
 }
 
-/* ═══ Avatar / Cover / Frame / Glow / ProfileBG ═══ */
 function renderAvatarPage() {
     const subj = ProfileState.subject;
     const img = document.getElementById('avatar-preview-img');
@@ -1409,7 +1368,6 @@ function _bindImagesUploads() {
     }
 }
 
-/* ⭐ v12: بدون video */
 function _switchBgTypeUI(type) {
     const colorSec = document.getElementById('bg-color-section');
     const mediaSec = document.getElementById('bg-media-section');
@@ -1448,13 +1406,9 @@ function renderFramePage() {
             currentFrameId: currentFrame,
             onSelect: async function (frameId) {
                 try {
-                    try {
-                        localStorage.setItem('saved_avatar_frame_motion', frameId || '');
-                    } catch (e) {}
-
+                    try { localStorage.setItem('saved_avatar_frame_motion', frameId || ''); } catch (e) {}
                     await updateIdentityField('avatarFrame', frameId || null);
                     _toast(frameId ? '✅ تم حفظ الإطار' : '✅ أُزيل الإطار');
-
                     setTimeout(function () {
                         const box = document.getElementById('avatar-box');
                         if (box) {
@@ -1485,7 +1439,6 @@ function renderFramePage() {
         removeBtn.onclick = function () {
             try { localStorage.removeItem('saved_avatar_frame_motion'); } catch (e) {}
             updateIdentityField('avatarFrame', null);
-
             setTimeout(function () {
                 const box = document.getElementById('avatar-box');
                 if (box) {
@@ -1498,7 +1451,6 @@ function renderFramePage() {
                     }
                 }
             }, 100);
-
             renderFramePage();
             _toast('✅ تم');
         };
@@ -1550,7 +1502,6 @@ function renderProfileBgPage() {
     }
 }
 
-/* ═══ Music ═══ */
 function renderMusicPage() {
     const subj = ProfileState.subject;
     const status = document.getElementById('music-status');
@@ -1587,7 +1538,6 @@ function _bindMusic() {
     }
 }
 
-/* ═══ Poetry ═══ */
 function renderPoetryPage() {
     const subj = ProfileState.subject;
     if (!subj) return;
@@ -1769,7 +1719,6 @@ function _bindPoetry() {
     }
 }
 
-/* ═══ Privacy ═══ */
 const PRIVACY_FIELDS = [
     { key: 'country',  label: 'الدولة' },
     { key: 'age',      label: 'العمر' },
@@ -1824,7 +1773,6 @@ function renderRoomPage() {
     el.textContent = room ? (room.icon + ' ' + room.name) : roomId;
 }
 
-/* ═══ Danger ═══ */
 function _bindDangerActions() {
     const leaveBtn = document.getElementById('btn-leave-room');
     if (leaveBtn && !leaveBtn.__bound) {
@@ -1921,7 +1869,6 @@ async function _executeDeleteAccount() {
     }
 }
 
-/* ═══ Visitor Buttons ═══ */
 async function checkVisitorStatus() {
     if (!_isVisitor()) return;
     const subj = ProfileState.subject;
@@ -1962,7 +1909,6 @@ function updateVisitorButtons() {
         heart.classList.toggle('active', ProfileState.likes.isLiked);
         heart.setAttribute('data-state', ProfileState.likes.isLiked ? 'on' : 'off');
     }
-
     const friend = document.getElementById('btn-friend');
     if (friend) {
         const st = ProfileState.friends.state;
@@ -1988,7 +1934,6 @@ function updateVisitorButtons() {
             friend.title = 'إضافة صديق';
         }
     }
-
     const block = document.getElementById('btn-block');
     if (block) {
         block.textContent = ProfileState.blocked.isBlocked ? '🔓' : '🚫';
@@ -2084,7 +2029,6 @@ function _bindLikesFriendsBlocked() {
                 } catch (e) { _toast('⚠️ فشل'); }
                 return;
             }
-
             if (st === 'pending') {
                 if (!confirm('إلغاء الطلب؟')) return;
                 try {
@@ -2094,7 +2038,6 @@ function _bindLikesFriendsBlocked() {
                 } catch (e) { _toast('⚠️ فشل'); }
                 return;
             }
-
             if (st === 'incoming') {
                 try {
                     await Promise.all([
@@ -2114,7 +2057,6 @@ function _bindLikesFriendsBlocked() {
                 } catch (e) { _toast('⚠️ فشل'); }
                 return;
             }
-
             try {
                 await db.ref('users/' + me.uid + '/friend_requests/' + subj.uid).set({
                     time: Date.now(),
@@ -2175,7 +2117,6 @@ function _bindLikesFriendsBlocked() {
     }
 }
 
-/* ═══ Home Stats ═══ */
 async function renderHomeStats() {
     const subj = ProfileState.subject;
     if (!subj || !subj.uid) return;
@@ -2279,14 +2220,44 @@ async function renderLikers() {
 window.renderVisitors = renderVisitors;
 window.renderLikers = renderLikers;
 
+/* ⭐ v13: Moments tab — للـ owner يعرض Stories.renderMyTab، للزائر يعرض الحالات النشطة */
 async function renderMomentsTab() {
     const grid = document.getElementById('moments-grid');
     if (!grid) return;
     const subj = ProfileState.subject;
     if (!subj || !subj.uid) return;
+
+    // ⭐ owner → واجهة Stories الكاملة (مشاهدين + تفاعلات + ردود)
+    if (_isOwner() && window.Stories && typeof window.Stories.renderMyTab === 'function') {
+        grid.innerHTML = '';
+        // اجعل الحاوية تأخذ العرض الكامل
+        grid.style.display = 'block';
+        grid.style.gridTemplateColumns = 'none';
+
+        var wrapper = document.createElement('div');
+        wrapper.style.cssText = 'width: 100%;';
+        grid.appendChild(wrapper);
+
+        try {
+            window.Stories.renderMyTab(wrapper);
+            console.log('✅ Moments tab rendered via Stories.renderMyTab');
+        } catch (e) {
+            console.error('renderMyTab failed:', e);
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#ff6666;padding:20px;font-size:12px;">⚠️ فشل عرض الحالات</div>';
+        }
+        return;
+    }
+
+    // زائر → عرض الحالات النشطة
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
+
     const addBtn = document.getElementById('add-moment-btn');
     grid.innerHTML = '';
     if (_isOwner() && addBtn) grid.appendChild(addBtn);
+
     try {
         const s = await db.ref('stories/' + subj.uid).once('value');
         const data = s.val() || {};
@@ -2312,8 +2283,10 @@ async function renderMomentsTab() {
                 '<div class="moment-tile-icon">' + icon + '</div>' +
                 '<div class="moment-tile-name">' + _esc(preview) + '</div>';
             tile.onclick = function () {
-                if (typeof openStoryViewer === 'function') {
-                    openStoryViewer([st], subj.uid, false);
+                if (typeof window.openStoryViewer === 'function') {
+                    window.openStoryViewer([st], subj.uid, false);
+                } else if (window.Stories && typeof window.Stories.openViewer === 'function') {
+                    window.Stories.openViewer([st], subj.uid, false);
                 } else {
                     try {
                         window.parent.postMessage({ action: 'openStory', uid: subj.uid }, '*');
@@ -2531,7 +2504,6 @@ function _executeAdminAction(action) {
     }
 }
 
-/* ═══ Helpers: pickImageFile ═══ */
 function pickImageFile(inputId, onFile, opts) {
     opts = opts || {};
     const inp = document.getElementById(inputId);
@@ -2550,7 +2522,6 @@ function pickImageFile(inputId, onFile, opts) {
     inp.click();
 }
 
-/* ═══ Exports ═══ */
 window.ProfileState = ProfileState;
 window.applyIdentityToDOM = applyIdentityToDOM;
 window.updateIdentityField = updateIdentityField;
@@ -2561,4 +2532,4 @@ window.renderVisitors = renderVisitors;
 window.renderLikers = renderLikers;
 window._openUserProfile = _openUserProfile;
 
-console.log('✅ profile-core.js v12 loaded — no-video + catbox upload');
+console.log('✅ profile-core.js v13 loaded — Moments tab uses Stories.renderMyTab');
