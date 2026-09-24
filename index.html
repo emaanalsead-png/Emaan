@@ -16,8 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://www.gstatic.com">
-<link rel="preconnect" href="https://qamaralsham-default-rtdb.firebaseio.com">
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://qamaralshamtest-default-rtdb.europe-west1.firebasedatabase.app">
 <link rel="dns-prefetch" href="https://ui-avatars.com">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -26,13 +25,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="styles.css?v=39">
-<link rel="stylesheet" href="frames-engine.css?v=39">
-<link rel="stylesheet" href="name-effects.css?v=39">
-<link rel="stylesheet" href="king-room.css?v=39">
-<link rel="stylesheet" href="room-alerts.css?v=39">
-<link rel="stylesheet" href="dice.css?v=39">
-<link rel="stylesheet" href="qamar-glass.css?v=39">
+<link rel="stylesheet" href="styles.css?v=50">
+<link rel="stylesheet" href="frames-engine.css?v=50">
+<link rel="stylesheet" href="name-effects.css?v=50">
+<link rel="stylesheet" href="king-room.css?v=50">
+<link rel="stylesheet" href="room-alerts.css?v=50">
+<link rel="stylesheet" href="dice.css?v=50">
+<link rel="stylesheet" href="qamar-glass.css?v=50">
 
 <style id="qamar-boot-css">
 #qamar-boot-loader {
@@ -54,367 +53,87 @@
     padding: 20px;
     text-align: center;
 }
-#qamar-boot-loader.qamar-boot-hide {
-    opacity: 0;
-    pointer-events: none;
-}
-#qamar-boot-moon {
-    font-size: 72px;
-    line-height: 1;
-    filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.7));
-    animation: qamarBootPulse 1.6s ease-in-out infinite;
-}
-#qamar-boot-title {
-    font-size: 26px;
-    font-weight: 900;
-    letter-spacing: 3px;
-    color: #ffd700;
-    text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
-}
-#qamar-boot-status {
-    font-size: 13px;
-    color: #9ca3af;
-    font-weight: 700;
-    min-height: 18px;
-    transition: color 0.2s;
-}
-#qamar-boot-status.ready {
-    color: #84cc16;
-    font-weight: 900;
-}
-#qamar-boot-bar-track {
-    width: 220px;
-    max-width: 70vw;
-    height: 3px;
-    background: rgba(255, 215, 0, 0.12);
-    border-radius: 3px;
-    overflow: hidden;
-    position: relative;
-}
-#qamar-boot-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 35%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, #ffd700, transparent);
-    animation: qamarBootBar 1.6s linear infinite;
-}
-@keyframes qamarBootPulse {
-    0%, 100% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.08); opacity: 0.85; }
-}
-@keyframes qamarBootBar {
-    0%   { transform: translateX(-120%); }
-    100% { transform: translateX(380%); }
-}
+#qamar-boot-loader.qamar-boot-hide { opacity: 0; pointer-events: none; }
+#qamar-boot-moon { font-size: 72px; line-height: 1; filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.7)); animation: qamarBootPulse 1.6s ease-in-out infinite; }
+#qamar-boot-title { font-size: 26px; font-weight: 900; letter-spacing: 3px; color: #ffd700; text-shadow: 0 0 15px rgba(255, 215, 0, 0.5); }
+#qamar-boot-status { font-size: 13px; color: #9ca3af; font-weight: 700; min-height: 18px; }
+#qamar-boot-status.ready { color: #84cc16; font-weight: 900; }
+#qamar-boot-bar-track { width: 220px; max-width: 70vw; height: 3px; background: rgba(255, 215, 0, 0.12); border-radius: 3px; overflow: hidden; position: relative; }
+#qamar-boot-bar { position: absolute; top: 0; left: 0; width: 35%; height: 100%; background: linear-gradient(90deg, transparent, #ffd700, transparent); animation: qamarBootBar 1.6s linear infinite; }
+@keyframes qamarBootPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.85; } }
+@keyframes qamarBootBar { 0% { transform: translateX(-120%); } 100% { transform: translateX(380%); } }
 </style>
 
 <style>
-body.keyboard-open .bottom-nav,
-body.keyboard-open .floating-toolbar {
-    display: none !important;
-}
-
-html {
-    background:
-        radial-gradient(ellipse at top, rgba(212, 175, 55, 0.1) 0%, transparent 55%),
-        radial-gradient(ellipse at bottom, rgba(100, 50, 150, 0.15) 0%, transparent 55%),
-        linear-gradient(to bottom, #050508, #0a0a15) !important;
-    min-height: 100% !important;
-}
+body.keyboard-open .bottom-nav, body.keyboard-open .floating-toolbar { display: none !important; }
+html { background: radial-gradient(ellipse at top, rgba(212, 175, 55, 0.1) 0%, transparent 55%), radial-gradient(ellipse at bottom, rgba(100, 50, 150, 0.15) 0%, transparent 55%), linear-gradient(to bottom, #050508, #0a0a15) !important; min-height: 100% !important; }
 body { background: transparent !important; }
-
-.starfield {
-    position: fixed !important;
-    inset: 0 !important;
-    z-index: 1 !important;
-    pointer-events: none !important;
-    overflow: hidden !important;
-}
+.starfield { position: fixed !important; inset: 0 !important; z-index: 1 !important; pointer-events: none !important; overflow: hidden !important; }
 .background-glow { display: none !important; }
-
-.container,
-.container.background-type-stars,
-.container.background-type-nebula,
-.container.background-type-moon,
-.container.background-type-dust,
-.container.background-type-waves {
-    background: transparent !important;
-    background-image: none !important;
-    z-index: 2 !important;
-}
+.container, .container.background-type-stars, .container.background-type-nebula, .container.background-type-moon, .container.background-type-dust, .container.background-type-waves { background: transparent !important; background-image: none !important; z-index: 2 !important; }
 .messages { background: transparent !important; }
-
-.header,
-.bottom-nav,
-.input-area,
-.mics-bar,
-.sidebar,
-.sidebar-header {
-    background: rgba(5, 5, 12, 0.25) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
+.header, .bottom-nav, .input-area, .mics-bar, .sidebar, .sidebar-header { background: rgba(5, 5, 12, 0.25) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 .header { border-bottom: 1px solid rgba(255, 215, 0, 0.6) !important; }
 .bottom-nav { border-top: 1px solid rgba(255, 215, 0, 0.6) !important; }
 .input-area { border-top: 1px solid rgba(255, 215, 0, 0.6) !important; }
 .mics-bar { border-bottom: 1px solid rgba(255, 215, 0, 0.45) !important; }
-
 .overlay { background: rgba(0, 0, 0, 0.05) !important; }
 .overlay.show { background: rgba(0, 0, 0, 0.05) !important; opacity: 1 !important; }
-
-.sidebar {
-    border: 1px solid rgba(255, 215, 0, 0.65) !important;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(255, 215, 0, 0.18) !important;
-    width: 45vw !important;
-    min-width: 0 !important;
-    max-width: 400px !important;
-    z-index: 400 !important;
-}
+.sidebar { border: 1px solid rgba(255, 215, 0, 0.65) !important; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(255, 215, 0, 0.18) !important; width: 45vw !important; min-width: 0 !important; max-width: 400px !important; z-index: 400 !important; }
 @media (max-width: 480px) { .sidebar { width: 55vw !important; } }
-.sidebar-item {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(255, 215, 0, 0.3) !important;
-}
-.sidebar-item:hover,
-.sidebar-item.active {
-    background: rgba(255, 215, 0, 0.35) !important;
-    border-color: rgba(255, 215, 0, 0.9) !important;
-}
-
+.sidebar-item { background: rgba(255, 255, 255, 0.05) !important; border: 1px solid rgba(255, 215, 0, 0.3) !important; }
+.sidebar-item:hover, .sidebar-item.active { background: rgba(255, 215, 0, 0.35) !important; border-color: rgba(255, 215, 0, 0.9) !important; }
 #btn-name-frame { display: none !important; }
-
-.minimized-chat-avatar {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-}
-
-.floating-toolbar {
-    position: fixed !important;
-    bottom: 100px !important;
-    left: 12px !important;
-    right: 12px !important;
-    padding: 12px !important;
-    border-radius: 20px !important;
-    display: none !important;
-    justify-content: space-around !important;
-    gap: 10px !important;
-    z-index: 9500 !important;
-    background: rgba(5, 5, 12, 0.85) !important;
-    border: 1px solid rgba(255, 215, 0, 0.4) !important;
-}
+.minimized-chat-avatar { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
+.floating-toolbar { position: fixed !important; bottom: 100px !important; left: 12px !important; right: 12px !important; padding: 12px !important; border-radius: 20px !important; display: none !important; justify-content: space-around !important; gap: 10px !important; z-index: 9500 !important; background: rgba(5, 5, 12, 0.85) !important; border: 1px solid rgba(255, 215, 0, 0.4) !important; }
 .floating-toolbar.open { display: flex !important; }
-
-.upgrade-modal {
-    position: fixed !important;
-    inset: 0 !important;
-    background: rgba(0, 0, 0, 0.85) !important;
-    display: none !important;
-    justify-content: center !important;
-    align-items: center !important;
-    z-index: 9999 !important;
-    padding: 20px !important;
-}
+.upgrade-modal { position: fixed !important; inset: 0 !important; background: rgba(0, 0, 0, 0.85) !important; display: none !important; justify-content: center !important; align-items: center !important; z-index: 9999 !important; padding: 20px !important; }
 .upgrade-modal.active { display: flex !important; }
-.upgrade-content {
-    background: rgba(17, 7, 36, 0.95) !important;
-    border: 2px solid #ffd700 !important;
-    padding: 25px !important;
-    border-radius: 16px !important;
-    width: 100% !important;
-    max-width: 400px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 10px !important;
-    direction: rtl !important;
-}
+.upgrade-content { background: rgba(17, 7, 36, 0.95) !important; border: 2px solid #ffd700 !important; padding: 25px !important; border-radius: 16px !important; width: 100% !important; max-width: 400px !important; display: flex !important; flex-direction: column !important; gap: 10px !important; direction: rtl !important; }
 .upgrade-content h3 { color: #ffd700 !important; text-align: center !important; margin-bottom: 8px !important; }
-.upgrade-content input {
-    padding: 12px !important;
-    border-radius: 8px !important;
-    border: 1px solid #ffd700 !important;
-    background: rgba(255,255,255,0.08) !important;
-    color: #fff !important;
-    font-size: 14px !important;
-    text-align: right !important;
-    outline: none !important;
-}
-.upgrade-content .upgrade-btn {
-    padding: 12px !important;
-    border-radius: 8px !important;
-    border: none !important;
-    background: #ffd700 !important;
-    color: #000 !important;
-    font-weight: 900 !important;
-    cursor: pointer !important;
-    font-size: 14px !important;
-}
+.upgrade-content input { padding: 12px !important; border-radius: 8px !important; border: 1px solid #ffd700 !important; background: rgba(255,255,255,0.08) !important; color: #fff !important; font-size: 14px !important; text-align: right !important; outline: none !important; }
+.upgrade-content .upgrade-btn { padding: 12px !important; border-radius: 8px !important; border: none !important; background: #ffd700 !important; color: #000 !important; font-weight: 900 !important; cursor: pointer !important; font-size: 14px !important; }
 .upgrade-content .upgrade-btn.cancel { background: rgba(255,255,255,0.15) !important; color: #fff !important; }
-
-.private-chat-modal {
-    top: auto !important;
-    bottom: 0 !important;
-    height: 50vh !important;
-    max-height: 50vh !important;
-    border-radius: 20px 20px 0 0 !important;
-    border-bottom: none !important;
-    border-top: 2px solid #ffd700 !important;
-    background: rgba(5, 5, 12, 0.75) !important;
-}
-.private-chat-header {
-    background: rgba(5, 5, 12, 0.75) !important;
-    border-bottom: 1px solid rgba(255, 215, 0, 0.5) !important;
-}
-.private-chat-input {
-    background: rgba(5, 5, 12, 0.75) !important;
-    border-top: 1px solid rgba(255, 215, 0, 0.5) !important;
-}
-
-body.pm-open .input-area,
-body.pm-open .bottom-nav,
-body.pm-open .mics-bar-wrapper,
-body.pm-open .floating-toolbar {
-    display: none !important;
-}
-
-.nav-pm-slot {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex: 1;
-    padding: 2px;
-}
-.nav-pm-slot .pm-slot-img {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 2px solid #ffd700;
-    object-fit: cover;
-    display: none;
-    box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
-}
-.nav-pm-slot.has-chat .pm-slot-img {
-    display: block;
-    animation: pmSlotPulse 1.8s ease-in-out infinite;
-}
-.nav-pm-slot .pm-slot-badge {
-    position: absolute;
-    top: 2px;
-    right: 50%;
-    transform: translateX(16px);
-    background: #ff4444;
-    color: #fff;
-    border-radius: 50%;
-    min-width: 14px;
-    height: 14px;
-    font-size: 8px;
-    font-weight: 900;
-    display: none;
-    justify-content: center;
-    align-items: center;
-    border: 2px solid #050508;
-    padding: 0 3px;
-}
+.private-chat-modal { top: auto !important; bottom: 0 !important; height: 50vh !important; max-height: 50vh !important; border-radius: 20px 20px 0 0 !important; border-bottom: none !important; border-top: 2px solid #ffd700 !important; background: rgba(5, 5, 12, 0.75) !important; }
+.private-chat-header { background: rgba(5, 5, 12, 0.75) !important; border-bottom: 1px solid rgba(255, 215, 0, 0.5) !important; }
+.private-chat-input { background: rgba(5, 5, 12, 0.75) !important; border-top: 1px solid rgba(255, 215, 0, 0.5) !important; }
+body.pm-open .input-area, body.pm-open .bottom-nav, body.pm-open .mics-bar-wrapper, body.pm-open .floating-toolbar { display: none !important; }
+.nav-pm-slot { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; flex: 1; padding: 2px; }
+.nav-pm-slot .pm-slot-img { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #ffd700; object-fit: cover; display: none; box-shadow: 0 0 12px rgba(255, 215, 0, 0.7); }
+.nav-pm-slot.has-chat .pm-slot-img { display: block; animation: pmSlotPulse 1.8s ease-in-out infinite; }
+.nav-pm-slot .pm-slot-badge { position: absolute; top: 2px; right: 50%; transform: translateX(16px); background: #ff4444; color: #fff; border-radius: 50%; min-width: 14px; height: 14px; font-size: 8px; font-weight: 900; display: none; justify-content: center; align-items: center; border: 2px solid #050508; padding: 0 3px; }
 .nav-pm-slot.has-chat.has-unread .pm-slot-badge { display: flex; }
-@keyframes pmSlotPulse {
-    0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.7); transform: scale(1); }
-    50% { box-shadow: 0 0 22px rgba(255, 215, 0, 1); transform: scale(1.08); }
-}
-
-.message:not(.system):not(.bot) {
-    background: rgba(5, 5, 12, 0.15) !important;
-    border: 1px solid rgba(255, 255, 255, 0.05) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-}
-
-.header {
-    height: 42px !important;
-    padding: 0 10px !important;
-}
-.header-btn {
-    width: 30px !important;
-    height: 30px !important;
-    font-size: 13px !important;
-    border-radius: 6px !important;
-}
+@keyframes pmSlotPulse { 0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.7); transform: scale(1); } 50% { box-shadow: 0 0 22px rgba(255, 215, 0, 1); transform: scale(1.08); } }
+.message:not(.system):not(.bot) { background: rgba(5, 5, 12, 0.15) !important; border: 1px solid rgba(255, 255, 255, 0.05) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.header { height: 42px !important; padding: 0 10px !important; }
+.header-btn { width: 30px !important; height: 30px !important; font-size: 13px !important; border-radius: 6px !important; }
 .room-title { font-size: 13px !important; }
 .header-actions { gap: 4px !important; }
-.notif-badge {
-    min-width: 15px !important;
-    height: 15px !important;
-    font-size: 9px !important;
-    top: -3px !important;
-    right: -3px !important;
-}
-
+.notif-badge { min-width: 15px !important; height: 15px !important; font-size: 9px !important; top: -3px !important; right: -3px !important; }
 .input-area { padding: 6px 10px !important; gap: 6px !important; }
-.input-area input[type="text"] {
-    padding: 8px 14px !important;
-    font-size: 13px !important;
-    border-radius: 20px !important;
-}
+.input-area input[type="text"] { padding: 8px 14px !important; font-size: 13px !important; border-radius: 20px !important; }
 .send-btn { width: 34px !important; height: 34px !important; font-size: 14px !important; }
 .emoji-btn, .plus-btn { width: 30px !important; height: 30px !important; font-size: 16px !important; }
-
 .bottom-nav { height: 46px !important; }
 .nav-item { padding: 2px !important; gap: 0 !important; font-size: 9px !important; }
 .nav-item i { font-size: 15px !important; }
 .nav-item span { font-size: 9px !important; }
-.nav-badge {
-    min-width: 12px !important;
-    height: 12px !important;
-    font-size: 8px !important;
-}
-
+.nav-badge { min-width: 12px !important; height: 12px !important; font-size: 8px !important; }
 .mics-bar { padding: 6px 10px !important; }
 .mic-btn { width: 34px !important; height: 34px !important; font-size: 13px !important; }
-.mics-toggle-btn {
-    width: 26px !important;
-    height: 16px !important;
-    font-size: 9px !important;
-    bottom: -14px !important;
-}
-
+.mics-toggle-btn { width: 26px !important; height: 16px !important; font-size: 9px !important; bottom: -14px !important; }
 .reply-preview { padding: 6px 12px !important; }
-
-html, body {
-    -webkit-text-size-adjust: 100% !important;
-    -moz-text-size-adjust: 100% !important;
-    text-size-adjust: 100% !important;
-}
+html, body { -webkit-text-size-adjust: 100% !important; -moz-text-size-adjust: 100% !important; text-size-adjust: 100% !important; }
 input, textarea, select { font-size: 16px !important; }
-@media (min-width: 481px) {
-    input, textarea, select { font-size: 13px !important; }
-}
-
+@media (min-width: 481px) { input, textarea, select { font-size: 13px !important; } }
 #room-settings-btn { display: none !important; }
 #room-settings-btn.visible { display: flex !important; }
 #reports-btn { display: none !important; position: relative !important; }
 #reports-btn.visible { display: flex !important; }
-
-#ra-send-btn {
-    animation: none !important;
-    box-shadow: 0 0 8px rgba(255, 215, 0, 0.35) !important;
-}
-
-.login-btn:disabled,
-.upgrade-btn:disabled {
-    opacity: 0.75 !important;
-    cursor: wait !important;
-}
-.login-btn:disabled i.fa-spinner,
-.upgrade-btn:disabled i.fa-spinner {
-    margin-left: 6px;
-}
+#ra-send-btn { animation: none !important; box-shadow: 0 0 8px rgba(255, 215, 0, 0.35) !important; }
+.login-btn:disabled, .upgrade-btn:disabled { opacity: 0.75 !important; cursor: wait !important; }
+.login-btn:disabled i.fa-spinner, .upgrade-btn:disabled i.fa-spinner { margin-left: 6px; }
 </style>
-
 </head>
 <body>
 
@@ -470,7 +189,6 @@ input, textarea, select { font-size: 16px !important; }
 </div>
 
 <div class="container" id="chat-container" style="display:none;">
-
 <div class="header">
 <button type="button" class="header-btn" onclick="toggleRooms()"><i class="fas fa-door-open"></i></button>
 <div class="room-title" id="room-title">🌍 الروم العام</div>
@@ -523,7 +241,6 @@ input, textarea, select { font-size: 16px !important; }
     <span class="pm-slot-badge" id="pm-slot-badge">0</span>
 </div>
 </div>
-
 </div>
 
 <div class="sidebar right-sidebar" id="rooms-sidebar">
@@ -598,34 +315,19 @@ input, textarea, select { font-size: 16px !important; }
 </div>
 </div>
 
-<div id="profile-frame-container" style="
-    position: fixed;
-    top: 6%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: calc(100% - 5%);
-    max-width: 480px;
-    bottom: 0;
-    z-index: 9999;
-    background: transparent;
-    display: none;
-    border-radius: 28px 28px 0 0;
-    overflow: hidden;
-    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 215, 0, 0.2);
-">
+<div id="profile-frame-container" style="position: fixed; top: 6%; left: 50%; transform: translateX(-50%); width: calc(100% - 5%); max-width: 480px; bottom: 0; z-index: 9999; background: transparent; display: none; border-radius: 28px 28px 0 0; overflow: hidden; box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 215, 0, 0.2);">
 <iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
 </div>
 
-<!-- ═══ الموجة الحرجة (sync) ═══ -->
-<script src="config.js?v=40"></script>
-<script src="ranks.js?v=40"></script>
-<script src="utils.js?v=40"></script>
-<script src="name-effects.js?v=40"></script>
-<script src="frames-engine.js?v=40"></script>
-<script src="connection-optimizer.js?v=2"></script>
-<script src="firebase-persistence.js?v=3"></script>
-<script src="chat-optimizer.js?v=2"></script>
-<script src="connection-resilience.js?v=2"></script>
+<script src="config.js?v=50"></script>
+<script src="ranks.js?v=50"></script>
+<script src="utils.js?v=50"></script>
+<script src="name-effects.js?v=50"></script>
+<script src="frames-engine.js?v=50"></script>
+<script src="connection-optimizer.js?v=3"></script>
+<script src="firebase-persistence.js?v=4"></script>
+<script src="chat-optimizer.js?v=3"></script>
+<script src="connection-resilience.js?v=3"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -635,7 +337,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.classList.toggle('pm-open', modal.classList.contains('open'));
         }).observe(modal, { attributes: true, attributeFilter: ['class'] });
     }
-
     var floatingAvatar = document.getElementById('minimized-chat-avatar');
     if (floatingAvatar) {
         floatingAvatar.style.display = 'none';
@@ -645,12 +346,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         obs.observe(floatingAvatar, { attributes: true, attributeFilter: ['class', 'style'] });
     }
-
     setTimeout(function() {
-        var targets = [
-            '.header', '.bottom-nav', '.input-area', '.mics-bar',
-            '.sidebar', '.sidebar-header'
-        ];
+        var targets = ['.header', '.bottom-nav', '.input-area', '.mics-bar', '.sidebar', '.sidebar-header'];
         targets.forEach(function(sel) {
             document.querySelectorAll(sel).forEach(function(el) {
                 el.style.setProperty('background', 'rgba(5, 5, 12, 0.25)', 'important');
@@ -659,10 +356,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }, 500);
-
     setInterval(syncPMSlot, 3000);
     setTimeout(syncPMSlot, 2000);
-
     setInterval(_updateHeaderButtons, 2000);
     setTimeout(_updateHeaderButtons, 1000);
 });
@@ -671,42 +366,26 @@ function _updateHeaderButtons() {
     var user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
     if (!user) return;
     var lvl = user.rankLevel || (typeof getRankLevel === 'function' ? getRankLevel(user.rank) : 0);
-
     var roomBtn = document.getElementById('room-settings-btn');
-    if (roomBtn) {
-        if (lvl >= 80) roomBtn.classList.add('visible');
-        else roomBtn.classList.remove('visible');
-    }
-
+    if (roomBtn) { if (lvl >= 80) roomBtn.classList.add('visible'); else roomBtn.classList.remove('visible'); }
     var repBtn = document.getElementById('reports-btn');
-    if (repBtn) {
-        if (lvl >= 90) repBtn.classList.add('visible');
-        else repBtn.classList.remove('visible');
-    }
+    if (repBtn) { if (lvl >= 90) repBtn.classList.add('visible'); else repBtn.classList.remove('visible'); }
 }
 
 function openRoomSettings() {
     var user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
     if (!user) return;
     var lvl = user.rankLevel || (typeof getRankLevel === 'function' ? getRankLevel(user.rank) : 0);
-    if (lvl < 80) {
-        if (typeof showToast === 'function') showToast('fa-lock', '🔒 Grand Owner+ فقط');
-        return;
-    }
-    if (typeof openWelcomeEditor === 'function') {
-        openWelcomeEditor((typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general');
-    } else if (typeof showToast === 'function') {
-        showToast('fa-cog', '⚙️ قريباً');
-    }
+    if (lvl < 80) { if (typeof showToast === 'function') showToast('fa-lock', '🔒 Grand Owner+ فقط'); return; }
+    if (typeof openWelcomeEditor === 'function') { openWelcomeEditor((typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general'); }
+    else if (typeof showToast === 'function') { showToast('fa-cog', '⚙️ قريباً'); }
 }
 
 function openReportsPanel() {
     if (typeof KingRoom !== 'undefined' && KingRoom.open) {
         if (typeof window.__krSetTab === 'function') window.__krSetTab('reports');
         KingRoom.open();
-    } else if (typeof showToast === 'function') {
-        showToast('fa-exclamation-triangle', '🚨 قريباً');
-    }
+    } else if (typeof showToast === 'function') { showToast('fa-exclamation-triangle', '🚨 قريباً'); }
 }
 
 function showFriends() { if (typeof showToast === 'function') showToast('fa-user-friends', '👥 قريباً'); }
@@ -717,9 +396,7 @@ function openMinimizedChat() {
     } else if (typeof ChatState !== 'undefined' && ChatState.currentPrivateChat) {
         var m = document.getElementById('private-chat-modal');
         if (m) m.classList.add('open');
-    } else if (typeof togglePrivateMessages === 'function') {
-        togglePrivateMessages();
-    }
+    } else if (typeof togglePrivateMessages === 'function') { togglePrivateMessages(); }
 }
 
 function syncPMSlot() {
@@ -733,10 +410,8 @@ function syncPMSlot() {
     if (chat && chat.otherAvatar) {
         slot.classList.add('has-chat');
         if (img.src !== chat.otherAvatar) img.src = chat.otherAvatar;
-        if (unread > 0) {
-            slot.classList.add('has-unread');
-            badge.textContent = unread > 9 ? '9+' : unread;
-        } else slot.classList.remove('has-unread');
+        if (unread > 0) { slot.classList.add('has-unread'); badge.textContent = unread > 9 ? '9+' : unread; }
+        else slot.classList.remove('has-unread');
     } else {
         slot.classList.remove('has-chat', 'has-unread');
         img.src = '';
@@ -751,22 +426,22 @@ window.openReportsPanel = openReportsPanel;
 window._updateHeaderButtons = _updateHeaderButtons;
 </script>
 
-<script src="auth.js?v=41"></script>
-<script src="chat.js?v=40"></script>
+<script src="auth.js?v=50"></script>
+<script src="chat.js?v=50"></script>
 
-<script defer src="islamic-library.js?v=39"></script>
-<script defer src="pm-enhanced.js?v=40"></script>
-<script defer src="media-picker.js?v=39"></script>
-<script defer src="bots.js?v=39"></script>
-<script defer src="guardian-hide.js?v=39"></script>
-<script defer src="king-room.js?v=39"></script>
-<script defer src="room-alerts.js?v=39"></script>
-<script defer src="dice.js?v=39"></script>
-<script defer src="invisible-mode.js?v=40"></script>
-<script defer src="room-picker.js?v=39"></script>
-<script defer src="upload-service.js?v=1000"></script>
-<script defer src="stories.js?v=40"></script>
-<script defer src="user-data-optimizer.js?v=3"></script>
+<script defer src="islamic-library.js?v=50"></script>
+<script defer src="pm-enhanced.js?v=50"></script>
+<script defer src="media-picker.js?v=50"></script>
+<script defer src="bots.js?v=50"></script>
+<script defer src="guardian-hide.js?v=50"></script>
+<script defer src="king-room.js?v=50"></script>
+<script defer src="room-alerts.js?v=50"></script>
+<script defer src="dice.js?v=50"></script>
+<script defer src="invisible-mode.js?v=50"></script>
+<script defer src="room-picker.js?v=50"></script>
+<script defer src="uploader.js?v=1"></script>
+<script defer src="stories.js?v=50"></script>
+<script defer src="user-data-optimizer.js?v=4"></script>
 
 <script>
 let selectedGender = 'male';
@@ -786,31 +461,20 @@ function switchLoginTab(tab) {
         document.getElementById('member-form').style.display = 'block';
     }
 }
-
-function switchToRegister() {
-    document.getElementById('member-form').style.display = 'none';
-    document.getElementById('register-form').style.display = 'block';
-}
-
-function switchToLogin() {
-    document.getElementById('register-form').style.display = 'none';
-    document.getElementById('member-form').style.display = 'block';
-}
-
+function switchToRegister() { document.getElementById('member-form').style.display = 'none'; document.getElementById('register-form').style.display = 'block'; }
+function switchToLogin() { document.getElementById('register-form').style.display = 'none'; document.getElementById('member-form').style.display = 'block'; }
 function selectGender(g) {
     selectedGender = g;
     document.getElementById('gender-male').classList.remove('active');
     document.getElementById('gender-female').classList.remove('active');
     document.getElementById(g === 'male' ? 'gender-male' : 'gender-female').classList.add('active');
 }
-
 function selectRegGender(g) {
     regSelectedGender = g;
     document.getElementById('reg-gender-male').classList.remove('active');
     document.getElementById('reg-gender-female').classList.remove('active');
     document.getElementById(g === 'male' ? 'reg-gender-male' : 'reg-gender-female').classList.add('active');
 }
-
 function _setBtnLoading(btn, loadingText) {
     if (!btn) return null;
     var orig = btn.innerHTML;
@@ -823,7 +487,6 @@ function _resetBtn(btn, orig) {
     btn.disabled = false;
     if (orig !== null && orig !== undefined) btn.innerHTML = orig;
 }
-
 async function handleGuestLogin(btn) {
     if (btn && btn.disabled) return;
     const name = document.getElementById('guest-name').value.trim();
@@ -831,45 +494,27 @@ async function handleGuestLogin(btn) {
     if (!name || name.length < 2) { alert('⚠️ الرجاء إدخال اسم صحيح'); return; }
     const ageNum = parseInt(age, 10);
     if (!age || isNaN(ageNum) || ageNum < 13 || ageNum > 120) { alert('⚠️ الرجاء إدخال عمر صحيح'); return; }
-
     var orig = _setBtnLoading(btn, 'جاري الدخول...');
     try {
         const result = await registerGuest(name, ageNum, selectedGender);
-        if (result && result.success) {
-            if (typeof initChat === 'function') await initChat();
-        } else {
-            alert('⚠️ ' + (result?.error || 'حدث خطأ'));
-        }
-    } catch (e) {
-        console.error(e);
-        alert('⚠️ خطأ: ' + (e.message || 'غير معروف'));
-    } finally {
-        _resetBtn(btn, orig);
-    }
+        if (result && result.success) { if (typeof initChat === 'function') await initChat(); }
+        else { alert('⚠️ ' + (result?.error || 'حدث خطأ')); }
+    } catch (e) { console.error(e); alert('⚠️ خطأ: ' + (e.message || 'غير معروف')); }
+    finally { _resetBtn(btn, orig); }
 }
-
 async function handleMemberLogin(btn) {
     if (btn && btn.disabled) return;
     const email = document.getElementById('member-email').value.trim();
     const password = document.getElementById('member-password').value;
     if (!email || !password) { alert('⚠️ الرجاء إدخال البيانات'); return; }
-
     var orig = _setBtnLoading(btn, 'جاري الدخول...');
     try {
         const result = await login(email, password);
-        if (result && result.success) {
-            if (typeof initChat === 'function') await initChat();
-        } else {
-            alert('⚠️ ' + (result?.error || 'فشل'));
-        }
-    } catch (e) {
-        console.error(e);
-        alert('⚠️ خطأ: ' + (e.message || 'غير معروف'));
-    } finally {
-        _resetBtn(btn, orig);
-    }
+        if (result && result.success) { if (typeof initChat === 'function') await initChat(); }
+        else { alert('⚠️ ' + (result?.error || 'فشل')); }
+    } catch (e) { console.error(e); alert('⚠️ خطأ: ' + (e.message || 'غير معروف')); }
+    finally { _resetBtn(btn, orig); }
 }
-
 async function handleRegister(btn) {
     if (btn && btn.disabled) return;
     const name = document.getElementById('register-name').value.trim();
@@ -883,23 +528,14 @@ async function handleRegister(btn) {
     if (!email) { alert('⚠️ الرجاء إدخال الإيميل'); return; }
     if (!password || password.length < 6) { alert('⚠️ كلمة السر 6 أحرف'); return; }
     if (password !== confirmPassword) { alert('⚠️ كلمات السر غير متطابقة'); return; }
-
     var orig = _setBtnLoading(btn, 'جاري التسجيل...');
     try {
         const result = await registerMember(name, ageNum, regSelectedGender, email, password);
-        if (result && result.success) {
-            if (typeof initChat === 'function') await initChat();
-        } else {
-            alert('⚠️ ' + (result?.error || 'فشل'));
-        }
-    } catch (e) {
-        console.error(e);
-        alert('⚠️ خطأ: ' + (e.message || 'غير معروف'));
-    } finally {
-        _resetBtn(btn, orig);
-    }
+        if (result && result.success) { if (typeof initChat === 'function') await initChat(); }
+        else { alert('⚠️ ' + (result?.error || 'فشل')); }
+    } catch (e) { console.error(e); alert('⚠️ خطأ: ' + (e.message || 'غير معروف')); }
+    finally { _resetBtn(btn, orig); }
 }
-
 async function handleUpgrade(btn) {
     if (btn && btn.disabled) return;
     const email = document.getElementById('upgrade-email').value.trim();
@@ -910,7 +546,6 @@ async function handleUpgrade(btn) {
     if (password !== confirmPassword) { alert('⚠️ غير متطابقة'); return; }
     const user = getCurrentUser();
     if (!user) { alert('⚠️ لا يوجد مستخدم'); return; }
-
     var orig = _setBtnLoading(btn, 'جاري الترقية...');
     try {
         const result = await registerMember(user.name, user.age, user.gender, email, password);
@@ -921,15 +556,9 @@ async function handleUpgrade(btn) {
             document.getElementById('upgrade-password-confirm').value = '';
             if (typeof showToast === 'function') showToast('fa-crown', '🎉 تم ترقيتك');
             setTimeout(() => location.reload(), 1500);
-        } else {
-            alert('⚠️ ' + (result?.error || 'فشل'));
-        }
-    } catch (e) {
-        console.error(e);
-        alert('⚠️ خطأ: ' + (e.message || 'غير معروف'));
-    } finally {
-        _resetBtn(btn, orig);
-    }
+        } else { alert('⚠️ ' + (result?.error || 'فشل')); }
+    } catch (e) { console.error(e); alert('⚠️ خطأ: ' + (e.message || 'غير معروف')); }
+    finally { _resetBtn(btn, orig); }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -943,31 +572,23 @@ window.addEventListener('DOMContentLoaded', () => {
     var loader = document.getElementById('qamar-boot-loader');
     var statusEl = document.getElementById('qamar-boot-status');
     if (!loader) return;
-
     var startTime = Date.now();
     var MIN_SHOW = 400;
     var MAX_WAIT = 8000;
     var hidden = false;
-
     function _updateStatus(text, ready) {
         if (!statusEl) return;
         statusEl.textContent = text;
-        if (ready) statusEl.classList.add('ready');
-        else statusEl.classList.remove('ready');
+        if (ready) statusEl.classList.add('ready'); else statusEl.classList.remove('ready');
     }
-
     function _hide() {
         if (hidden) return;
         hidden = true;
         loader.classList.add('qamar-boot-hide');
-        setTimeout(function () {
-            if (loader && loader.parentNode) loader.parentNode.removeChild(loader);
-        }, 450);
+        setTimeout(function () { if (loader && loader.parentNode) loader.parentNode.removeChild(loader); }, 450);
     }
-
     var waitCheck = setInterval(function () {
         var elapsed = Date.now() - startTime;
-
         if (typeof auth !== 'undefined' && auth && typeof db !== 'undefined' && db) {
             _updateStatus('جاهز ✨', true);
             clearInterval(waitCheck);
@@ -975,20 +596,10 @@ window.addEventListener('DOMContentLoaded', () => {
             setTimeout(_hide, remain + 150);
             return;
         }
-
-        if (typeof QAMAR !== 'undefined') {
-            _updateStatus('جاري تهيئة Firebase...', false);
-        } else if (elapsed > 1500) {
-            _updateStatus('جاري تجهيز الواجهة...', false);
-        }
-
-        if (elapsed >= MAX_WAIT) {
-            _updateStatus('استمرار بدون Firebase...', false);
-            clearInterval(waitCheck);
-            setTimeout(_hide, 300);
-        }
+        if (typeof QAMAR !== 'undefined') { _updateStatus('جاري تهيئة Firebase...', false); }
+        else if (elapsed > 1500) { _updateStatus('جاري تجهيز الواجهة...', false); }
+        if (elapsed >= MAX_WAIT) { _updateStatus('استمرار بدون Firebase...', false); clearInterval(waitCheck); setTimeout(_hide, 300); }
     }, 200);
-
     window.addEventListener('load', function () {
         var elapsed = Date.now() - startTime;
         if (elapsed < MIN_SHOW) {
@@ -1000,5 +611,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 })();
 </script>
+
 </body>
 </html>
