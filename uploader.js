@@ -1,20 +1,17 @@
 // ==============================================
-// uploader.js v4 — Telegram Upload (يعمل في سوريا)
+// uploader.js v5 — Telegram + aliases
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__uploadServiceV4) return;
-    window.__uploadServiceV4 = true;
+    if (window.__uploadServiceV5) return;
+    window.__uploadServiceV5 = true;
 
-    // 🔑 بيانات البوت
     var TG_TOKEN = '8850098271:AAEy7xKwhbaSWrY_5ojUTA0McZvTPE1Gpv8';
     var TG_CHAT_ID = '-1003978647266';
     var TG_API = 'https://api.telegram.org/bot' + TG_TOKEN;
-
     var IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
 
-    /* ════════ Telegram — رفع شامل ════════ */
     async function uploadTelegram(file) {
         var fd = new FormData();
         fd.append('chat_id', TG_CHAT_ID);
@@ -25,27 +22,20 @@
             body: fd
         });
         if (!res.ok) throw new Error('telegram HTTP ' + res.status);
-
         var data = await res.json();
         if (!data.ok || !data.result || !data.result.document) {
             throw new Error('telegram: ' + (data.description || 'bad response'));
         }
-
         var fileId = data.result.document.file_id;
 
-        // نجيب file_path
         var fileRes = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fileId));
         var fileData = await fileRes.json();
         if (!fileData.ok || !fileData.result || !fileData.result.file_path) {
             throw new Error('telegram getFile failed');
         }
-
-        // الرابط المباشر
-        var url = 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fileData.result.file_path;
-        return url;
+        return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fileData.result.file_path;
     }
 
-    /* ════════ imgbb — صور ════════ */
     async function uploadImgbb(file) {
         var fd = new FormData();
         fd.append('key', IMGBB_KEY);
@@ -58,7 +48,6 @@
         return data.data.url;
     }
 
-    /* ════════ تحويل صورة إلى JPG ════════ */
     function convertImageToJpg(file, maxSize, quality) {
         return new Promise(function (resolve, reject) {
             maxSize = maxSize || 1920;
@@ -95,53 +84,50 @@
         return ['image/heic','image/heif','image/avif','image/tiff','image/bmp'].indexOf(file.type) !== -1;
     }
 
-    async function tryChain(attempts) {
-        var errors = [];
-        for (var i = 0; i < attempts.length; i++) {
-            try {
-                console.log('📤 Trying: ' + attempts[i].name + '...');
-                var url = await attempts[i].fn();
-                console.log('✅ Success: ' + attempts[i].name);
-                return url;
-            } catch (e) {
-                console.warn('❌ Failed: ' + attempts[i].name + ' →', e.message);
-                errors.push(attempts[i].name + ': ' + e.message);
-            }
-        }
-        throw new Error(errors.join(' | '));
-    }
-
     async function upload(file, options) {
         options = options || {};
         if (!file) throw new Error('لا يوجد ملف');
-
         var type = file.type || '';
         var isImage = type.indexOf('image/') === 0;
 
-        // صور → imgbb أولاً، ثم تلغرام كبديل
         if (isImage) {
             var imgFile = file;
             if (needsConversion(file)) {
                 try { imgFile = await convertImageToJpg(file, 1920, 0.88); } catch (e) {}
             }
-            return await tryChain([
-                { name: 'imgbb',    fn: function() { return uploadImgbb(imgFile); } },
-                { name: 'telegram', fn: function() { return uploadTelegram(imgFile); } }
-            ]);
+            try {
+                console.log('📤 Trying: imgbb...');
+                var url = await uploadImgbb(imgFile);
+                console.log('✅ imgbb success');
+                return url;
+            } catch (e) {
+                console.warn('❌ imgbb failed, trying telegram:', e.message);
+                console.log('📤 Trying: telegram...');
+                return await uploadTelegram(imgFile);
+            }
         }
 
-        // فيديو + صوت → تلغرام (يعمل في سوريا)
-        return await tryChain([
-            { name: 'telegram', fn: function() { return uploadTelegram(file); } }
-        ]);
+        console.log('📤 Trying: telegram...');
+        return await uploadTelegram(file);
     }
 
+    // ⭐ كل الأسماء القديمة تُوجَّه لتلغرام
     window.UploadService = {
         upload: upload,
         uploadTelegram: uploadTelegram,
         uploadImgbb: uploadImgbb,
-        version: 'v4-telegram'
+        // aliases (ترجع لتلغرام)
+        uploadLitterbox: function(file, hours) { return uploadTelegram(file); },
+        uploadCatbox: function(file) { return uploadTelegram(file); },
+        uploadTmpfiles: function(file) { return uploadTelegram(file); },
+        uploadGofile: function(file) { return uploadTelegram(file); },
+        uploadBashupload: function(file) { return uploadTelegram(file); },
+        upload0x0: function(file) { return uploadTelegram(file); },
+        uploadUguu: function(file) { return uploadTelegram(file); },
+        convertImageToJpg: convertImageToJpg,
+        needsConversion: needsConversion,
+        version: 'v5-telegram-aliases'
     };
 
-    console.log('📤 uploader.js v4 loaded — TELEGRAM (works in Syria)');
+    console.log('📤 uploader.js v5 loaded — TELEGRAM + aliases');
 })();
