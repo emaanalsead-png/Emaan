@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<script>
-// 🗑️ SW Killer
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(regs) {
-        regs.forEach(function(r) { r.unregister(); });
-    });
-    if (window.caches && caches.keys) {
-        caches.keys().then(function(keys) {
-            keys.forEach(function(k) { caches.delete(k); });
-        });
-    }
-}
-</script>
 <meta charset="UTF-8">
 <meta name="google-site-verification" content="googledef67db6e90c3077">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -38,13 +25,13 @@ if ('serviceWorker' in navigator) {
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="styles.css?v=67">
-<link rel="stylesheet" href="frames-engine.css?v=67">
-<link rel="stylesheet" href="name-effects.css?v=67">
-<link rel="stylesheet" href="king-room.css?v=67">
-<link rel="stylesheet" href="room-alerts.css?v=67">
-<link rel="stylesheet" href="dice.css?v=67">
-<link rel="stylesheet" href="qamar-glass.css?v=67">
+<link rel="stylesheet" href="styles.css?v=62">
+<link rel="stylesheet" href="frames-engine.css?v=62">
+<link rel="stylesheet" href="name-effects.css?v=62">
+<link rel="stylesheet" href="king-room.css?v=62">
+<link rel="stylesheet" href="room-alerts.css?v=62">
+<link rel="stylesheet" href="dice.css?v=62">
+<link rel="stylesheet" href="qamar-glass.css?v=62">
 
 <style id="qamar-boot-css">
 #qamar-boot-loader{position:fixed;inset:0;background:radial-gradient(ellipse at top,rgba(212,175,55,.15) 0%,transparent 55%),radial-gradient(ellipse at bottom,rgba(100,50,150,.2) 0%,transparent 55%),linear-gradient(to bottom,#050508,#0a0a15);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999999;color:#ffd700;font-family:'Cairo',system-ui,sans-serif;gap:22px;transition:opacity .4s ease;padding:20px;text-align:center}
@@ -128,8 +115,6 @@ input,textarea,select{font-size:16px!important}
 #ra-send-btn{animation:none!important;box-shadow:0 0 8px rgba(255,215,0,.35)!important}
 .login-btn:disabled,.upgrade-btn:disabled{opacity:.75!important;cursor:wait!important}
 .login-btn:disabled i.fa-spinner,.upgrade-btn:disabled i.fa-spinner{margin-left:6px}
-/* ⭐ v67: إطار البروفايل من الأعلى تماماً */
-#profile-frame-container{top:0!important;background:#050508!important;}
 </style>
 
 <script>
@@ -143,40 +128,45 @@ input,textarea,select{font-size:16px!important}
     async function uploadTelegram(file){
         var type = file.type || '';
         var isVideo = type.indexOf('video/') === 0;
-        var endpoint = isVideo ? '/sendVideo' : '/sendDocument';
-        var fieldName = isVideo ? 'video' : 'document';
+        var isAudio = type.indexOf('audio/') === 0;
+
+        var endpoint = isVideo ? '/sendVideo' : (isAudio ? '/sendAudio' : '/sendDocument');
+        var fieldName = isVideo ? 'video' : (isAudio ? 'audio' : 'document');
+
         var fd = new FormData();
         fd.append('chat_id', TG_CHAT_ID);
         fd.append(fieldName, file);
-        console.log('📤 Telegram → ' + endpoint + ' | ' + (file.size/1024/1024).toFixed(2) + 'MB');
-        var controller = new AbortController();
-        var timeoutId = setTimeout(function(){ controller.abort(); }, 180000);
-        var res;
-        try {
-            res = await fetch(TG_API + endpoint, { method: 'POST', body: fd, signal: controller.signal });
-        } catch (e) {
-            clearTimeout(timeoutId);
-            if (e.name === 'AbortError') throw new Error('تجاوز الوقت (180s)');
-            throw e;
-        }
-        clearTimeout(timeoutId);
+
+        console.log('📤 Telegram → ' + endpoint + ' (' + fieldName + ')');
+        var res = await fetch(TG_API + endpoint, { method: 'POST', body: fd });
         if (!res.ok) throw new Error('TG HTTP ' + res.status);
         var data = await res.json();
+
         if (!data.ok){
             console.error('❌ Telegram error:', data);
             throw new Error(data.description || 'telegram error');
         }
+
         var result = data.result || {};
         var fileId = null;
-        if (result.document && result.document.file_id) fileId = result.document.file_id;
-        else if (result.video && result.video.file_id) fileId = result.video.file_id;
+        if (result.video && result.video.file_id) fileId = result.video.file_id;
         else if (result.audio && result.audio.file_id) fileId = result.audio.file_id;
+        else if (result.document && result.document.file_id) fileId = result.document.file_id;
         else if (result.animation && result.animation.file_id) fileId = result.animation.file_id;
         else if (result.voice && result.voice.file_id) fileId = result.voice.file_id;
-        if (!fileId) throw new Error('no file_id');
+
+        if (!fileId){
+            console.error('❌ No file_id', result);
+            throw new Error('no file_id');
+        }
+
         var fr = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fileId));
         var fd2 = await fr.json();
-        if (!fd2.ok || !fd2.result || !fd2.result.file_path) throw new Error('getFile failed');
+        if (!fd2.ok || !fd2.result || !fd2.result.file_path){
+            console.error('❌ getFile failed', fd2);
+            throw new Error('getFile failed');
+        }
+        console.log('✅ Telegram upload success');
         return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fd2.result.file_path;
     }
 
@@ -212,9 +202,9 @@ input,textarea,select{font-size:16px!important}
         uploadBashupload: uploadTelegram,
         upload0x0: uploadTelegram,
         uploadUguu: uploadTelegram,
-        version: 'inline-v6'
+        version: 'inline-v3-tg-video'
     };
-    console.log('✅ Telegram uploader v6 loaded');
+    console.log('✅ Telegram uploader v3 (video-aware) loaded');
 })();
 </script>
 
@@ -242,7 +232,7 @@ input,textarea,select{font-size:16px!important}
 <button type="button" class="login-tab" id="tab-member" onclick="switchLoginTab('member')"><i class="fas fa-user"></i> عضو</button>
 </div>
 <div id="guest-form">
-<input type="text" class="login-input" id="guest-name" placeholder="اسمك..." maxlength="35" style="margin-bottom:10px;">
+<input type="text" class="login-input" id="guest-name" placeholder="اسمك..." maxlength="20" style="margin-bottom:10px;">
 <input type="number" class="login-input" id="guest-age" placeholder="عمرك..." min="13" max="120" style="margin-bottom:10px;">
 <div class="gender-group" style="margin-bottom:10px;">
 <button type="button" class="gender-btn active" id="gender-male" onclick="selectGender('male')">👦 ذكر</button>
@@ -257,7 +247,7 @@ input,textarea,select{font-size:16px!important}
 <div class="link-text" onclick="switchToRegister()">ليس لديك حساب؟ سجّل الآن</div>
 </div>
 <div id="register-form" style="display:none;">
-<input type="text" class="login-input" id="register-name" placeholder="اسمك..." maxlength="35" style="margin-bottom:10px;">
+<input type="text" class="login-input" id="register-name" placeholder="اسمك..." maxlength="20" style="margin-bottom:10px;">
 <input type="number" class="login-input" id="register-age" placeholder="عمرك..." min="13" max="120" style="margin-bottom:10px;">
 <div class="gender-group" style="margin-bottom:10px;">
 <button type="button" class="gender-btn active" id="reg-gender-male" onclick="selectRegGender('male')">👦 ذكر</button>
@@ -273,7 +263,6 @@ input,textarea,select{font-size:16px!important}
 </div>
 
 <div class="container" id="chat-container" style="display:none;">
-
 <div class="header">
 <button type="button" class="header-btn" onclick="toggleRooms()"><i class="fas fa-door-open"></i></button>
 <div class="room-title" id="room-title">🌍 الروم العام</div>
@@ -326,7 +315,6 @@ input,textarea,select{font-size:16px!important}
     <span class="pm-slot-badge" id="pm-slot-badge">0</span>
 </div>
 </div>
-
 </div>
 
 <div class="sidebar right-sidebar" id="rooms-sidebar">
@@ -401,20 +389,19 @@ input,textarea,select{font-size:16px!important}
 </div>
 </div>
 
-<!-- ⭐ v67: top:0 بدل top:6% + خلفية صلبة -->
-<div id="profile-frame-container" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;background:#050508;display:none;">
-<iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:#050508;" allow="autoplay"></iframe>
+<div id="profile-frame-container" style="position:fixed;top:6%;left:50%;transform:translateX(-50%);width:calc(100% - 5%);max-width:480px;bottom:0;z-index:9999;background:transparent;display:none;border-radius:28px 28px 0 0;overflow:hidden;box-shadow:0 -20px 60px rgba(0,0,0,.7),0 0 40px rgba(255,215,0,.2);">
+<iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
 </div>
 
-<script src="config.js?v=67"></script>
-<script src="ranks.js?v=67"></script>
-<script src="utils.js?v=67"></script>
-<script src="name-effects.js?v=67"></script>
-<script src="frames-engine.js?v=67"></script>
-<script src="connection-optimizer.js?v=11"></script>
-<script src="firebase-persistence.js?v=12"></script>
-<script src="chat-optimizer.js?v=11"></script>
-<script src="connection-resilience.js?v=11"></script>
+<script src="config.js?v=62"></script>
+<script src="ranks.js?v=62"></script>
+<script src="utils.js?v=62"></script>
+<script src="name-effects.js?v=62"></script>
+<script src="frames-engine.js?v=62"></script>
+<script src="connection-optimizer.js?v=6"></script>
+<script src="firebase-persistence.js?v=7"></script>
+<script src="chat-optimizer.js?v=6"></script>
+<script src="connection-resilience.js?v=6"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -513,22 +500,21 @@ window.openReportsPanel = openReportsPanel;
 window._updateHeaderButtons = _updateHeaderButtons;
 </script>
 
-<script src="auth.js?v=67"></script>
-<script src="chat.js?v=67"></script>
+<script src="auth.js?v=62"></script>
+<script src="chat.js?v=62"></script>
 
-<script defer src="islamic-library.js?v=67"></script>
-<script defer src="pm-enhanced.js?v=67"></script>
-<script defer src="media-picker.js?v=67"></script>
-<script defer src="bots.js?v=67"></script>
-<script defer src="guardian-hide.js?v=67"></script>
-<script defer src="king-room.js?v=67"></script>
-<script defer src="room-alerts.js?v=67"></script>
-<script defer src="dice.js?v=67"></script>
-<script defer src="invisible-mode.js?v=67"></script>
-<script defer src="room-picker.js?v=67"></script>
-<script defer src="stories.js?v=67"></script>
-<script defer src="stories-cleaner.js?v=5"></script>
-<script defer src="user-data-optimizer.js?v=12"></script>
+<script defer src="islamic-library.js?v=62"></script>
+<script defer src="pm-enhanced.js?v=62"></script>
+<script defer src="media-picker.js?v=62"></script>
+<script defer src="bots.js?v=62"></script>
+<script defer src="guardian-hide.js?v=62"></script>
+<script defer src="king-room.js?v=62"></script>
+<script defer src="room-alerts.js?v=62"></script>
+<script defer src="dice.js?v=62"></script>
+<script defer src="invisible-mode.js?v=62"></script>
+<script defer src="room-picker.js?v=62"></script>
+<script defer src="stories.js?v=62"></script>
+<script defer src="user-data-optimizer.js?v=7"></script>
 
 <script>
 let selectedGender = 'male';
@@ -579,7 +565,6 @@ async function handleGuestLogin(btn) {
     const name = document.getElementById('guest-name').value.trim();
     const age = document.getElementById('guest-age').value.trim();
     if (!name || name.length < 2) { alert('⚠️ الرجاء إدخال اسم صحيح'); return; }
-    if (name.length > 35) { alert('⚠️ الاسم أطول من 35 حرف'); return; }
     const ageNum = parseInt(age, 10);
     if (!age || isNaN(ageNum) || ageNum < 13 || ageNum > 120) { alert('⚠️ الرجاء إدخال عمر صحيح'); return; }
     var orig = _setBtnLoading(btn, 'جاري الدخول...');
@@ -611,7 +596,6 @@ async function handleRegister(btn) {
     const password = document.getElementById('register-password').value;
     const confirmPassword = document.getElementById('register-password-confirm').value;
     if (!name || name.length < 2) { alert('⚠️ اسم غير صحيح'); return; }
-    if (name.length > 35) { alert('⚠️ الاسم أطول من 35 حرف'); return; }
     const ageNum = parseInt(age, 10);
     if (!age || isNaN(ageNum) || ageNum < 13 || ageNum > 120) { alert('⚠️ عمر غير صحيح'); return; }
     if (!email) { alert('⚠️ الرجاء إدخال الإيميل'); return; }
