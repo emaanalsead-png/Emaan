@@ -1,5 +1,5 @@
 // ==============================================
-// profile-core.js v13 — Moments tab uses Stories.renderMyTab
+// profile-core.js v14 — music 10MB + name 35 chars
 // ==============================================
 
 const ProfileState = {
@@ -14,7 +14,7 @@ const ProfileState = {
 };
 
 const IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
-const MAX_AUDIO_MB = 5;
+const MAX_AUDIO_MB = 10;
 
 const NAME_GRADIENTS = [
     ['#d4af37','#ffec8b'], ['#b8860b','#ffd700'], ['#ffd700','#ff8c00'],
@@ -238,9 +238,8 @@ function openAppModal(opts) {
 
 window.openAppModal = openAppModal;
 
-/* ═══ Bootstrap ═══ */
 document.addEventListener('DOMContentLoaded', async function () {
-    console.log('🚀 profile-core.js v13 booting...');
+    console.log('🚀 profile-core.js v14 booting...');
 
     try {
         localStorage.removeItem('saved_avatar_frame_motion');
@@ -320,7 +319,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         renderFriendsTab();
     }, 400);
 
-    console.log('✅ profile-core.js v13 ready | Mode:', ProfileState.mode);
+    console.log('✅ profile-core.js v14 ready | Mode:', ProfileState.mode);
 });
 
 async function _autoCleanupLegacyVideos() {
@@ -356,7 +355,7 @@ async function _autoCleanupLegacyVideos() {
         if (updates.coverType === null) ProfileState.subject.coverType = null;
         if (updates.profileBgType === null) ProfileState.subject.profileBgType = null;
         if (updates.profileBgValue === null) ProfileState.subject.profileBgValue = null;
-        console.log('🗑️ v13: removed legacy videos from Firebase');
+        console.log('🗑️ v14: removed legacy videos from Firebase');
     } catch (e) {
         console.warn('cleanup legacy videos failed:', e);
     }
@@ -873,6 +872,7 @@ async function updateIdentityField(field, value) {
     } catch (e) {}
 }
 
+/* ⭐ v14: maxLength 35 */
 function _bindEditName() {
     const btn = document.getElementById('btn-edit-username');
     if (!btn || btn.__bound) return;
@@ -884,10 +884,11 @@ function _bindEditName() {
             title: '✏️ تعديل الاسم',
             type: 'input',
             value: subj.name || '',
-            maxLength: 20,
+            maxLength: 35,
             onSave: async function (v) {
                 v = (v || '').trim();
                 if (!v || v.length < 2) { _toast('⚠️ اسم قصير'); return; }
+                if (v.length > 35) { _toast('⚠️ الحد 35 حرف'); return; }
                 if (v === subj.name) return;
                 if (typeof reserveName === 'function') {
                     const res = await reserveName(v, subj.uid);
@@ -1522,7 +1523,10 @@ function _bindMusic() {
                     await updateIdentityField('musicURL', url);
                     renderMusicPage();
                     _toast('✅ تم');
-                } catch (e) { _toast('⚠️ فشل الرفع'); }
+                } catch (e) {
+                    console.error('Music upload error:', e);
+                    _toast('⚠️ فشل: ' + (e.message || 'الرفع'));
+                }
             }, { maxMb: MAX_AUDIO_MB });
         };
     }
@@ -2220,17 +2224,14 @@ async function renderLikers() {
 window.renderVisitors = renderVisitors;
 window.renderLikers = renderLikers;
 
-/* ⭐ v13: Moments tab — للـ owner يعرض Stories.renderMyTab، للزائر يعرض الحالات النشطة */
 async function renderMomentsTab() {
     const grid = document.getElementById('moments-grid');
     if (!grid) return;
     const subj = ProfileState.subject;
     if (!subj || !subj.uid) return;
 
-    // ⭐ owner → واجهة Stories الكاملة (مشاهدين + تفاعلات + ردود)
     if (_isOwner() && window.Stories && typeof window.Stories.renderMyTab === 'function') {
         grid.innerHTML = '';
-        // اجعل الحاوية تأخذ العرض الكامل
         grid.style.display = 'block';
         grid.style.gridTemplateColumns = 'none';
 
@@ -2250,7 +2251,6 @@ async function renderMomentsTab() {
         return;
     }
 
-    // زائر → عرض الحالات النشطة
     grid.style.display = 'grid';
     grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
 
@@ -2532,4 +2532,4 @@ window.renderVisitors = renderVisitors;
 window.renderLikers = renderLikers;
 window._openUserProfile = _openUserProfile;
 
-console.log('✅ profile-core.js v13 loaded — Moments tab uses Stories.renderMyTab');
+console.log('✅ profile-core.js v14 loaded — music 10MB + name 35 chars');
