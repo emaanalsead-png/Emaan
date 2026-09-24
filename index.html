@@ -25,13 +25,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="styles.css?v=62">
-<link rel="stylesheet" href="frames-engine.css?v=62">
-<link rel="stylesheet" href="name-effects.css?v=62">
-<link rel="stylesheet" href="king-room.css?v=62">
-<link rel="stylesheet" href="room-alerts.css?v=62">
-<link rel="stylesheet" href="dice.css?v=62">
-<link rel="stylesheet" href="qamar-glass.css?v=62">
+<link rel="stylesheet" href="styles.css?v=63">
+<link rel="stylesheet" href="frames-engine.css?v=63">
+<link rel="stylesheet" href="name-effects.css?v=63">
+<link rel="stylesheet" href="king-room.css?v=63">
+<link rel="stylesheet" href="room-alerts.css?v=63">
+<link rel="stylesheet" href="dice.css?v=63">
+<link rel="stylesheet" href="qamar-glass.css?v=63">
 
 <style id="qamar-boot-css">
 #qamar-boot-loader{position:fixed;inset:0;background:radial-gradient(ellipse at top,rgba(212,175,55,.15) 0%,transparent 55%),radial-gradient(ellipse at bottom,rgba(100,50,150,.2) 0%,transparent 55%),linear-gradient(to bottom,#050508,#0a0a15);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999999;color:#ffd700;font-family:'Cairo',system-ui,sans-serif;gap:22px;transition:opacity .4s ease;padding:20px;text-align:center}
@@ -129,7 +129,6 @@ input,textarea,select{font-size:16px!important}
         var type = file.type || '';
         var isVideo = type.indexOf('video/') === 0;
         var isAudio = type.indexOf('audio/') === 0;
-
         var endpoint = isVideo ? '/sendVideo' : (isAudio ? '/sendAudio' : '/sendDocument');
         var fieldName = isVideo ? 'video' : (isAudio ? 'audio' : 'document');
 
@@ -137,16 +136,13 @@ input,textarea,select{font-size:16px!important}
         fd.append('chat_id', TG_CHAT_ID);
         fd.append(fieldName, file);
 
-        console.log('📤 Telegram → ' + endpoint + ' (' + fieldName + ')');
         var res = await fetch(TG_API + endpoint, { method: 'POST', body: fd });
         if (!res.ok) throw new Error('TG HTTP ' + res.status);
         var data = await res.json();
-
         if (!data.ok){
             console.error('❌ Telegram error:', data);
             throw new Error(data.description || 'telegram error');
         }
-
         var result = data.result || {};
         var fileId = null;
         if (result.video && result.video.file_id) fileId = result.video.file_id;
@@ -154,19 +150,11 @@ input,textarea,select{font-size:16px!important}
         else if (result.document && result.document.file_id) fileId = result.document.file_id;
         else if (result.animation && result.animation.file_id) fileId = result.animation.file_id;
         else if (result.voice && result.voice.file_id) fileId = result.voice.file_id;
-
-        if (!fileId){
-            console.error('❌ No file_id', result);
-            throw new Error('no file_id');
-        }
+        if (!fileId) throw new Error('no file_id');
 
         var fr = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fileId));
         var fd2 = await fr.json();
-        if (!fd2.ok || !fd2.result || !fd2.result.file_path){
-            console.error('❌ getFile failed', fd2);
-            throw new Error('getFile failed');
-        }
-        console.log('✅ Telegram upload success');
+        if (!fd2.ok || !fd2.result || !fd2.result.file_path) throw new Error('getFile failed');
         return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fd2.result.file_path;
     }
 
@@ -204,7 +192,7 @@ input,textarea,select{font-size:16px!important}
         uploadUguu: uploadTelegram,
         version: 'inline-v3-tg-video'
     };
-    console.log('✅ Telegram uploader v3 (video-aware) loaded');
+    console.log('✅ Telegram uploader v3 loaded');
 })();
 </script>
 
@@ -393,15 +381,15 @@ input,textarea,select{font-size:16px!important}
 <iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
 </div>
 
-<script src="config.js?v=62"></script>
-<script src="ranks.js?v=62"></script>
-<script src="utils.js?v=62"></script>
-<script src="name-effects.js?v=62"></script>
-<script src="frames-engine.js?v=62"></script>
-<script src="connection-optimizer.js?v=6"></script>
-<script src="firebase-persistence.js?v=7"></script>
-<script src="chat-optimizer.js?v=6"></script>
-<script src="connection-resilience.js?v=6"></script>
+<script src="config.js?v=63"></script>
+<script src="ranks.js?v=63"></script>
+<script src="utils.js?v=63"></script>
+<script src="name-effects.js?v=63"></script>
+<script src="frames-engine.js?v=63"></script>
+<script src="connection-optimizer.js?v=7"></script>
+<script src="firebase-persistence.js?v=8"></script>
+<script src="chat-optimizer.js?v=7"></script>
+<script src="connection-resilience.js?v=7"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -500,21 +488,22 @@ window.openReportsPanel = openReportsPanel;
 window._updateHeaderButtons = _updateHeaderButtons;
 </script>
 
-<script src="auth.js?v=62"></script>
-<script src="chat.js?v=62"></script>
+<script src="auth.js?v=63"></script>
+<script src="chat.js?v=63"></script>
 
-<script defer src="islamic-library.js?v=62"></script>
-<script defer src="pm-enhanced.js?v=62"></script>
-<script defer src="media-picker.js?v=62"></script>
-<script defer src="bots.js?v=62"></script>
-<script defer src="guardian-hide.js?v=62"></script>
-<script defer src="king-room.js?v=62"></script>
-<script defer src="room-alerts.js?v=62"></script>
-<script defer src="dice.js?v=62"></script>
-<script defer src="invisible-mode.js?v=62"></script>
-<script defer src="room-picker.js?v=62"></script>
-<script defer src="stories.js?v=62"></script>
-<script defer src="user-data-optimizer.js?v=7"></script>
+<script defer src="islamic-library.js?v=63"></script>
+<script defer src="pm-enhanced.js?v=63"></script>
+<script defer src="media-picker.js?v=63"></script>
+<script defer src="bots.js?v=63"></script>
+<script defer src="guardian-hide.js?v=63"></script>
+<script defer src="king-room.js?v=63"></script>
+<script defer src="room-alerts.js?v=63"></script>
+<script defer src="dice.js?v=63"></script>
+<script defer src="invisible-mode.js?v=63"></script>
+<script defer src="room-picker.js?v=63"></script>
+<script defer src="stories.js?v=63"></script>
+<script defer src="stories-cleaner.js?v=1"></script>
+<script defer src="user-data-optimizer.js?v=8"></script>
 
 <script>
 let selectedGender = 'male';
