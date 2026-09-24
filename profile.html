@@ -2,61 +2,121 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="google-site-verification" content="googledef67db6e90c3077">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="قمر الشام">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="قمر الشام">
 <meta name="theme-color" content="#050508">
-<title>قمر الشام — البروفايل</title>
-
-<script>
-(function() {
-    var startTime = Date.now();
-    var revealed = false;
-    var interval = null;
-    function tryReveal() {
-        if (revealed) return true;
-        var p = document.getElementById('profile-container');
-        if (!p) return false;
-        revealed = true;
-        p.style.transition = 'opacity 0.15s ease-in';
-        p.style.opacity = '1';
-        if (interval) { clearInterval(interval); interval = null; }
-        return true;
-    }
-    interval = setInterval(function() {
-        if (tryReveal()) { if (interval) { clearInterval(interval); interval = null; } return; }
-        if (Date.now() - startTime > 1500) { if (interval) { clearInterval(interval); interval = null; } tryReveal(); }
-    }, 30);
-})();
-</script>
-
-<script>
-(function() {
-    if (location.search.indexOf('debug=1') === -1) return;
-    var s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/eruda';
-    s.onload = function() { if (typeof eruda !== 'undefined') eruda.init(); };
-    s.onerror = function() { console.warn('Eruda load failed'); };
-    document.head.appendChild(s);
-})();
-</script>
-
+<title>شات قمر الشام 👑</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🌙%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://www.gstatic.com">
 <link rel="preconnect" href="https://qamaralshamtest-default-rtdb.europe-west1.firebasedatabase.app">
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<link rel="dns-prefetch" href="https://ui-avatars.com">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-<script defer src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<link rel="stylesheet" href="styles.css?v=64">
+<link rel="stylesheet" href="frames-engine.css?v=64">
+<link rel="stylesheet" href="name-effects.css?v=64">
+<link rel="stylesheet" href="king-room.css?v=64">
+<link rel="stylesheet" href="room-alerts.css?v=64">
+<link rel="stylesheet" href="dice.css?v=64">
+<link rel="stylesheet" href="qamar-glass.css?v=64">
 
-<link rel="stylesheet" href="profile-styles.css?v=15">
-<link rel="stylesheet" href="frames-engine.css?v=15">
-<link rel="stylesheet" href="name-effects.css?v=42">
+<style id="qamar-boot-css">
+#qamar-boot-loader{position:fixed;inset:0;background:radial-gradient(ellipse at top,rgba(212,175,55,.15) 0%,transparent 55%),radial-gradient(ellipse at bottom,rgba(100,50,150,.2) 0%,transparent 55%),linear-gradient(to bottom,#050508,#0a0a15);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999999;color:#ffd700;font-family:'Cairo',system-ui,sans-serif;gap:22px;transition:opacity .4s ease;padding:20px;text-align:center}
+#qamar-boot-loader.qamar-boot-hide{opacity:0;pointer-events:none}
+#qamar-boot-moon{font-size:72px;line-height:1;filter:drop-shadow(0 0 25px rgba(255,215,0,.7));animation:qamarBootPulse 1.6s ease-in-out infinite}
+#qamar-boot-title{font-size:26px;font-weight:900;letter-spacing:3px;color:#ffd700;text-shadow:0 0 15px rgba(255,215,0,.5)}
+#qamar-boot-status{font-size:13px;color:#9ca3af;font-weight:700;min-height:18px}
+#qamar-boot-status.ready{color:#84cc16;font-weight:900}
+#qamar-boot-bar-track{width:220px;max-width:70vw;height:3px;background:rgba(255,215,0,.12);border-radius:3px;overflow:hidden;position:relative}
+#qamar-boot-bar{position:absolute;top:0;left:0;width:35%;height:100%;background:linear-gradient(90deg,transparent,#ffd700,transparent);animation:qamarBootBar 1.6s linear infinite}
+@keyframes qamarBootPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.08);opacity:.85}}
+@keyframes qamarBootBar{0%{transform:translateX(-120%)}100%{transform:translateX(380%)}}
+</style>
 
-<!-- 🎯 TELEGRAM UPLOADER — inline -->
+<style>
+body.keyboard-open .bottom-nav,body.keyboard-open .floating-toolbar{display:none!important}
+html{background:radial-gradient(ellipse at top,rgba(212,175,55,.1) 0%,transparent 55%),radial-gradient(ellipse at bottom,rgba(100,50,150,.15) 0%,transparent 55%),linear-gradient(to bottom,#050508,#0a0a15)!important;min-height:100%!important}
+body{background:transparent!important}
+.starfield{position:fixed!important;inset:0!important;z-index:1!important;pointer-events:none!important;overflow:hidden!important}
+.background-glow{display:none!important}
+.container,.container.background-type-stars,.container.background-type-nebula,.container.background-type-moon,.container.background-type-dust,.container.background-type-waves{background:transparent!important;background-image:none!important;z-index:2!important}
+.messages{background:transparent!important}
+.header,.bottom-nav,.input-area,.mics-bar,.sidebar,.sidebar-header{background:rgba(5,5,12,.25)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.header{border-bottom:1px solid rgba(255,215,0,.6)!important}
+.bottom-nav{border-top:1px solid rgba(255,215,0,.6)!important}
+.input-area{border-top:1px solid rgba(255,215,0,.6)!important}
+.mics-bar{border-bottom:1px solid rgba(255,215,0,.45)!important}
+.overlay{background:rgba(0,0,0,.05)!important}
+.overlay.show{background:rgba(0,0,0,.05)!important;opacity:1!important}
+.sidebar{border:1px solid rgba(255,215,0,.65)!important;box-shadow:0 20px 60px rgba(0,0,0,.4),0 0 40px rgba(255,215,0,.18)!important;width:45vw!important;min-width:0!important;max-width:400px!important;z-index:400!important}
+@media(max-width:480px){.sidebar{width:55vw!important}}
+.sidebar-item{background:rgba(255,255,255,.05)!important;border:1px solid rgba(255,215,0,.3)!important}
+.sidebar-item:hover,.sidebar-item.active{background:rgba(255,215,0,.35)!important;border-color:rgba(255,215,0,.9)!important}
+#btn-name-frame{display:none!important}
+.minimized-chat-avatar{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+.floating-toolbar{position:fixed!important;bottom:100px!important;left:12px!important;right:12px!important;padding:12px!important;border-radius:20px!important;display:none!important;justify-content:space-around!important;gap:10px!important;z-index:9500!important;background:rgba(5,5,12,.85)!important;border:1px solid rgba(255,215,0,.4)!important}
+.floating-toolbar.open{display:flex!important}
+.upgrade-modal{position:fixed!important;inset:0!important;background:rgba(0,0,0,.85)!important;display:none!important;justify-content:center!important;align-items:center!important;z-index:9999!important;padding:20px!important}
+.upgrade-modal.active{display:flex!important}
+.upgrade-content{background:rgba(17,7,36,.95)!important;border:2px solid #ffd700!important;padding:25px!important;border-radius:16px!important;width:100%!important;max-width:400px!important;display:flex!important;flex-direction:column!important;gap:10px!important;direction:rtl!important}
+.upgrade-content h3{color:#ffd700!important;text-align:center!important;margin-bottom:8px!important}
+.upgrade-content input{padding:12px!important;border-radius:8px!important;border:1px solid #ffd700!important;background:rgba(255,255,255,.08)!important;color:#fff!important;font-size:14px!important;text-align:right!important;outline:none!important}
+.upgrade-content .upgrade-btn{padding:12px!important;border-radius:8px!important;border:none!important;background:#ffd700!important;color:#000!important;font-weight:900!important;cursor:pointer!important;font-size:14px!important}
+.upgrade-content .upgrade-btn.cancel{background:rgba(255,255,255,.15)!important;color:#fff!important}
+.private-chat-modal{top:auto!important;bottom:0!important;height:50vh!important;max-height:50vh!important;border-radius:20px 20px 0 0!important;border-bottom:none!important;border-top:2px solid #ffd700!important;background:rgba(5,5,12,.75)!important}
+.private-chat-header{background:rgba(5,5,12,.75)!important;border-bottom:1px solid rgba(255,215,0,.5)!important}
+.private-chat-input{background:rgba(5,5,12,.75)!important;border-top:1px solid rgba(255,215,0,.5)!important}
+body.pm-open .input-area,body.pm-open .bottom-nav,body.pm-open .mics-bar-wrapper,body.pm-open .floating-toolbar{display:none!important}
+.nav-pm-slot{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;flex:1;padding:2px}
+.nav-pm-slot .pm-slot-img{width:24px;height:24px;border-radius:50%;border:2px solid #ffd700;object-fit:cover;display:none;box-shadow:0 0 12px rgba(255,215,0,.7)}
+.nav-pm-slot.has-chat .pm-slot-img{display:block;animation:pmSlotPulse 1.8s ease-in-out infinite}
+.nav-pm-slot .pm-slot-badge{position:absolute;top:2px;right:50%;transform:translateX(16px);background:#ff4444;color:#fff;border-radius:50%;min-width:14px;height:14px;font-size:8px;font-weight:900;display:none;justify-content:center;align-items:center;border:2px solid #050508;padding:0 3px}
+.nav-pm-slot.has-chat.has-unread .pm-slot-badge{display:flex}
+@keyframes pmSlotPulse{0%,100%{box-shadow:0 0 12px rgba(255,215,0,.7);transform:scale(1)}50%{box-shadow:0 0 22px rgba(255,215,0,1);transform:scale(1.08)}}
+.message:not(.system):not(.bot){background:rgba(5,5,12,.15)!important;border:1px solid rgba(255,255,255,.05)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.header{height:42px!important;padding:0 10px!important}
+.header-btn{width:30px!important;height:30px!important;font-size:13px!important;border-radius:6px!important}
+.room-title{font-size:13px!important}
+.header-actions{gap:4px!important}
+.notif-badge{min-width:15px!important;height:15px!important;font-size:9px!important;top:-3px!important;right:-3px!important}
+.input-area{padding:6px 10px!important;gap:6px!important}
+.input-area input[type="text"]{padding:8px 14px!important;font-size:13px!important;border-radius:20px!important}
+.send-btn{width:34px!important;height:34px!important;font-size:14px!important}
+.emoji-btn,.plus-btn{width:30px!important;height:30px!important;font-size:16px!important}
+.bottom-nav{height:46px!important}
+.nav-item{padding:2px!important;gap:0!important;font-size:9px!important}
+.nav-item i{font-size:15px!important}
+.nav-item span{font-size:9px!important}
+.nav-badge{min-width:12px!important;height:12px!important;font-size:8px!important}
+.mics-bar{padding:6px 10px!important}
+.mic-btn{width:34px!important;height:34px!important;font-size:13px!important}
+.mics-toggle-btn{width:26px!important;height:16px!important;font-size:9px!important;bottom:-14px!important}
+.reply-preview{padding:6px 12px!important}
+html,body{-webkit-text-size-adjust:100%!important;-moz-text-size-adjust:100%!important;text-size-adjust:100%!important}
+input,textarea,select{font-size:16px!important}
+@media(min-width:481px){input,textarea,select{font-size:13px!important}}
+#room-settings-btn{display:none!important}
+#room-settings-btn.visible{display:flex!important}
+#reports-btn{display:none!important;position:relative!important}
+#reports-btn.visible{display:flex!important}
+#ra-send-btn{animation:none!important;box-shadow:0 0 8px rgba(255,215,0,.35)!important}
+.login-btn:disabled,.upgrade-btn:disabled{opacity:.75!important;cursor:wait!important}
+.login-btn:disabled i.fa-spinner,.upgrade-btn:disabled i.fa-spinner{margin-left:6px}
+</style>
+
 <script>
 (function(){
     'use strict';
@@ -68,15 +128,28 @@
     async function uploadTelegram(file){
         var type = file.type || '';
         var isVideo = type.indexOf('video/') === 0;
-        var isAudio = type.indexOf('audio/') === 0;
-        var endpoint = isVideo ? '/sendVideo' : (isAudio ? '/sendAudio' : '/sendDocument');
-        var fieldName = isVideo ? 'video' : (isAudio ? 'audio' : 'document');
+        var endpoint = isVideo ? '/sendVideo' : '/sendDocument';
+        var fieldName = isVideo ? 'video' : 'document';
 
         var fd = new FormData();
         fd.append('chat_id', TG_CHAT_ID);
         fd.append(fieldName, file);
 
-        var res = await fetch(TG_API + endpoint, { method: 'POST', body: fd });
+        console.log('📤 Telegram → ' + endpoint + ' | ' + (file.size/1024/1024).toFixed(2) + 'MB');
+
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function(){ controller.abort(); }, 180000);
+
+        var res;
+        try {
+            res = await fetch(TG_API + endpoint, { method: 'POST', body: fd, signal: controller.signal });
+        } catch (e) {
+            clearTimeout(timeoutId);
+            if (e.name === 'AbortError') throw new Error('تجاوز الوقت (180s)');
+            throw e;
+        }
+        clearTimeout(timeoutId);
+
         if (!res.ok) throw new Error('TG HTTP ' + res.status);
         var data = await res.json();
         if (!data.ok){
@@ -85,9 +158,9 @@
         }
         var result = data.result || {};
         var fileId = null;
-        if (result.video && result.video.file_id) fileId = result.video.file_id;
+        if (result.document && result.document.file_id) fileId = result.document.file_id;
+        else if (result.video && result.video.file_id) fileId = result.video.file_id;
         else if (result.audio && result.audio.file_id) fileId = result.audio.file_id;
-        else if (result.document && result.document.file_id) fileId = result.document.file_id;
         else if (result.animation && result.animation.file_id) fileId = result.animation.file_id;
         else if (result.voice && result.voice.file_id) fileId = result.voice.file_id;
         if (!fileId) throw new Error('no file_id');
@@ -95,6 +168,7 @@
         var fr = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fileId));
         var fd2 = await fr.json();
         if (!fd2.ok || !fd2.result || !fd2.result.file_path) throw new Error('getFile failed');
+        console.log('✅ Telegram uploaded');
         return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fd2.result.file_path;
     }
 
@@ -130,585 +204,488 @@
         uploadBashupload: uploadTelegram,
         upload0x0: uploadTelegram,
         uploadUguu: uploadTelegram,
-        version: 'profile-inline-tg'
+        version: 'inline-v4-tg-20mb'
     };
-    console.log('✅ Telegram uploader (profile) loaded');
+    console.log('✅ Telegram uploader v4 loaded');
 })();
 </script>
 
 </head>
 <body>
 
-<input type="file" id="avatar-file-input" accept="image/*" style="display:none">
-<input type="file" id="cover-file-input" accept="image/*" style="display:none">
-<input type="file" id="profile-bg-input" accept="image/*" style="display:none">
-<input type="file" id="music-file-input" accept="audio/*" style="display:none">
-<input type="file" id="poetry-bg-input" accept="image/*" style="display:none">
-<input type="file" id="poetry-attach-input" accept="image/*" style="display:none">
-
-<div class="profile" id="profile-container" style="opacity:0;">
-
-    <div class="cover" id="profile-cover-box">
-        <div class="cover-moon"></div>
-        <img src="" class="cover-img" id="profile-cover-img" style="display:none">
-        <button type="button" id="btn-visitor-view-cover" title="معاينة كزائر">👁️</button>
-        <button type="button" id="btn-collapse-info" title="طي المعلومات">👁️</button>
-        <button type="button" id="btn-close" title="إغلاق">✕</button>
-        <div class="avatar-cont">
-            <div class="avatar-box" id="avatar-box">
-                <div class="avatar">
-                    <img src="https://ui-avatars.com/api/?name=User&background=555&color=fff" id="profile-avatar-img" alt="avatar">
-                </div>
-                <div id="activeAvatarFrame"></div>
-            </div>
-        </div>
-        <button class="music-toggle-mini" id="music-btn-mini" style="display:none" title="تشغيل الموسيقى" type="button">
-            <i class="fas fa-play"></i>
-        </button>
-        <div class="header">
-            <div class="role">
-                <span class="status-dot" id="status-dot"></span>
-                <span id="role-text">User 👤</span>
-            </div>
-            <div class="user-cont">
-                <div class="username name-styled" id="profile-username" data-name="">مستخدم</div>
-                <span class="edit-pen owner-only" id="btn-edit-username" title="تعديل الاسم">✏️</span>
-            </div>
-            <div class="user-cont">
-                <div class="bio" id="profile-bio">❋ نجوم الشام ❋</div>
-                <span class="edit-pen owner-only" id="btn-edit-bio" title="تعديل البايو">✏️</span>
-            </div>
-        </div>
-        <div class="cover-fade"></div>
-    </div>
-
-    <div class="interact-btns visitor-only">
-        <button type="button" id="btn-heart" title="إعجاب" data-state="off">❤️</button>
-        <button type="button" id="btn-mail" title="رسالة">💬</button>
-        <button type="button" id="btn-friend" title="صديق" data-state="off">➕</button>
-        <button type="button" id="btn-block" title="حظر" data-state="off">🚫</button>
-        <button type="button" id="btn-admin-actions" style="display:none" title="أوامر إدارية">⚔️</button>
-    </div>
-
-    <div class="main-content">
-        <div id="profile-bg-layer" class="profile-bg-layer"></div>
-        <div class="tabs" id="tabsBar"></div>
-        <div class="scroll-box" id="scroll-box">
-
-            <div class="tab-content active" data-content="home">
-                <div class="section" id="info-section">
-                    <div class="section-title">
-                        <h3><i class="fas fa-info-circle"></i> معلومات</h3>
-                    </div>
-                    <div class="info-grid" id="info-grid">
-                        <div style="grid-column:1/-1;text-align:center;color:#666;padding:12px;font-size:12px;">⏳</div>
-                    </div>
-                </div>
-                <div class="stats">
-                    <div class="stat" data-stat="likes"><span class="stat-icon">❤️</span><span class="stat-value" id="stat-likes">0</span><span class="stat-label">إعجاب</span></div>
-                    <div class="stat" data-stat="friends"><span class="stat-icon">👥</span><span class="stat-value" id="stat-friends">0</span><span class="stat-label">صديق</span></div>
-                    <div class="stat" data-stat="achievements"><span class="stat-icon">🏆</span><span class="stat-value" id="stat-achievements">0</span><span class="stat-label">إنجاز</span></div>
-                    <div class="stat" data-stat="gifts"><span class="stat-icon">🎁</span><span class="stat-value" id="stat-gifts">0</span><span class="stat-label">هدية</span></div>
-                </div>
-                <div class="section owner-only" id="visitors-section" style="display:none;">
-                    <div class="section-title">
-                        <h3><i class="fas fa-eye"></i> آخر الزوار والمعجبون</h3>
-                    </div>
-                    <div class="visitors-row" id="visitors-container">
-                        <div style="color:#666;font-size:11px;padding:8px;">لا يوجد بعد</div>
-                    </div>
-                </div>
-                <div class="section">
-                    <div class="section-title">
-                        <h3><i class="fas fa-medal"></i> الإنجازات</h3>
-                    </div>
-                    <div class="achievements-row" id="achievements-container"></div>
-                </div>
-            </div>
-
-            <div class="tab-content" data-content="moments">
-                <div class="section">
-                    <div class="section-title"><h3><i class="fas fa-circle-notch"></i> اللحظات</h3></div>
-                    <div class="moments-grid" id="moments-grid">
-                        <div class="moment-tile add owner-only" id="add-moment-btn">
-                            <div class="moment-tile-icon">＋</div>
-                            <div class="moment-tile-name">أضف لحظة</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-content" data-content="friends">
-                <div class="section">
-                    <div class="section-title"><h3><i class="fas fa-user-friends"></i> الأصدقاء</h3></div>
-                    <div class="friends-grid" id="friends-grid-container">
-                        <div style="grid-column:1/-1;text-align:center;color:#888;padding:20px;font-size:12px;">⏳ جاري التحميل...</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-content" data-content="settings">
-
-                <div class="settings-page active" data-page="main">
-                    <div class="settings-group">
-                        <button type="button" class="settings-group-item" data-open-page="name">
-                            <span class="sgi-label"><i class="fas fa-signature"></i> الاسم</span>
-                            <span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="images">
-                            <span class="sgi-label"><i class="fas fa-image"></i> الصور والمظهر</span>
-                            <span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="music">
-                            <span class="sgi-label"><i class="fas fa-music"></i> الموسيقى</span>
-                            <span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="poetry">
-                            <span class="sgi-label"><i class="fas fa-feather-alt"></i> الشعر</span>
-                            <span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="privacy">
-                            <span class="sgi-label"><i class="fas fa-lock"></i> الخصوصية</span>
-                            <span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="room">
-                            <span class="sgi-label"><i class="fas fa-door-open"></i> الغرفة</span>
-                            <span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="danger">
-                            <span class="sgi-label" style="color:#ff8888;"><i class="fas fa-exclamation-triangle" style="color:#ff6666;"></i> إجراءات حساسة</span>
-                            <span class="sgi-arrow">◀</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="name">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🎨 الاسم</div>
-                    </div>
-                    <div class="settings-group">
-                        <button type="button" class="settings-group-item" data-open-page="name-color">
-                            <span class="sgi-label">لون الاسم</span><span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="name-gradient">
-                            <span class="sgi-label">تدرج الاسم</span><span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="name-bg-color">
-                            <span class="sgi-label">خلفية الاسم (لون)</span><span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="name-bg-gradient">
-                            <span class="sgi-label">خلفية الاسم (تدرج)</span><span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="name-cinema-bg">
-                            <span class="sgi-label">🎬 نمط الخلفية السينمائي</span><span class="sgi-arrow">◀</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="name-color">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🎨 لون الاسم</div>
-                    </div>
-                    <div class="name-preview-box"><span class="name-styled" id="name-preview-color" data-text="">—</span></div>
-                    <div class="name-grid" id="name-color-grid"></div>
-                    <div style="padding:20px 12px 0;">
-                        <button type="button" class="danger-btn" id="remove-name-color"><i class="fas fa-trash"></i> إزالة اللون</button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="name-gradient">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🌈 تدرج الاسم</div>
-                    </div>
-                    <div class="name-preview-box"><span class="name-styled" id="name-preview-gradient" data-text="">—</span></div>
-                    <div class="name-grid" id="name-gradient-grid"></div>
-                    <div style="padding:20px 12px 0;">
-                        <button type="button" class="danger-btn" id="remove-name-gradient"><i class="fas fa-trash"></i> إزالة التدرج</button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="name-bg-color">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🎨 خلفية الاسم (لون)</div>
-                    </div>
-                    <div class="name-preview-box"><span class="name-styled" id="name-preview-bg-color" data-text="">—</span></div>
-                    <div class="name-grid" id="name-bg-color-grid"></div>
-                    <div style="padding:20px 12px 0;">
-                        <button type="button" class="danger-btn" id="remove-name-bg-color"><i class="fas fa-trash"></i> إزالة خلفية اللون</button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="name-bg-gradient">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🌈 خلفية الاسم (تدرج)</div>
-                    </div>
-                    <div class="name-preview-box"><span class="name-styled" id="name-preview-bg-gradient" data-text="">—</span></div>
-                    <div class="name-grid" id="name-bg-gradient-grid"></div>
-                    <div style="padding:20px 12px 0;">
-                        <button type="button" class="danger-btn" id="remove-name-bg-gradient"><i class="fas fa-trash"></i> إزالة خلفية التدرج</button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="name-cinema-bg">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🎬 نمط الخلفية السينمائي</div>
-                    </div>
-                    <div class="name-preview-box">
-                        <span class="name-styled" id="name-preview-cinema-bg" data-text="">—</span>
-                    </div>
-                    <div class="name-grid" id="name-cinema-bg-grid"></div>
-                    <div style="padding:20px 12px 0;">
-                        <button type="button" class="danger-btn" id="remove-name-cinema-bg">
-                            <i class="fas fa-trash"></i> إزالة الخلفية السينمائية
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="images">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🖼️ الصور والمظهر</div>
-                    </div>
-                    <div class="settings-group">
-                        <button type="button" class="settings-group-item" data-open-page="avatar-page">
-                            <span class="sgi-label">الصورة الشخصية</span><span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="cover-page">
-                            <span class="sgi-label">الغلاف</span><span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="frame-page">
-                            <span class="sgi-label">إطار الأفاتار</span><span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="glow-page">
-                            <span class="sgi-label">توهج البروفايل</span><span class="sgi-arrow">◀</span>
-                        </button>
-                        <button type="button" class="settings-group-item" data-open-page="profile-bg-page">
-                            <span class="sgi-label">خلفية البروفايل</span><span class="sgi-arrow">◀</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="avatar-page">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🖼️ الصورة الشخصية</div>
-                    </div>
-                    <div class="img-preview" id="avatar-preview-box"><img src="" id="avatar-preview-img" alt=""></div>
-                    <div style="padding:0 12px;">
-                        <button type="button" class="upload-btn" id="btn-upload-avatar">
-                            <i class="fas fa-upload"></i> رفع من الجهاز
-                        </button>
-                        <button type="button" class="danger-btn" id="btn-remove-avatar">
-                            <i class="fas fa-trash"></i> إزالة الصورة
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="cover-page">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🖼️ الغلاف</div>
-                    </div>
-                    <div class="img-preview cover-preview" id="cover-preview-box"><img src="" id="cover-preview-img" alt=""></div>
-                    <div style="padding:0 12px;">
-                        <button type="button" class="upload-btn" id="btn-upload-cover">
-                            <i class="fas fa-upload"></i> رفع من الجهاز
-                        </button>
-                        <button type="button" class="danger-btn" id="btn-remove-cover">
-                            <i class="fas fa-trash"></i> إزالة الغلاف
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="frame-page">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">✨ إطار الأفاتار</div>
-                    </div>
-                    <div class="frames-grid" id="frames-grid-container"></div>
-                    <div style="padding:20px 12px 0;">
-                        <button type="button" class="danger-btn" id="btn-remove-frame">
-                            <i class="fas fa-trash"></i> إزالة الإطار
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="glow-page">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">✨ توهج البروفايل</div>
-                    </div>
-                    <div class="glow-grid" id="glow-grid-container"></div>
-                    <div style="padding:20px 12px 0;">
-                        <button type="button" class="danger-btn" id="btn-remove-glow">
-                            <i class="fas fa-trash"></i> إزالة التوهج
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="profile-bg-page">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🖼️ خلفية البروفايل</div>
-                    </div>
-                    <div style="padding:0 12px 12px;">
-                        <div class="section-title" style="border:none; padding:0; margin-bottom:10px;">
-                            <h3 style="font-size:12px;">النوع</h3>
-                        </div>
-                        <div style="display:flex; gap:8px;">
-                            <button type="button" class="upload-btn" data-bg-type="color" id="bg-type-color" style="margin-bottom:0;">
-                                <i class="fas fa-palette"></i> لون
-                            </button>
-                            <button type="button" class="upload-btn" data-bg-type="image" id="bg-type-image" style="margin-bottom:0;">
-                                <i class="fas fa-image"></i> صورة
-                            </button>
-                        </div>
-                    </div>
-                    <div id="bg-color-section" style="padding:0 12px 12px; display:none;">
-                        <label style="display:block; color:#ffd700; font-size:12px; font-weight:900; margin-bottom:8px;">اختر لون:</label>
-                        <input type="color" id="profile-bg-color-picker" value="#050508"
-                               style="width:100%; height:60px; border:2px solid #ffd700; border-radius:12px; cursor:pointer; background:transparent;">
-                    </div>
-                    <div id="bg-media-section" style="padding:0 12px 12px; display:none;">
-                        <button type="button" class="upload-btn" id="btn-upload-bg">
-                            <i class="fas fa-upload"></i> <span id="bg-upload-label">رفع صورة</span>
-                        </button>
-                        <div style="color:#888; font-size:11px; text-align:center; margin-top:6px;">
-                            💡 الحد الأقصى: 15MB
-                        </div>
-                    </div>
-                    <div style="padding:0 12px;">
-                        <button type="button" class="danger-btn" id="btn-remove-profile-bg">
-                            <i class="fas fa-trash"></i> إزالة الخلفية
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="music">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🎵 الموسيقى</div>
-                    </div>
-                    <div class="settings-group">
-                        <div class="settings-row">
-                            <span class="sr-label">الحالة</span>
-                            <span class="sr-value" id="music-status">لا يوجد موسيقى</span>
-                        </div>
-                    </div>
-                    <div style="padding:0 12px;">
-                        <button type="button" class="upload-btn" id="btn-upload-music">
-                            <i class="fas fa-upload"></i> رفع موسيقى
-                        </button>
-                        <button type="button" class="danger-btn" id="btn-remove-music">
-                            <i class="fas fa-trash"></i> إزالة الموسيقى
-                        </button>
-                        <div style="color:#888; font-size:11px; text-align:center; margin-top:6px;">
-                            💡 الحد الأقصى: 5MB
-                        </div>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="poetry">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">📝 الشعر</div>
-                    </div>
-                    <div style="padding:0 12px 12px;">
-                        <label style="display:block; color:#ffd700; font-size:12px; font-weight:900; margin-bottom:8px;">نص الشعر (700 حرف كحد أقصى)</label>
-                        <textarea id="poetry-input"
-                                  style="width:100%; min-height:120px; padding:12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,215,0,0.3); border-radius:10px; color:#fff; font-family:inherit; font-size:13px; resize:vertical; box-sizing:border-box;"
-                                  maxlength="700" placeholder="اكتب بيتاً من الشعر..."></textarea>
-                        <div style="color:#888; font-size:11px; text-align:left; margin-top:4px;">
-                            <span id="poetry-char-count">0</span> / 700
-                        </div>
-                    </div>
-                    <div style="padding:0 12px 12px;">
-                        <label style="display:block; color:#ffd700; font-size:12px; font-weight:900; margin-bottom:8px;">صورة خلفية الشعر (اختياري)</label>
-                        <div id="poetry-bg-preview" class="img-preview" style="max-width:120px; height:120px; margin:0 0 10px;"></div>
-                        <button type="button" class="upload-btn" id="btn-upload-poetry-bg">
-                            <i class="fas fa-upload"></i> رفع صورة خلفية
-                        </button>
-                        <button type="button" class="danger-btn" id="btn-remove-poetry-bg">
-                            <i class="fas fa-trash"></i> إزالة الخلفية
-                        </button>
-                    </div>
-                    <div style="padding:0 12px 12px;">
-                        <label style="display:block; color:#ffd700; font-size:12px; font-weight:900; margin-bottom:8px;">صورة مرفقة (اختياري)</label>
-                        <div id="poetry-attach-preview" class="img-preview" style="max-width:120px; height:120px; margin:0 0 10px;"></div>
-                        <button type="button" class="upload-btn" id="btn-upload-poetry-attach">
-                            <i class="fas fa-upload"></i> رفع صورة مرفقة
-                        </button>
-                        <button type="button" class="danger-btn" id="btn-remove-poetry-attach">
-                            <i class="fas fa-trash"></i> إزالة المرفقة
-                        </button>
-                    </div>
-                    <div style="padding:0 12px;">
-                        <button type="button" class="upload-btn" id="btn-save-poetry" style="background:linear-gradient(135deg,rgba(255,215,0,0.3),rgba(255,215,0,0.1)); border-color:#ffd700; color:#ffd700;">
-                            <i class="fas fa-save"></i> حفظ الشعر
-                        </button>
-                        <button type="button" class="danger-btn" id="btn-remove-poetry">
-                            <i class="fas fa-trash"></i> حذف الشعر بالكامل
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="privacy">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🔒 الخصوصية</div>
-                    </div>
-                    <div class="settings-group" id="privacy-container"></div>
-                </div>
-
-                <div class="settings-page" data-page="room">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">🚪 الغرفة</div>
-                    </div>
-                    <div class="settings-group">
-                        <div class="settings-row">
-                            <span class="sr-label">الغرفة الحالية</span>
-                            <span class="sr-value" id="current-room-name">—</span>
-                        </div>
-                    </div>
-                    <div style="padding:20px 12px 0;">
-                        <button type="button" class="danger-btn warning" id="btn-leave-room">
-                            <i class="fas fa-door-open"></i> مغادرة الغرفة
-                        </button>
-                    </div>
-                </div>
-
-                <div class="settings-page" data-page="danger">
-                    <div class="settings-subpage-header">
-                        <button type="button" class="settings-back-btn" data-back="1">←</button>
-                        <div class="settings-subpage-title">⚠️ إجراءات حساسة</div>
-                    </div>
-                    <div style="padding:12px;">
-                        <button type="button" class="danger-btn warning" id="btn-logout">
-                            <i class="fas fa-sign-out-alt"></i> تسجيل الخروج
-                        </button>
-                        <button type="button" class="danger-btn" id="btn-delete-account">
-                            <i class="fas fa-trash"></i> حذف الحساب
-                        </button>
-                    </div>
-                </div>
-
-            </div>
-
-            <div class="tab-content" data-content="admin">
-                <div class="section" id="admin-actions-container"></div>
-            </div>
-
-            <div class="poetry-section empty" id="poetry-section">
-                <div class="poetry-text" id="poetry-display"></div>
-                <div class="poetry-author" id="poetry-author"></div>
-                <img class="poetry-attachment" id="poetry-attachment" style="display:none" alt="">
-            </div>
-
-        </div>
-    </div>
+<div id="qamar-boot-loader">
+    <div id="qamar-boot-moon">🌙</div>
+    <div id="qamar-boot-title">قمر الشام</div>
+    <div id="qamar-boot-status">جاري التحميل...</div>
+    <div id="qamar-boot-bar-track"><div id="qamar-boot-bar"></div></div>
 </div>
 
-<div class="modal" id="app-modal">
-    <div class="modal-c">
-        <h3 id="modal-title">عنوان</h3>
-        <p id="modal-text">نص</p>
-        <div id="modal-dyn"></div>
-        <div class="modal-btns">
-            <button id="modal-ok">موافق</button>
-            <button class="cancel" id="modal-cancel">إلغاء</button>
-        </div>
-    </div>
+<div class="starfield" id="starfield"></div>
+
+<div class="login-screen" id="login-screen">
+<div class="login-card">
+<div class="login-logo">
+<i class="fas fa-moon"></i>
+<h1>قمر الشام 👑</h1>
+<p>منصة الدردشة الملكية الفاخرة</p>
+</div>
+<div class="login-tabs">
+<button type="button" class="login-tab active" id="tab-guest" onclick="switchLoginTab('guest')"><i class="fas fa-user-secret"></i> زائر</button>
+<button type="button" class="login-tab" id="tab-member" onclick="switchLoginTab('member')"><i class="fas fa-user"></i> عضو</button>
+</div>
+<div id="guest-form">
+<input type="text" class="login-input" id="guest-name" placeholder="اسمك..." maxlength="35" style="margin-bottom:10px;">
+<input type="number" class="login-input" id="guest-age" placeholder="عمرك..." min="13" max="120" style="margin-bottom:10px;">
+<div class="gender-group" style="margin-bottom:10px;">
+<button type="button" class="gender-btn active" id="gender-male" onclick="selectGender('male')">👦 ذكر</button>
+<button type="button" class="gender-btn" id="gender-female" onclick="selectGender('female')">👧 أنثى</button>
+</div>
+<button type="button" class="login-btn" onclick="handleGuestLogin(this)"><i class="fas fa-user-secret"></i> دخول كزائر</button>
+</div>
+<div id="member-form" style="display:none;">
+<input type="email" class="login-input" id="member-email" placeholder="الإيميل..." style="margin-bottom:10px;">
+<input type="password" class="login-input" id="member-password" placeholder="كلمة السر..." style="margin-bottom:10px;">
+<button type="button" class="login-btn" onclick="handleMemberLogin(this)" style="margin-bottom:10px;"><i class="fas fa-sign-in-alt"></i> تسجيل دخول</button>
+<div class="link-text" onclick="switchToRegister()">ليس لديك حساب؟ سجّل الآن</div>
+</div>
+<div id="register-form" style="display:none;">
+<input type="text" class="login-input" id="register-name" placeholder="اسمك..." maxlength="35" style="margin-bottom:10px;">
+<input type="number" class="login-input" id="register-age" placeholder="عمرك..." min="13" max="120" style="margin-bottom:10px;">
+<div class="gender-group" style="margin-bottom:10px;">
+<button type="button" class="gender-btn active" id="reg-gender-male" onclick="selectRegGender('male')">👦 ذكر</button>
+<button type="button" class="gender-btn" id="reg-gender-female" onclick="selectRegGender('female')">👧 أنثى</button>
+</div>
+<input type="email" class="login-input" id="register-email" placeholder="الإيميل..." style="margin-bottom:10px;">
+<input type="password" class="login-input" id="register-password" placeholder="كلمة السر..." style="margin-bottom:10px;">
+<input type="password" class="login-input" id="register-password-confirm" placeholder="تأكيد كلمة السر..." style="margin-bottom:10px;">
+<button type="button" class="login-btn" onclick="handleRegister(this)"><i class="fas fa-user-plus"></i> إنشاء الحساب</button>
+<div class="link-text" onclick="switchToLogin()" style="margin-top:10px;">لديك حساب؟ سجّل دخول</div>
+</div>
+</div>
 </div>
 
-<audio id="music-player" loop preload="none"></audio>
+<div class="container" id="chat-container" style="display:none;">
+<div class="header">
+<button type="button" class="header-btn" onclick="toggleRooms()"><i class="fas fa-door-open"></i></button>
+<div class="room-title" id="room-title">🌍 الروم العام</div>
+<div class="header-actions">
+<button type="button" class="header-btn" onclick="toggleNotifications()" id="notif-btn"><i class="fas fa-bell"></i><span class="notif-badge" id="notif-badge" style="display:none;">0</span></button>
+<button type="button" class="header-btn" onclick="togglePrivateMessages()" id="pm-btn"><i class="fas fa-comments"></i><span class="notif-badge" id="pm-badge" style="display:none;">0</span></button>
+<button type="button" class="header-btn" onclick="toggleInvisible()" id="invisible-btn" style="display:none;"><i class="fas fa-eye"></i></button>
+<button type="button" class="header-btn" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i></button>
+<button type="button" class="header-btn" onclick="toggleSettings()"><i class="fas fa-bars"></i></button>
+<button type="button" class="header-btn" id="room-settings-btn" onclick="openRoomSettings()" title="إعدادات الغرفة"><i class="fas fa-cog"></i></button>
+<button type="button" class="header-btn" id="reports-btn" onclick="openReportsPanel()" title="الإبلاغات"><i class="fas fa-exclamation-triangle"></i><span class="report-badge" id="reports-badge" style="display:none;">0</span></button>
+</div>
+</div>
 
-<script defer src="config.js?v=62"></script>
-<script defer src="ranks.js?v=62"></script>
-<script defer src="utils.js?v=62"></script>
-<script defer src="name-effects.js?v=62"></script>
-<script defer src="frames-engine.js?v=62"></script>
-<script defer src="stories.js?v=62"></script>
-<script defer src="profile-core.js?v=62"></script>
-<script defer src="profile-optimizer.js?v=6"></script>
+<div class="mics-bar-wrapper">
+<div class="mics-bar" id="mics-bar"><div class="mics"></div></div>
+<button type="button" class="mics-toggle-btn" id="mics-toggle-btn" onclick="toggleMicsBar()"><i class="fas fa-chevron-up"></i></button>
+</div>
 
-<!-- 🎯 إصلاح اللحظات + ربط زر "أضف لحظة" -->
+<div class="messages" id="messages"></div>
+
+<div class="reply-preview" id="reply-preview">
+<span class="reply-preview-close" onclick="cancelReply()">✕</span>
+<div style="font-size:11px;color:var(--gold);">💬 الرد على: <strong id="reply-name"></strong></div>
+<div id="reply-text-preview" style="font-size:10px;color:var(--text-dim);"></div>
+</div>
+
+<div class="floating-toolbar" id="floating-toolbar">
+<button type="button" class="tool-btn" onclick="alert('📁 رفع ملفات — قريباً')"><i class="fas fa-folder"></i></button>
+<button type="button" class="tool-btn" onclick="alert('🎵 صوتيات — قريباً')"><i class="fas fa-music"></i></button>
+<button type="button" class="tool-btn" onclick="rollDice()"><i class="fas fa-dice"></i></button>
+<button type="button" class="tool-btn" onclick="searchYouTube()"><i class="fas fa-play"></i></button>
+</div>
+
+<div class="input-area">
+<button type="button" class="send-btn" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+<button type="button" class="emoji-btn" onclick="insertEmoji()"><i class="fas fa-smile"></i></button>
+<input type="text" id="message-input" placeholder="اكتب رسالتك هنا..." onkeydown="handleKeyPress(event)" maxlength="2000">
+<button type="button" class="plus-btn" id="plus-btn" onclick="toggleToolbar()"><i class="fas fa-plus"></i></button>
+</div>
+
+<div class="bottom-nav">
+<button type="button" class="nav-item" onclick="openProfile()"><i class="fas fa-id-card"></i><span>بروفايلي</span></button>
+<button type="button" class="nav-item" onclick="showOnlineUsers()"><i class="fas fa-users"></i><span>المتواجدين</span></button>
+<button type="button" class="nav-item" id="upgrade-nav-btn" onclick="openUpgradeModal()"><i class="fas fa-key"></i><span>عضوية</span></button>
+<button type="button" class="nav-item" onclick="showFriends()"><i class="fas fa-user-friends"></i><span>الأصدقاء</span></button>
+<button type="button" class="nav-item" onclick="showStore()"><i class="fas fa-store"></i><span>المتجر</span></button>
+<div class="nav-item nav-pm-slot" id="nav-pm-slot" onclick="openMinimizedChat()">
+    <img class="pm-slot-img" id="pm-slot-img" src="" alt="chat">
+    <span class="pm-slot-badge" id="pm-slot-badge">0</span>
+</div>
+</div>
+</div>
+
+<div class="sidebar right-sidebar" id="rooms-sidebar">
+<div class="sidebar-header"><h3><i class="fas fa-door-open"></i> الغرف</h3><button type="button" class="sidebar-close" onclick="closeAllPanels()"><i class="fas fa-times"></i></button></div>
+<div class="sidebar-content" id="rooms-list"></div>
+</div>
+
+<div class="sidebar right-sidebar" id="notif-sidebar">
+<div class="sidebar-header"><h3><i class="fas fa-bell"></i> الإشعارات</h3><button type="button" class="sidebar-close" onclick="closeAllPanels()"><i class="fas fa-times"></i></button></div>
+<div class="sidebar-content" id="notif-list"><div style="text-align:center;color:var(--text-dim);font-size:12px;padding:20px;">لا توجد إشعارات</div></div>
+</div>
+
+<div class="sidebar right-sidebar" id="pm-sidebar">
+<div class="sidebar-header"><h3><i class="fas fa-comments"></i> الرسائل الخاصة</h3><button type="button" class="sidebar-close" onclick="closeAllPanels()"><i class="fas fa-times"></i></button></div>
+<div class="sidebar-content" id="pm-list"><div style="text-align:center;color:var(--text-dim);font-size:12px;padding:20px;">لا توجد محادثات</div></div>
+</div>
+
+<div class="sidebar left-sidebar" id="settings-sidebar">
+<div class="sidebar-header"><h3><i class="fas fa-cog"></i> الإعدادات</h3><button type="button" class="sidebar-close" onclick="closeAllPanels()"><i class="fas fa-times"></i></button></div>
+<div class="sidebar-content">
+<h4 style="color:var(--gold);font-size:12px;margin-bottom:8px;">🎨 خلفيات المنصة</h4>
+<div style="display:flex;gap:8px;flex-wrap:wrap;" id="bg-options"></div>
+<div id="admin-settings" style="display:none;margin-top:20px;">
+<h4 style="color:var(--gold);font-size:12px;margin-bottom:8px;">⚙️ إعدادات إدارية</h4>
+<button type="button" class="btn-outline" onclick="openBotTraining()" style="width:100%;padding:10px;margin-bottom:6px;cursor:pointer;"><i class="fas fa-robot"></i> غرفة تدريب البوت</button>
+<button type="button" class="btn-outline" onclick="alert('قريباً')" style="width:100%;padding:10px;cursor:pointer;"><i class="fas fa-user-shield"></i> إدارة الكلمات الممنوعة</button>
+</div>
+</div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeAllPanels()"></div>
+
+<div class="private-chat-modal" id="private-chat-modal">
+<div class="private-chat-header">
+<div class="private-chat-user">
+<img id="pc-avatar" src="" alt="avatar">
+<div class="private-chat-user-info"><div id="pc-name">المستخدم</div><div id="pc-status">نشط</div></div>
+</div>
+<div class="private-chat-actions">
+<button type="button" id="pc-minimize"><i class="fas fa-minus"></i></button>
+<button type="button" id="pc-close"><i class="fas fa-times"></i></button>
+</div>
+</div>
+<div class="private-chat-messages" id="pc-messages"></div>
+<div class="private-chat-input">
+<input type="text" id="pc-input" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter')sendPrivateMsg()" maxlength="2000">
+<button type="button" onclick="sendPrivateMsg()"><i class="fas fa-paper-plane"></i></button>
+</div>
+</div>
+
+<div class="upgrade-modal" id="upgrade-modal">
+<div class="upgrade-content">
+<h3>🔑 ترقية لعضوية</h3>
+<p style="color:#ccc;font-size:13px;text-align:center;">احصل على حساب دائم</p>
+<input type="email" id="upgrade-email" placeholder="الإيميل...">
+<input type="password" id="upgrade-password" placeholder="كلمة السر...">
+<input type="password" id="upgrade-password-confirm" placeholder="تأكيد كلمة السر...">
+<div style="display:flex;gap:10px;">
+<button type="button" class="upgrade-btn" onclick="handleUpgrade(this)" style="flex:1;">إنشاء الحساب</button>
+<button type="button" class="upgrade-btn cancel" onclick="closeUpgradeModal()" style="flex:1;">إلغاء</button>
+</div>
+</div>
+</div>
+
+<div class="bot-profile-modal" id="bot-profile-modal">
+<div class="bot-profile-content">
+<button type="button" class="bot-profile-close" onclick="closeBotProfile()">✕</button>
+<div class="bot-profile-avatar" id="bp-avatar">🤖</div>
+<div class="bot-profile-name" id="bp-name">البوت</div>
+<div class="bot-profile-badge">🤖 بوت رسمي</div>
+<div class="bot-profile-desc" id="bp-desc">وصف البوت</div>
+</div>
+</div>
+
+<div id="profile-frame-container" style="position:fixed;top:6%;left:50%;transform:translateX(-50%);width:calc(100% - 5%);max-width:480px;bottom:0;z-index:9999;background:transparent;display:none;border-radius:28px 28px 0 0;overflow:hidden;box-shadow:0 -20px 60px rgba(0,0,0,.7),0 0 40px rgba(255,215,0,.2);">
+<iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
+</div>
+
+<script src="config.js?v=64"></script>
+<script src="ranks.js?v=64"></script>
+<script src="utils.js?v=64"></script>
+<script src="name-effects.js?v=64"></script>
+<script src="frames-engine.js?v=64"></script>
+<script src="connection-optimizer.js?v=8"></script>
+<script src="firebase-persistence.js?v=9"></script>
+<script src="chat-optimizer.js?v=8"></script>
+<script src="connection-resilience.js?v=8"></script>
+
 <script>
-(function(){
-    'use strict';
-    function setup() {
-        // 1. اكشف openStoryViewer عالمياً
-        if (window.Stories && typeof window.Stories.openViewer === 'function' && !window.openStoryViewer) {
-            window.openStoryViewer = function(stories, ownerUid, isMine) {
-                window.Stories.openViewer(stories, ownerUid, isMine);
-            };
-            console.log('✅ openStoryViewer exposed');
-        }
-        if (window.Stories && typeof window.Stories.publish === 'function' && !window.openStoryPublish) {
-            window.openStoryPublish = function() { window.Stories.publish(); };
-        }
-
-        // 2. اربط زر "أضف لحظة"
-        var addBtn = document.getElementById('add-moment-btn');
-        if (addBtn && !addBtn.__bound) {
-            addBtn.__bound = true;
-            addBtn.onclick = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🎬 Add moment clicked');
-                if (window.Stories && typeof window.Stories.publish === 'function') {
-                    window.Stories.publish();
-                } else if (typeof window.openStoryPublish === 'function') {
-                    window.openStoryPublish();
-                } else {
-                    alert('⚠️ نظام الحالات لم يُحمَّل بعد — أعد فتح الصفحة');
-                }
-            };
-            console.log('✅ add-moment-btn bound');
-        }
-
-        // 3. راقب tiles الجديدة في moments-grid
-        var grid = document.getElementById('moments-grid');
-        if (grid && !grid.__observerAttached) {
-            grid.__observerAttached = true;
-            var obs = new MutationObserver(function(muts) {
-                grid.querySelectorAll('.moment-tile:not(.add)').forEach(function(tile){
-                    if (tile.__patched) return;
-                    tile.__patched = true;
-                    // استبدل onclick ليستخدم window.openStoryViewer
-                    tile.addEventListener('click', function(e){
-                        e.preventDefault();
-                        e.stopPropagation();
-                        // ابحث عن بيانات الحالة من dataset إن وُجد
-                        var storyJson = tile.getAttribute('data-story');
-                        if (storyJson) {
-                            try {
-                                var data = JSON.parse(storyJson);
-                                if (window.openStoryViewer) {
-                                    window.openStoryViewer([data.story], data.uid, false);
-                                }
-                            } catch(err) { console.warn(err); }
-                        }
-                    }, true);
-                });
-            });
-            obs.observe(grid, { childList: true, subtree: true });
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('private-chat-modal');
+    if (modal) {
+        new MutationObserver(function() {
+            document.body.classList.toggle('pm-open', modal.classList.contains('open'));
+        }).observe(modal, { attributes: true, attributeFilter: ['class'] });
     }
+    var floatingAvatar = document.getElementById('minimized-chat-avatar');
+    if (floatingAvatar) {
+        floatingAvatar.style.display = 'none';
+        var obs = new MutationObserver(function() {
+            floatingAvatar.style.display = 'none';
+            floatingAvatar.classList.remove('show');
+        });
+        obs.observe(floatingAvatar, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+    setTimeout(function() {
+        var targets = ['.header', '.bottom-nav', '.input-area', '.mics-bar', '.sidebar', '.sidebar-header'];
+        targets.forEach(function(sel) {
+            document.querySelectorAll(sel).forEach(function(el) {
+                el.style.setProperty('background', 'rgba(5, 5, 12, 0.25)', 'important');
+                el.style.setProperty('backdrop-filter', 'none', 'important');
+                el.style.setProperty('-webkit-backdrop-filter', 'none', 'important');
+            });
+        });
+    }, 500);
+    setInterval(syncPMSlot, 3000);
+    setTimeout(syncPMSlot, 2000);
+    setInterval(_updateHeaderButtons, 2000);
+    setTimeout(_updateHeaderButtons, 1000);
+});
 
-    // شغّل بعد التحميل
-    setTimeout(setup, 800);
-    setTimeout(setup, 2000);
-    setTimeout(setup, 4000);
-    window.addEventListener('load', function() {
-        setTimeout(setup, 500);
-        setTimeout(setup, 2500);
+function _updateHeaderButtons() {
+    var user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+    if (!user) return;
+    var lvl = user.rankLevel || (typeof getRankLevel === 'function' ? getRankLevel(user.rank) : 0);
+    var roomBtn = document.getElementById('room-settings-btn');
+    if (roomBtn) { if (lvl >= 80) roomBtn.classList.add('visible'); else roomBtn.classList.remove('visible'); }
+    var repBtn = document.getElementById('reports-btn');
+    if (repBtn) { if (lvl >= 90) repBtn.classList.add('visible'); else repBtn.classList.remove('visible'); }
+}
+
+function openRoomSettings() {
+    var user = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+    if (!user) return;
+    var lvl = user.rankLevel || (typeof getRankLevel === 'function' ? getRankLevel(user.rank) : 0);
+    if (lvl < 80) { if (typeof showToast === 'function') showToast('fa-lock', '🔒 Grand Owner+ فقط'); return; }
+    if (typeof openWelcomeEditor === 'function') { openWelcomeEditor((typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general'); }
+    else if (typeof showToast === 'function') { showToast('fa-cog', '⚙️ قريباً'); }
+}
+
+function openReportsPanel() {
+    if (typeof KingRoom !== 'undefined' && KingRoom.open) {
+        if (typeof window.__krSetTab === 'function') window.__krSetTab('reports');
+        KingRoom.open();
+    } else if (typeof showToast === 'function') { showToast('fa-exclamation-triangle', '🚨 قريباً'); }
+}
+
+function showFriends() { if (typeof showToast === 'function') showToast('fa-user-friends', '👥 قريباً'); }
+
+function openMinimizedChat() {
+    if (typeof ChatState !== 'undefined' && ChatState.minimizedChat) {
+        if (typeof restorePrivateChat === 'function') restorePrivateChat();
+    } else if (typeof ChatState !== 'undefined' && ChatState.currentPrivateChat) {
+        var m = document.getElementById('private-chat-modal');
+        if (m) m.classList.add('open');
+    } else if (typeof togglePrivateMessages === 'function') { togglePrivateMessages(); }
+}
+
+function syncPMSlot() {
+    var slot = document.getElementById('nav-pm-slot');
+    var img = document.getElementById('pm-slot-img');
+    var badge = document.getElementById('pm-slot-badge');
+    if (!slot || !img || !badge) return;
+    if (typeof ChatState === 'undefined') return;
+    var chat = ChatState.currentPrivateChat || ChatState.minimizedChat;
+    var unread = ChatState.unreadPrivate || 0;
+    if (chat && chat.otherAvatar) {
+        slot.classList.add('has-chat');
+        if (img.src !== chat.otherAvatar) img.src = chat.otherAvatar;
+        if (unread > 0) { slot.classList.add('has-unread'); badge.textContent = unread > 9 ? '9+' : unread; }
+        else slot.classList.remove('has-unread');
+    } else {
+        slot.classList.remove('has-chat', 'has-unread');
+        img.src = '';
+    }
+}
+
+window.showFriends = showFriends;
+window.openMinimizedChat = openMinimizedChat;
+window.syncPMSlot = syncPMSlot;
+window.openRoomSettings = openRoomSettings;
+window.openReportsPanel = openReportsPanel;
+window._updateHeaderButtons = _updateHeaderButtons;
+</script>
+
+<script src="auth.js?v=64"></script>
+<script src="chat.js?v=64"></script>
+
+<script defer src="islamic-library.js?v=64"></script>
+<script defer src="pm-enhanced.js?v=64"></script>
+<script defer src="media-picker.js?v=64"></script>
+<script defer src="bots.js?v=64"></script>
+<script defer src="guardian-hide.js?v=64"></script>
+<script defer src="king-room.js?v=64"></script>
+<script defer src="room-alerts.js?v=64"></script>
+<script defer src="dice.js?v=64"></script>
+<script defer src="invisible-mode.js?v=64"></script>
+<script defer src="room-picker.js?v=64"></script>
+<script defer src="stories.js?v=64"></script>
+<script defer src="stories-cleaner.js?v=2"></script>
+<script defer src="user-data-optimizer.js?v=9"></script>
+
+<script>
+let selectedGender = 'male';
+let regSelectedGender = 'male';
+
+function switchLoginTab(tab) {
+    document.getElementById('tab-guest').classList.remove('active');
+    document.getElementById('tab-member').classList.remove('active');
+    document.getElementById('guest-form').style.display = 'none';
+    document.getElementById('member-form').style.display = 'none';
+    document.getElementById('register-form').style.display = 'none';
+    if (tab === 'guest') {
+        document.getElementById('tab-guest').classList.add('active');
+        document.getElementById('guest-form').style.display = 'block';
+    } else {
+        document.getElementById('tab-member').classList.add('active');
+        document.getElementById('member-form').style.display = 'block';
+    }
+}
+function switchToRegister() { document.getElementById('member-form').style.display = 'none'; document.getElementById('register-form').style.display = 'block'; }
+function switchToLogin() { document.getElementById('register-form').style.display = 'none'; document.getElementById('member-form').style.display = 'block'; }
+function selectGender(g) {
+    selectedGender = g;
+    document.getElementById('gender-male').classList.remove('active');
+    document.getElementById('gender-female').classList.remove('active');
+    document.getElementById(g === 'male' ? 'gender-male' : 'gender-female').classList.add('active');
+}
+function selectRegGender(g) {
+    regSelectedGender = g;
+    document.getElementById('reg-gender-male').classList.remove('active');
+    document.getElementById('reg-gender-female').classList.remove('active');
+    document.getElementById(g === 'male' ? 'reg-gender-male' : 'reg-gender-female').classList.add('active');
+}
+function _setBtnLoading(btn, loadingText) {
+    if (!btn) return null;
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + loadingText;
+    return orig;
+}
+function _resetBtn(btn, orig) {
+    if (!btn) return;
+    btn.disabled = false;
+    if (orig !== null && orig !== undefined) btn.innerHTML = orig;
+}
+async function handleGuestLogin(btn) {
+    if (btn && btn.disabled) return;
+    const name = document.getElementById('guest-name').value.trim();
+    const age = document.getElementById('guest-age').value.trim();
+    if (!name || name.length < 2) { alert('⚠️ الرجاء إدخال اسم صحيح'); return; }
+    if (name.length > 35) { alert('⚠️ الاسم أطول من 35 حرف'); return; }
+    const ageNum = parseInt(age, 10);
+    if (!age || isNaN(ageNum) || ageNum < 13 || ageNum > 120) { alert('⚠️ الرجاء إدخال عمر صحيح'); return; }
+    var orig = _setBtnLoading(btn, 'جاري الدخول...');
+    try {
+        const result = await registerGuest(name, ageNum, selectedGender);
+        if (result && result.success) { if (typeof initChat === 'function') await initChat(); }
+        else { alert('⚠️ ' + (result?.error || 'حدث خطأ')); }
+    } catch (e) { console.error(e); alert('⚠️ خطأ: ' + (e.message || 'غير معروف')); }
+    finally { _resetBtn(btn, orig); }
+}
+async function handleMemberLogin(btn) {
+    if (btn && btn.disabled) return;
+    const email = document.getElementById('member-email').value.trim();
+    const password = document.getElementById('member-password').value;
+    if (!email || !password) { alert('⚠️ الرجاء إدخال البيانات'); return; }
+    var orig = _setBtnLoading(btn, 'جاري الدخول...');
+    try {
+        const result = await login(email, password);
+        if (result && result.success) { if (typeof initChat === 'function') await initChat(); }
+        else { alert('⚠️ ' + (result?.error || 'فشل')); }
+    } catch (e) { console.error(e); alert('⚠️ خطأ: ' + (e.message || 'غير معروف')); }
+    finally { _resetBtn(btn, orig); }
+}
+async function handleRegister(btn) {
+    if (btn && btn.disabled) return;
+    const name = document.getElementById('register-name').value.trim();
+    const age = document.getElementById('register-age').value.trim();
+    const email = document.getElementById('register-email').value.trim();
+    const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('register-password-confirm').value;
+    if (!name || name.length < 2) { alert('⚠️ اسم غير صحيح'); return; }
+    if (name.length > 35) { alert('⚠️ الاسم أطول من 35 حرف'); return; }
+    const ageNum = parseInt(age, 10);
+    if (!age || isNaN(ageNum) || ageNum < 13 || ageNum > 120) { alert('⚠️ عمر غير صحيح'); return; }
+    if (!email) { alert('⚠️ الرجاء إدخال الإيميل'); return; }
+    if (!password || password.length < 6) { alert('⚠️ كلمة السر 6 أحرف'); return; }
+    if (password !== confirmPassword) { alert('⚠️ كلمات السر غير متطابقة'); return; }
+    var orig = _setBtnLoading(btn, 'جاري التسجيل...');
+    try {
+        const result = await registerMember(name, ageNum, regSelectedGender, email, password);
+        if (result && result.success) { if (typeof initChat === 'function') await initChat(); }
+        else { alert('⚠️ ' + (result?.error || 'فشل')); }
+    } catch (e) { console.error(e); alert('⚠️ خطأ: ' + (e.message || 'غير معروف')); }
+    finally { _resetBtn(btn, orig); }
+}
+async function handleUpgrade(btn) {
+    if (btn && btn.disabled) return;
+    const email = document.getElementById('upgrade-email').value.trim();
+    const password = document.getElementById('upgrade-password').value;
+    const confirmPassword = document.getElementById('upgrade-password-confirm').value;
+    if (!email || !password) { alert('⚠️ أدخل البيانات'); return; }
+    if (password.length < 6) { alert('⚠️ كلمة السر 6 أحرف'); return; }
+    if (password !== confirmPassword) { alert('⚠️ غير متطابقة'); return; }
+    const user = getCurrentUser();
+    if (!user) { alert('⚠️ لا يوجد مستخدم'); return; }
+    var orig = _setBtnLoading(btn, 'جاري الترقية...');
+    try {
+        const result = await registerMember(user.name, user.age, user.gender, email, password);
+        if (result && result.success) {
+            closeUpgradeModal();
+            document.getElementById('upgrade-email').value = '';
+            document.getElementById('upgrade-password').value = '';
+            document.getElementById('upgrade-password-confirm').value = '';
+            if (typeof showToast === 'function') showToast('fa-crown', '🎉 تم ترقيتك');
+            setTimeout(() => location.reload(), 1500);
+        } else { alert('⚠️ ' + (result?.error || 'فشل')); }
+    } catch (e) { console.error(e); alert('⚠️ خطأ: ' + (e.message || 'غير معروف')); }
+    finally { _resetBtn(btn, orig); }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    const user = getCurrentUser();
+    if (user) setTimeout(async () => { if (typeof initChat === 'function') await initChat(); }, 150);
+});
+</script>
+
+<script>
+(function () {
+    var loader = document.getElementById('qamar-boot-loader');
+    var statusEl = document.getElementById('qamar-boot-status');
+    if (!loader) return;
+    var startTime = Date.now();
+    var MIN_SHOW = 400;
+    var MAX_WAIT = 8000;
+    var hidden = false;
+    function _updateStatus(text, ready) {
+        if (!statusEl) return;
+        statusEl.textContent = text;
+        if (ready) statusEl.classList.add('ready'); else statusEl.classList.remove('ready');
+    }
+    function _hide() {
+        if (hidden) return;
+        hidden = true;
+        loader.classList.add('qamar-boot-hide');
+        setTimeout(function () { if (loader && loader.parentNode) loader.parentNode.removeChild(loader); }, 450);
+    }
+    var waitCheck = setInterval(function () {
+        var elapsed = Date.now() - startTime;
+        if (typeof auth !== 'undefined' && auth && typeof db !== 'undefined' && db) {
+            _updateStatus('جاهز ✨', true);
+            clearInterval(waitCheck);
+            var remain = Math.max(0, MIN_SHOW - elapsed);
+            setTimeout(_hide, remain + 150);
+            return;
+        }
+        if (typeof QAMAR !== 'undefined') { _updateStatus('جاري تهيئة Firebase...', false); }
+        else if (elapsed > 1500) { _updateStatus('جاري تجهيز الواجهة...', false); }
+        if (elapsed >= MAX_WAIT) { _updateStatus('استمرار بدون Firebase...', false); clearInterval(waitCheck); setTimeout(_hide, 300); }
+    }, 200);
+    window.addEventListener('load', function () {
+        var elapsed = Date.now() - startTime;
+        if (elapsed < MIN_SHOW) {
+            setTimeout(function () {
+                if (typeof auth !== 'undefined' && auth) _updateStatus('جاهز ✨', true);
+                _hide();
+            }, MIN_SHOW - elapsed);
+        }
     });
 })();
 </script>
