@@ -1,8 +1,11 @@
 // ==============================================
-// قمر الشام — TEST — config.js
+// قمر الشام — config.js v5 (TEST)
 // ==============================================
-// ⚠️ هذا الملف للمستودع الجديد فقط (بيئة اختبار)
-// ⚠️ لا تنقله للمستودع القديم
+// ✅ v5:
+//   1. CUSTOMIZABLE_PERMISSIONS — قائمة صلاحيات الملكة
+//   2. SWEAR_WORDS_URL — استيراد قائمة كلمات جاهزة
+//   3. QUEEN_ORDERS — 4 ملكات
+//   4. كل الأساسيات محفوظة
 // ==============================================
 
 const firebaseConfig = {
@@ -156,8 +159,8 @@ const QAMAR = {
         MAX_FILE_SIZE: {
             image: 5 * 1024 * 1024,
             gif:   5 * 1024 * 1024,
-            audio: 3 * 1024 * 1024,
-            video: 200 * 1024 * 1024
+            audio: 10 * 1024 * 1024,
+            video: 20 * 1024 * 1024
         }
     },
 
@@ -172,7 +175,8 @@ const QAMAR = {
         GUARDIAN: { id:'guardian',  name:'السجان',      icon:'🚔', color:'#ff4444', description:'يحرس المكان.' },
         ISLAMIC:  { id:'islamic',   name:'قمر الشام',   icon:'🌙', color:'#d4af37', intervalMs: 5*60*1000, description:'أدعية وأذكار.' },
         QUIZ:     { id:'quiz',      name:'الشاطر',      icon:'🎯', color:'#FF9800', intervalMs: 5*60*1000, revealDelayMs: 60*1000, description:'أسئلة كل 5 دقائق.' },
-        HAKAWATI: { id:'hakawati',  name:'حكواتي الشام', icon:'📖', color:'#9C27B0', description:'مساعد الموقع.' }
+        HAKAWATI: { id:'hakawati',  name:'حكواتي الشام', icon:'📖', color:'#9C27B0', description:'مساعد الموقع.' },
+        AMBASSADOR: { id:'ambassador', name:'السفير',   icon:'🚪', color:'#84cc16', description:'يرحب بالأعضاء الجدد.' }
     },
 
     STORAGE_KEYS: {
@@ -197,13 +201,180 @@ const QAMAR = {
         PROFILE_NAME: 'profile_name',
         PROFILE_BIO:  'profile_bio',
         POETRY_TEXT:  'poetry_text',
-        MUSIC_URL:    'profile_music_url'
+        MUSIC_URL:    'profile_music_url',
+        DEVICE_HASH:  'qamar_device_hash'
     },
 
     SETTINGS: {
         MESSAGES_LIMIT:         100,
         PRIVATE_MESSAGES_LIMIT: 50,
-        NOTIFICATIONS_LIMIT:    50
+        NOTIFICATIONS_LIMIT:    50,
+        USERS_PAGE_SIZE:        10,   // ⭐ غرفة الملك: 10 أسماء كل دفعة
+        STORIES_LIMIT:          100
+    },
+
+    /* ══════════════════════════════════════════════ */
+    /* ⭐ v5 جديد: الملكات 4                          */
+    /* ══════════════════════════════════════════════ */
+    QUEEN_ORDERS: {
+        1: { label: 'الملكة الأولى',  short: 'الأولى',  color: '#ff69b4' },
+        2: { label: 'الملكة الثانية', short: 'الثانية', color: '#ff69b4' },
+        3: { label: 'الملكة الثالثة', short: 'الثالثة', color: '#ff69b4' },
+        4: { label: 'الملكة الرابعة', short: 'الرابعة', color: '#ff69b4' }
+    },
+
+    /* ══════════════════════════════════════════════ */
+    /* ⭐ v5 جديد: صلاحيات الملكة القابلة للتخصيص    */
+    /* ══════════════════════════════════════════════ */
+    /* الملكة الافتراضية = Master Owner */
+    /* الملك يضيف عليها صلاحيات إضافية */
+    CUSTOMIZABLE_PERMISSIONS: [
+        {
+            group: '🎖️ إدارة الرتب',
+            items: [
+                { key: 'canPromote', label: 'ترقية الأعضاء' },
+                { key: 'canDemote',  label: 'تخفيض الأعضاء' }
+            ]
+        },
+        {
+            group: '⚔️ العقوبات',
+            items: [
+                { key: 'canWarn',         label: 'تحذير' },
+                { key: 'canJail',         label: 'سجن' },
+                { key: 'canBan',          label: 'حظر' },
+                { key: 'canBanAdmins',    label: 'حظر الإداريين' },
+                { key: 'canBanQueens',    label: 'حظر الملكات' },
+                { key: 'canUnban',        label: 'فك الحظر' },
+                { key: 'canKickFromRoom', label: 'طرد من الغرفة' },
+                { key: 'canKickFromMic',  label: 'طرد من المايك' }
+            ]
+        },
+        {
+            group: '🚪 إدارة الغرف',
+            items: [
+                { key: 'canCreateRooms', label: 'إنشاء غرف' },
+                { key: 'canDeleteRooms', label: 'حذف غرف' },
+                { key: 'canEditRooms',   label: 'تعديل غرف' },
+                { key: 'canMuteRoom',    label: 'كتم الغرفة' }
+            ]
+        },
+        {
+            group: '🤖 البوتات',
+            items: [
+                { key: 'canOpenKingPanel', label: 'فتح لوحة الملك' },
+                { key: 'canEditHakawati',  label: 'تعديل حكواتي' },
+                { key: 'canEditQuiz',      label: 'تعديل المسابقات' },
+                { key: 'canEditIslamic',   label: 'تعديل الإسلاميات' },
+                { key: 'canEditBadWords',  label: 'تعديل كلمات السجن' },
+                { key: 'canEditKickWords', label: 'تعديل كلمات الطرد' },
+                { key: 'canTrainBots',     label: 'تدريب البوتات' },
+                { key: 'canDeleteBotMemory', label: 'مسح ذاكرة البوتات' }
+            ]
+        },
+        {
+            group: '💬 الرسائل',
+            items: [
+                { key: 'canDeleteAnyMessage',    label: 'حذف أي رسالة' },
+                { key: 'canSeePrivateMessages',  label: 'مراقبة الخاص' },
+                { key: 'canSeeDeletedMessages',  label: 'رؤية المحذوفات' },
+                { key: 'canEditOthersMessages',  label: 'تعديل رسائل الآخرين' }
+            ]
+        },
+        {
+            group: '⭐ النقاط',
+            items: [
+                { key: 'canGivePoints',      label: 'إهداء نقاط' },
+                { key: 'canGiveSelfPoints',  label: 'إهداء نقاط لنفسه' },
+                { key: 'canClearUserPoints', label: 'مسح نقاط عضو' },
+                { key: 'canResetAllPoints',  label: 'تصفير كل النقاط' }
+            ]
+        },
+        {
+            group: '📢 الإعلانات والتنبيهات',
+            items: [
+                { key: 'canAnnounceRoom',    label: 'إعلان في الغرفة' },
+                { key: 'canAnnounceAll',     label: 'إعلان عام' },
+                { key: 'canPushAnnounce',    label: 'إشعار منبثق' },
+                { key: 'canSendRoomAlert',   label: 'تنبيه غرفة' },
+                { key: 'canSendGlobalAlert', label: 'تنبيه عام' }
+            ]
+        },
+        {
+            group: '🔒 النظام',
+            items: [
+                { key: 'canInvisible',      label: 'الوضع المخفي' },
+                { key: 'canViewAuditLog',   label: 'قراءة سجل النشاط' },
+                { key: 'canEditAllProfiles',label: 'تعديل بروفايلات الأعضاء' },
+                { key: 'canUseMic',         label: 'استخدام المايك' },
+                { key: 'canResetPasswords', label: 'إعادة كلمات السر' }
+            ]
+        }
+    ],
+
+    /* ══════════════════════════════════════════════ */
+    /* ⭐ v5 جديد: مصادر قائمة الكلمات                */
+    /* ══════════════════════════════════════════════ */
+    SWEAR_WORDS_SOURCES: {
+        // قائمة LDNOOBW (مفتوحة، متعددة اللغات)
+        arabic: 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/ar',
+        // احتياطي: نفس القائمة عبر jsDelivr CDN
+        arabicFallback: 'https://cdn.jsdelivr.net/gh/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words@master/ar'
+    },
+
+    /* ══════════════════════════════════════════════ */
+    /* ⭐ v5 جديد: الحروف البديلة للتوحيد              */
+    /* ══════════════════════════════════════════════ */
+    ARABIC_EQUIVALENTS: {
+        // كاف
+        'ڪ': 'ك', 'ک': 'ك', 'گ': 'ك', 'ݢ': 'ك',
+        // ياء
+        'ی': 'ي', 'ے': 'ي', 'ى': 'ي', 'ئ': 'ي', 'ﻯ': 'ي',
+        // هاء
+        'ہ': 'ه', 'ۀ': 'ه', 'ھ': 'ه', 'ە': 'ه', 'ﮪ': 'ه', 'ﮫ': 'ه', 'ﮬ': 'ه',
+        // ألف
+        'ٱ': 'ا', 'آ': 'ا', 'أ': 'ا', 'إ': 'ا', 'ٲ': 'ا', 'ٳ': 'ا',
+        // واو
+        'ﻭ': 'و', 'ۆ': 'و', 'ۇ': 'و',
+        // نون
+        'ں': 'ن',
+        // راء
+        'ڕ': 'ر', 'ڒ': 'ر', 'ړ': 'ر',
+        // لام
+        'ڵ': 'ل', 'ﻝ': 'ل',
+        // ميم
+        'ﻡ': 'م',
+        // باء
+        'ٻ': 'ب', 'پ': 'ب',
+        // تاء
+        'ٹ': 'ت', 'ٺ': 'ت',
+        // جيم
+        'چ': 'ج',
+        // دال
+        'ډ': 'د',
+        // سين
+        'ښ': 'س', 'ڛ': 'س',
+        // عين
+        'ﻉ': 'ع',
+        // غين
+        'ڠ': 'غ', 'ﻍ': 'غ',
+        // قاف
+        'ڨ': 'ق', 'ﻕ': 'ق',
+        // فاء
+        'ڤ': 'ف', 'ڦ': 'ف',
+        // حاء
+        'ځ': 'ح', 'ڂ': 'ح',
+        // صاد
+        'ڝ': 'ص', 'ڞ': 'ص',
+        // طاء
+        'ڟ': 'ط', 'ﻁ': 'ط',
+        // ظاء
+        'ڠ': 'ظ', 'ﻅ': 'ظ',
+        // ذال
+        'ڊ': 'ذ', 'ڌ': 'ذ',
+        // شين
+        'ڜ': 'ش', 'ﻉ': 'ش',
+        // ثاء
+        'ٿ': 'ث', 'ڪ': 'ث'
     }
 };
 
@@ -211,8 +382,10 @@ window.getRankLevel = function (rank) {
     return QAMAR.getRankLevel(rank);
 };
 
-console.log('🔥 Qamar Config (TEST) loaded:', {
+console.log('🔥 Qamar Config v5 (TEST) loaded:', {
     project: firebaseConfig.projectId,
     rooms:   Object.keys(QAMAR.ROOMS).length,
-    ranks:   QAMAR.RANKS_ORDERED.length
+    ranks:   QAMAR.RANKS_ORDERED.length,
+    queens:  Object.keys(QAMAR.QUEEN_ORDERS).length,
+    permGroups: QAMAR.CUSTOMIZABLE_PERMISSIONS.length
 });
