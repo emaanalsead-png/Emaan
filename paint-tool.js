@@ -1,44 +1,45 @@
 // ==============================================
-// paint-tool.js v1 (TEST) — الرسام (Fabric.js)
+// paint-tool.js v2 (TEST) — الرسام (Fabric.js) مُصلَّح
 // ==============================================
-// ✅ v1 (جديد كلياً):
+// ✅ v2 (فوق v1):
+//   1. إصلاح canvas creation (BUG: العنصر غير موجود في DOM)
+//   2. إصلاح touch events (الإصبع يرسم)
+//   3. استبدال prompt() بـ input overlay مدمج
+//   4. touch-action: none programmatically
+//   5. نوافذ تأكيد داخلية بدل confirm()
+// ✅ v1 (محفوظ):
 //   1. Fabric.js lazy-loaded من CDN
 //   2. أدوات: فرشاة، ممحاة، خط، مستطيل، دائرة، نص
 //   3. ألوان + سماكة + undo/redo + مسح
 //   4. خلفية: شفافة (PNG) أو لون (JPEG)
 //   5. إرسال للعام + الخاص (context-aware)
 //   6. Token: [paint:URL]
-//   7. بطاقة معاينة في الشات (اضغط للتكبير)
-//   8. رفع عبر UploadService → imgbb/0x0/TG
-//   9. responsive (mobile + desktop)
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__paintToolV1) return;
-    window.__paintToolV1 = true;
+    if (window.__paintToolV2) return;
+    window.__paintToolV2 = true;
 
     /* ══════════════════════════════════════════════ */
     /* Config                                         */
     /* ══════════════════════════════════════════════ */
     var FABRIC_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js';
-    var FABRIC_LOAD_TIMEOUT_MS = 10000;
-    var MAX_CANVAS_W = 1080;
-    var MAX_CANVAS_H = 1080;
+    var FABRIC_LOAD_TIMEOUT_MS = 12000;
+    var MAX_CANVAS_SIZE = 720;
 
     /* ══════════════════════════════════════════════ */
     /* State                                          */
     /* ══════════════════════════════════════════════ */
     var PT = {
         fabricReady: false,
-        fabricLoading: false,
         fabricPromise: null,
         canvas: null,
         overlay: null,
-        ctx: 'general',            // 'general' | 'private'
-        tool: 'brush',             // brush | eraser | line | rect | circle | text
+        ctx: 'general',
+        tool: 'brush',
         color: '#000000',
-        bgColor: 'transparent',    // 'transparent' أو لون hex
+        bgColor: 'transparent',
         thickness: 6,
         _history: [],
         _historyIndex: -1,
@@ -48,7 +49,8 @@
         _startX: 0,
         _startY: 0,
         _processed: new WeakSet(),
-        _sending: false
+        _sending: false,
+        _pendingTextPos: null
     };
 
     /* ══════════════════════════════════════════════ */
@@ -66,10 +68,6 @@
         else console.log('[Paint]', msg);
     }
 
-    function _isValidHex(c) {
-        return typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c);
-    }
-
     /* ══════════════════════════════════════════════ */
     /* Fabric.js lazy loader                          */
     /* ══════════════════════════════════════════════ */
@@ -77,38 +75,30 @@
         if (PT.fabricReady && window.fabric) return Promise.resolve();
         if (PT.fabricPromise) return PT.fabricPromise;
 
-        PT.fabricLoading = true;
         PT.fabricPromise = new Promise(function (resolve, reject) {
-            // ⭐ لو موجود بالفعل
             if (window.fabric) {
                 PT.fabricReady = true;
-                PT.fabricLoading = false;
                 resolve();
                 return;
             }
-
             var s = document.createElement('script');
             s.src = FABRIC_CDN;
             s.async = true;
             var timeout = setTimeout(function () {
-                PT.fabricLoading = false;
                 reject(new Error('Fabric.js load timeout'));
             }, FABRIC_LOAD_TIMEOUT_MS);
             s.onload = function () {
                 clearTimeout(timeout);
                 if (window.fabric) {
                     PT.fabricReady = true;
-                    PT.fabricLoading = false;
                     console.log('🎨 Fabric.js loaded');
                     resolve();
                 } else {
-                    PT.fabricLoading = false;
                     reject(new Error('Fabric.js لم يحمّل'));
                 }
             };
             s.onerror = function () {
                 clearTimeout(timeout);
-                PT.fabricLoading = false;
                 reject(new Error('فشل تحميل Fabric.js'));
             };
             document.head.appendChild(s);
@@ -120,9 +110,9 @@
     /* CSS                                            */
     /* ══════════════════════════════════════════════ */
     (function injectCSS() {
-        if (document.getElementById('paint-tool-css-v1')) return;
+        if (document.getElementById('paint-tool-css-v2')) return;
         var s = document.createElement('style');
-        s.id = 'paint-tool-css-v1';
+        s.id = 'paint-tool-css-v2';
         s.textContent = `
 #paint-overlay {
     position: fixed; inset: 0;
@@ -136,6 +126,8 @@
     font-family: Cairo, sans-serif;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: none;
 }
 #paint-overlay.active { display: flex; }
 
@@ -198,8 +190,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: auto;
-    padding: 10px;
+    overflow: hidden;
+    padding: 8px;
     position: relative;
     background:
         linear-gradient(45deg, #1a1a2e 25%, transparent 25%),
@@ -209,6 +201,7 @@
     background-size: 20px 20px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
     background-color: #0a0a15;
+    touch-action: none;
 }
 #paint-canvas-wrap {
     position: relative;
@@ -218,7 +211,7 @@
     box-shadow: 0 20px 60px rgba(0,0,0,0.7);
     max-width: 100%;
     max-height: 100%;
-    /* ⭐ الشفافية تظهر من خلال الـ checkerboard خلفه */
+    touch-action: none;
     background-image:
         linear-gradient(45deg, #2a2a3e 25%, transparent 25%),
         linear-gradient(-45deg, #2a2a3e 25%, transparent 25%),
@@ -226,13 +219,25 @@
         linear-gradient(-45deg, transparent 75%, #2a2a3e 75%);
     background-size: 16px 16px;
     background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 #paint-canvas-wrap canvas {
-    display: block;
+    display: block !important;
     border-radius: 6px;
-    touch-action: none;
+    touch-action: none !important;
     max-width: 100%;
     height: auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+#paint-canvas-wrap .canvas-container {
+    touch-action: none !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
 }
 
 /* ═══ Toolbar ═══ */
@@ -244,7 +249,7 @@
     flex-direction: column;
     gap: 8px;
     flex-shrink: 0;
-    max-height: 48vh;
+    max-height: 46vh;
     overflow-y: auto;
 }
 .paint-row {
@@ -273,8 +278,9 @@
     flex-shrink: 0;
     position: relative;
     transition: all 0.15s;
+    touch-action: manipulation;
 }
-.paint-tool-btn:hover { background: rgba(255,215,0,0.15); }
+.paint-tool-btn:active { transform: scale(0.94); }
 .paint-tool-btn.active {
     background: linear-gradient(135deg, #ffd700, #d4af37);
     color: #000;
@@ -291,7 +297,7 @@
     border-color: rgba(255,68,68,0.5);
     color: #ff8888;
 }
-.paint-tool-btn.danger:hover { background: rgba(255,68,68,0.2); }
+.paint-tool-btn.danger:active { background: rgba(255,68,68,0.2); }
 
 .paint-tool-label {
     color: #aaa;
@@ -311,10 +317,12 @@
     padding: 0;
     flex-shrink: 0;
     transition: all 0.15s;
+    touch-action: manipulation;
 }
+.paint-color-btn:active { transform: scale(1.15); }
 .paint-color-btn.active {
     border-color: #fff;
-    transform: scale(1.15);
+    transform: scale(1.2);
     box-shadow: 0 0 10px rgba(255,255,255,0.6);
 }
 
@@ -328,20 +336,21 @@
     outline: none;
     -webkit-appearance: none;
     appearance: none;
+    touch-action: manipulation;
 }
 #paint-thickness::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background: #ffd700;
     cursor: pointer;
     border: 2px solid #000;
 }
 #paint-thickness::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     background: #ffd700;
     cursor: pointer;
@@ -391,6 +400,87 @@
     animation: paintSpin 1s linear infinite;
 }
 @keyframes paintSpin { to { transform: rotate(360deg); } }
+
+/* ═══ Text Input Modal ═══ */
+#paint-text-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 1000050;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    direction: rtl;
+    font-family: Cairo, sans-serif;
+}
+#paint-text-modal.active { display: flex; }
+#paint-text-box {
+    background: #0a0616;
+    border: 2px solid #ffd700;
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(255,215,0,0.3);
+}
+#paint-text-title {
+    color: #ffd700;
+    font-size: 16px;
+    font-weight: 900;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+#paint-text-input {
+    width: 100%;
+    min-height: 60px;
+    max-height: 150px;
+    padding: 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,215,0,0.4);
+    border-radius: 10px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 16px;
+    outline: none;
+    text-align: right;
+    resize: vertical;
+    box-sizing: border-box;
+    line-height: 1.5;
+}
+#paint-text-input:focus { border-color: #ffd700; }
+#paint-text-actions {
+    display: flex;
+    gap: 8px;
+}
+#paint-text-actions button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+}
+#paint-text-confirm {
+    background: linear-gradient(135deg, #84cc16, #65a30d);
+    color: #fff;
+}
+#paint-text-confirm:active { transform: scale(0.97); }
+#paint-text-cancel {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    border: 1px solid rgba(255,215,0,0.2);
+}
 
 /* ═══ Card في الشات [paint:URL] ═══ */
 .paint-msg-card {
@@ -460,7 +550,7 @@
     #paint-toolbar {
         padding: 8px;
         gap: 6px;
-        max-height: 52vh;
+        max-height: 48vh;
     }
     .paint-tool-btn { min-width: 42px; height: 42px; padding: 0 8px; font-size: 16px; }
     .paint-tool-btn.small { min-width: 36px; height: 36px; font-size: 13px; }
@@ -514,8 +604,91 @@
         _buildColorsRow();
         _buildThicknessRow();
         _buildBgRow();
+        _ensureTextModal();
 
         return ov;
+    }
+
+    /* ⭐ v2: Text Modal */
+    function _ensureTextModal() {
+        var m = document.getElementById('paint-text-modal');
+        if (m) return m;
+
+        m = document.createElement('div');
+        m.id = 'paint-text-modal';
+        m.innerHTML =
+            '<div id="paint-text-box">' +
+                '<div id="paint-text-title">📝 إضافة نص</div>' +
+                '<textarea id="paint-text-input" placeholder="اكتب النص هنا..." rows="3" maxlength="200"></textarea>' +
+                '<div id="paint-text-actions">' +
+                    '<button id="paint-text-cancel" type="button">إلغاء</button>' +
+                    '<button id="paint-text-confirm" type="button">✅ إضافة</button>' +
+                '</div>' +
+            '</div>';
+
+        document.body.appendChild(m);
+
+        document.getElementById('paint-text-cancel').onclick = function () {
+            m.classList.remove('active');
+            PT._pendingTextPos = null;
+        };
+
+        document.getElementById('paint-text-confirm').onclick = function () {
+            var inp = document.getElementById('paint-text-input');
+            var txt = (inp.value || '').trim();
+            if (txt) {
+                _addTextToCanvas(txt);
+            }
+            inp.value = '';
+            m.classList.remove('active');
+            PT._pendingTextPos = null;
+        };
+
+        // Enter (بدون Shift) = إضافة
+        document.getElementById('paint-text-input').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('paint-text-confirm').click();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                document.getElementById('paint-text-cancel').click();
+            }
+        });
+
+        return m;
+    }
+
+    function _showTextModal(pos) {
+        PT._pendingTextPos = pos;
+        var m = _ensureTextModal();
+        var inp = document.getElementById('paint-text-input');
+        inp.value = '';
+        m.classList.add('active');
+        setTimeout(function () { inp.focus(); }, 150);
+    }
+
+    function _addTextToCanvas(txt) {
+        if (!PT.canvas || !txt) return;
+        var pos = PT._pendingTextPos || { x: PT.canvas.width / 2, y: PT.canvas.height / 2 };
+
+        var fontSize = Math.max(20, PT.thickness * 4);
+        var t = new fabric.IText(txt, {
+            left: pos.x,
+            top: pos.y,
+            fill: PT.color,
+            fontSize: fontSize,
+            fontFamily: 'Cairo, sans-serif',
+            fontWeight: '900',
+            selectable: true,
+            evented: true
+        });
+        PT.canvas.add(t);
+        PT.canvas.setActiveObject(t);
+        t.enterEditing();
+        t.selectAll();
+        PT.canvas.renderAll();
+        _saveHistory();
+        toast('fa-check', '✅ تمت إضافة النص');
     }
 
     function _buildToolsRow() {
@@ -540,13 +713,10 @@
             b.setAttribute('data-tool', t.id);
             b.title = t.label;
             b.innerHTML = t.icon;
-            b.onclick = function () {
-                selectTool(t.id);
-            };
+            b.onclick = function () { selectTool(t.id); };
             row.appendChild(b);
         });
 
-        // Undo / Redo / Clear
         var spacer = document.createElement('div');
         spacer.style.cssText = 'flex:1;min-width:8px;';
         row.appendChild(spacer);
@@ -611,7 +781,6 @@
             row.appendChild(b);
         });
 
-        // لون مخصص
         var custom = document.createElement('input');
         custom.type = 'color';
         custom.value = PT.color;
@@ -668,7 +837,6 @@
         lbl.textContent = 'الخلفية:';
         row.appendChild(lbl);
 
-        // زر شفاف
         var transBtn = document.createElement('button');
         transBtn.type = 'button';
         transBtn.className = 'paint-tool-btn small' + (PT.bgColor === 'transparent' ? ' active' : '');
@@ -681,7 +849,6 @@
         };
         row.appendChild(transBtn);
 
-        // ألوان خلفية سريعة
         var bgColors = ['#ffffff', '#000000', '#1a1a2e', '#4a148c', '#0a0a15'];
         bgColors.forEach(function (c) {
             var b = document.createElement('button');
@@ -696,7 +863,6 @@
             row.appendChild(b);
         });
 
-        // لون مخصص
         var custom = document.createElement('input');
         custom.type = 'color';
         custom.id = 'paint-bg-custom';
@@ -716,13 +882,11 @@
             if (bc && bc === PT.bgColor) b.classList.add('active');
             else b.classList.remove('active');
         });
-        // تحديث زر شفاف
         var transBtn = row.querySelector('.paint-tool-btn');
         if (transBtn) {
             if (PT.bgColor === 'transparent') transBtn.classList.add('active');
             else transBtn.classList.remove('active');
         }
-        // تطبيق على الـ canvas
         _applyBgColor();
     }
 
@@ -748,38 +912,64 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Canvas init                                    */
+    /* ⭐ v2: Canvas init — الإصلاح الأساسي            */
     /* ══════════════════════════════════════════════ */
     function _initCanvas() {
         var wrap = document.getElementById('paint-canvas-wrap');
         if (!wrap) return;
 
-        // ⭐ حجم الكانفس: ندير أعلى دقة (max 1080×1080) بس نعرضه بشكل مناسب
         var body = document.getElementById('paint-body');
         var availW = body.clientWidth - 20;
         var availH = body.clientHeight - 20;
 
-        // نبدأ بـ 720×720 للجودة العالية
-        var w = Math.min(720, MAX_CANVAS_W, availW);
-        var h = Math.min(720, MAX_CANVAS_H, availH);
-        // المربع دائماً
-        var size = Math.min(w, h);
-        size = Math.max(size, 300);
+        var size = Math.min(MAX_CANVAS_SIZE, availW, availH);
+        size = Math.max(size, 260);
 
         wrap.innerHTML = '';
+        wrap.style.width = size + 'px';
+        wrap.style.height = size + 'px';
 
-        PT.canvas = new fabric.Canvas('paint-canvas-el', {
-            isDrawingMode: true,
-            backgroundColor: PT.bgColor === 'transparent' ? '' : PT.bgColor,
-            selection: false,
-            width: size,
-            height: size
-        });
+        // ⭐ v2: BUG FIX — إنشاء canvas element يدوياً
+        var canvasEl = document.createElement('canvas');
+        canvasEl.id = 'paint-canvas-el';
+        canvasEl.width = size;
+        canvasEl.height = size;
+        wrap.appendChild(canvasEl);
 
-        // ⭐ Fabric canvas element id
-        PT.canvas.lowerCanvasEl.id = 'paint-canvas-el';
+        // ⭐ v2: بناء Fabric بعد وجود العنصر
+        try {
+            PT.canvas = new fabric.Canvas('paint-canvas-el', {
+                isDrawingMode: true,
+                backgroundColor: PT.bgColor === 'transparent' ? '' : PT.bgColor,
+                selection: false,
+                width: size,
+                height: size,
+                enableRetinaScaling: true,
+                allowTouchScrolling: false
+            });
+        } catch (e) {
+            console.error('Fabric init failed:', e);
+            toast('fa-times', '⚠️ فشل بدء الرسام');
+            return;
+        }
 
-        // Free drawing brush
+        // ⭐ v2: التأكد من touch-action
+        if (PT.canvas.upperCanvasEl) {
+            PT.canvas.upperCanvasEl.style.touchAction = 'none';
+            PT.canvas.upperCanvasEl.style.userSelect = 'none';
+            PT.canvas.upperCanvasEl.style.webkitUserSelect = 'none';
+            PT.canvas.upperCanvasEl.style.webkitTouchCallout = 'none';
+        }
+        if (PT.canvas.lowerCanvasEl) {
+            PT.canvas.lowerCanvasEl.style.touchAction = 'none';
+            PT.canvas.lowerCanvasEl.style.userSelect = 'none';
+        }
+        if (PT.canvas.wrapperEl) {
+            PT.canvas.wrapperEl.style.touchAction = 'none';
+            PT.canvas.wrapperEl.style.margin = '0 auto';
+        }
+
+        // Brush
         PT.canvas.freeDrawingBrush = new fabric.PencilBrush(PT.canvas);
         PT.canvas.freeDrawingBrush.color = PT.color;
         PT.canvas.freeDrawingBrush.width = PT.thickness;
@@ -791,21 +981,9 @@
         PT.canvas.on('mouse:down', _onMouseDown);
         PT.canvas.on('mouse:move', _onMouseMove);
         PT.canvas.on('mouse:up', _onMouseUp);
-        PT.canvas.on('path:created', function () {
-            _saveHistory();
-        });
+        PT.canvas.on('path:created', function () { _saveHistory(); });
 
-        // احفظ الحالة الأولية
         _saveHistory();
-
-        // resize
-        window.addEventListener('resize', _onResize);
-    }
-
-    function _onResize() {
-        // لا نغير حجم الكانفس لتجنب فقدان الرسم
-        // بس نحدّث حدود الـ canvas للعرض
-        // (لا نعيد البناء)
     }
 
     /* ══════════════════════════════════════════════ */
@@ -814,7 +992,6 @@
     function selectTool(toolId) {
         PT.tool = toolId;
 
-        // UI
         var row = document.getElementById('paint-tools-row');
         if (row) {
             row.querySelectorAll('.paint-tool-btn').forEach(function (b) {
@@ -836,20 +1013,18 @@
             if (PT.canvas.freeDrawingBrush) {
                 PT.canvas.freeDrawingBrush.color = PT.color;
                 PT.canvas.freeDrawingBrush.width = PT.thickness;
+                // إلغاء override الممحاة إن وُجد
+                delete PT.canvas.freeDrawingBrush._setBrushStyles;
             }
         } else if (PT.tool === 'eraser') {
             PT.canvas.isDrawingMode = true;
             PT.canvas.selection = false;
             PT.canvas.defaultCursor = 'crosshair';
             if (PT.canvas.freeDrawingBrush) {
-                // ⭐ الممحاة = فرشاة بلون الخلفية (لو لون) أو destination-out
                 if (PT.bgColor === 'transparent') {
-                    // نجرب globalCompositeOperation = destination-out
                     PT.canvas.freeDrawingBrush.color = 'rgba(0,0,0,1)';
                     PT.canvas.freeDrawingBrush.width = PT.thickness * 2;
-                    // نضبط الـ brush على destination-out
                     PT.canvas.freeDrawingBrush._setBrushStyles = function () {
-                        // override
                         this.canvas.contextTop.globalCompositeOperation = 'destination-out';
                         this.canvas.contextTop.lineWidth = this.width;
                         this.canvas.contextTop.strokeStyle = this.color;
@@ -862,7 +1037,6 @@
                 }
             }
         } else {
-            // الأشكال / النص
             PT.canvas.isDrawingMode = false;
             PT.canvas.selection = (PT.tool === 'text');
             PT.canvas.defaultCursor = 'crosshair';
@@ -870,10 +1044,9 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Shape drawing (line, rect, circle)             */
+    /* Shape drawing                                  */
     /* ══════════════════════════════════════════════ */
     function _getCanvasPointer(opt) {
-        // يحصل على إحداثيات الفأرة/اللمس بالنسبة للكانفس
         if (!opt || !opt.pointer) return { x: 0, y: 0 };
         return { x: opt.pointer.x, y: opt.pointer.y };
     }
@@ -881,30 +1054,15 @@
     function _onMouseDown(opt) {
         if (!PT.canvas) return;
 
-        // نص: نضيف مربع نص في المكان
+        // نص: افتح modal
         if (PT.tool === 'text') {
             var p = _getCanvasPointer(opt);
-            var txt = prompt('📝 اكتب النص:');
-            if (txt && txt.trim()) {
-                var t = new fabric.IText(txt.trim(), {
-                    left: p.x,
-                    top: p.y,
-                    fill: PT.color,
-                    fontSize: Math.max(16, PT.thickness * 3),
-                    fontFamily: 'Cairo, sans-serif',
-                    fontWeight: '900'
-                });
-                PT.canvas.add(t);
-                PT.canvas.setActiveObject(t);
-                t.enterEditing();
-                _saveHistory();
-            }
+            _showTextModal(p);
             return;
         }
 
         if (PT.tool === 'brush' || PT.tool === 'eraser') return;
 
-        // خط / مستطيل / دائرة
         PT._drawing = true;
         var p2 = _getCanvasPointer(opt);
         PT._startX = p2.x;
@@ -982,47 +1140,34 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* History (undo / redo)                          */
+    /* History                                        */
     /* ══════════════════════════════════════════════ */
     function _saveHistory() {
         if (!PT.canvas) return;
         try {
             var json = PT.canvas.toJSON(['selectable', 'evented', 'hoverCursor']);
-            // إذا الفهرس في النهاية، نضيف
             if (PT._historyIndex === PT._history.length - 1) {
                 PT._history.push(json);
-                if (PT._history.length > PT._maxHistory) {
-                    PT._history.shift();
-                } else {
-                    PT._historyIndex++;
-                }
+                if (PT._history.length > PT._maxHistory) PT._history.shift();
+                else PT._historyIndex++;
             } else {
-                // نعيد التصدير من النقطة
                 PT._history = PT._history.slice(0, PT._historyIndex + 1);
                 PT._history.push(json);
                 PT._historyIndex = PT._history.length - 1;
             }
-        } catch (e) {
-            console.warn('history save failed:', e);
-        }
+        } catch (e) { console.warn('history save failed:', e); }
     }
 
     function undo() {
         if (!PT.canvas) return;
-        if (PT._historyIndex <= 0) {
-            toast('fa-info-circle', '↶ لا يوجد');
-            return;
-        }
+        if (PT._historyIndex <= 0) { toast('fa-info-circle', '↶ لا يوجد'); return; }
         PT._historyIndex--;
         _restoreFromHistory(PT._history[PT._historyIndex]);
     }
 
     function redo() {
         if (!PT.canvas) return;
-        if (PT._historyIndex >= PT._history.length - 1) {
-            toast('fa-info-circle', '↷ لا يوجد');
-            return;
-        }
+        if (PT._historyIndex >= PT._history.length - 1) { toast('fa-info-circle', '↷ لا يوجد'); return; }
         PT._historyIndex++;
         _restoreFromHistory(PT._history[PT._historyIndex]);
     }
@@ -1050,73 +1195,67 @@
     async function open(ctx) {
         PT.ctx = ctx || 'general';
 
-        // افتح الـ overlay أول شي
         var ov = ensureOverlay();
         ov.classList.add('active');
 
-        // نعرض الـ loading
         var loading = document.getElementById('paint-loading');
         if (loading) loading.style.display = 'flex';
 
-        // حمّل Fabric.js
         try {
             await loadFabric();
         } catch (e) {
             console.error('Paint: Fabric load failed', e);
-            toast('fa-times', '⚠️ فشل تحميل الرسام');
+            toast('fa-times', '⚠️ فشل تحميل الرسام — تحقق من الإنترنت');
             close();
             return;
         }
 
-        // init canvas
+        // ننتظر إطار الرسم حتى يُحسب clientHeight
+        await new Promise(function (r) { setTimeout(r, 80); });
+
         try {
             _initCanvas();
         } catch (e) {
             console.error('Paint: canvas init failed', e);
-            toast('fa-times', '⚠️ فشل بدء الرسم');
+            toast('fa-times', '⚠️ فشل بدء الرسم: ' + e.message);
             close();
             return;
         }
 
-        // اخفِ الـ loading
         if (loading) loading.style.display = 'none';
 
-        // إعادة تعيين
         PT._history = [];
         PT._historyIndex = -1;
         _saveHistory();
 
-        console.log('🎨 Paint: opened (ctx=' + PT.ctx + ')');
+        console.log('🎨 Paint v2: opened (ctx=' + PT.ctx + ')');
     }
 
     function close() {
         var ov = document.getElementById('paint-overlay');
         if (ov) ov.classList.remove('active');
 
-        // نظّف الـ canvas
+        // إغلاق text modal إن مفتوح
+        var tm = document.getElementById('paint-text-modal');
+        if (tm) tm.classList.remove('active');
+
         try {
-            if (PT.canvas) {
-                PT.canvas.dispose();
-            }
+            if (PT.canvas) PT.canvas.dispose();
         } catch (e) {}
         PT.canvas = null;
         PT._currentShape = null;
         PT._drawing = false;
 
-        // نظّف الـ wrap
         var wrap = document.getElementById('paint-canvas-wrap');
         if (wrap) wrap.innerHTML = '';
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Send (upload)                                  */
+    /* Send                                           */
     /* ══════════════════════════════════════════════ */
     async function send() {
         if (PT._sending) return;
-        if (!PT.canvas) {
-            toast('fa-times', '⚠️ لا يوجد كانفس');
-            return;
-        }
+        if (!PT.canvas) { toast('fa-times', '⚠️ لا يوجد كانفس'); return; }
 
         PT._sending = true;
         var saveBtn = document.getElementById('paint-save');
@@ -1127,28 +1266,22 @@
         }
 
         try {
-            // ⭐ حوّل الـ canvas إلى Blob
             var isTransparent = (PT.bgColor === 'transparent');
             var blob = await _canvasToBlob(isTransparent ? 'png' : 'jpeg');
-
             if (!blob) throw new Error('فشل توليد الصورة');
 
-            // ⭐ ارفع عبر UploadService
             if (!window.UploadService || typeof window.UploadService.upload !== 'function') {
                 throw new Error('UploadService غير محمّل');
             }
 
-            // نلفّ الـ blob كـ File (حتى يتعامل معه الـ uploader)
             var ext = isTransparent ? 'png' : 'jpg';
             var mime = isTransparent ? 'image/png' : 'image/jpeg';
             var file = new File([blob], 'paint_' + Date.now() + '.' + ext, { type: mime });
 
             toast('fa-spinner', '⏳ جاري الرفع...');
             var url = await window.UploadService.upload(file);
-
             if (!url) throw new Error('لم يرجع رابط');
 
-            // ⭐ ضع الـ token في حقل الإدخال
             var token = '[paint:' + url + ']';
             var targetId = (PT.ctx === 'private') ? 'pc-input' : 'message-input';
             var inp = document.getElementById(targetId);
@@ -1158,7 +1291,6 @@
                 inp.value = (cur ? cur + ' ' : '') + token + ' ';
                 try { inp.focus(); } catch (e) {}
             } else {
-                // fallback: انسخ للحافظة
                 try {
                     await navigator.clipboard.writeText(token);
                     toast('fa-copy', '📋 نُسخ التوكن');
@@ -1183,13 +1315,11 @@
     function _canvasToBlob(format) {
         return new Promise(function (resolve, reject) {
             try {
-                // ⭐ multiplier=2 للجودة العالية
                 var dataURL = PT.canvas.toDataURL({
                     format: format,
                     quality: format === 'jpeg' ? 0.92 : 1,
                     multiplier: 2
                 });
-                // dataURL → blob
                 var byteString = atob(dataURL.split(',')[1]);
                 var ab = new ArrayBuffer(byteString.length);
                 var ia = new Uint8Array(ab);
@@ -1199,9 +1329,7 @@
                 var mime = format === 'png' ? 'image/png' : 'image/jpeg';
                 var blob = new Blob([ab], { type: mime });
                 resolve(blob);
-            } catch (e) {
-                reject(e);
-            }
+            } catch (e) { reject(e); }
         });
     }
 
@@ -1263,7 +1391,6 @@
         card.onclick = function (e) {
             e.preventDefault();
             e.stopPropagation();
-            // افتح الرسمة بحجم كامل
             _openLightbox(url);
         };
 
@@ -1327,7 +1454,6 @@
                 });
             });
         }).observe(container, { childList: true, subtree: false });
-        // الموجودة
         container.querySelectorAll('.message, .pc-msg').forEach(function (el) {
             _processElement(el);
         });
@@ -1337,9 +1463,7 @@
     function installAllObservers() {
         var ok1 = installObserver('messages');
         var ok2 = installObserver('pc-messages');
-        if (!ok1 || !ok2) {
-            setTimeout(installAllObservers, 1500);
-        }
+        if (!ok1 || !ok2) setTimeout(installAllObservers, 1500);
     }
 
     /* ══════════════════════════════════════════════ */
@@ -1347,7 +1471,7 @@
     /* ══════════════════════════════════════════════ */
     function init() {
         installAllObservers();
-        console.log('🎨 Paint Tool: observers ready');
+        console.log('🎨 Paint Tool v2: observers ready');
     }
 
     /* ══════════════════════════════════════════════ */
@@ -1360,10 +1484,9 @@
         clear: clearAll,
         undo: undo,
         redo: redo,
-        version: 1
+        version: 2
     };
 
-    // ⭐ helper مباشر: window.openPaint
     window.openPaint = function (ctx) { open(ctx || 'general'); };
 
     if (document.readyState === 'loading') {
@@ -1372,5 +1495,5 @@
         init();
     }
 
-    console.log('🎨 paint-tool.js v1 (TEST) loaded — Fabric.js lazy + [paint:URL] token');
+    console.log('🎨 paint-tool.js v2 (TEST) loaded — canvas FIX + touch FIX + text modal');
 })();
