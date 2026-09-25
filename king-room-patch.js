@@ -1,16 +1,16 @@
 // ==============================================
-// king-room-patch.js v1 — إخفاء تبويب السجان عن الملكات
+// king-room-patch.js v2 — إخفاء السجان عن الملكات
 // ==============================================
-// ✅ v1:
-//   1. مراقبة مستمرة لتبويبات غرفة الملك
-//   2. إخفاء تبويب "🚔 السجان" لو المستخدم ملكة (مو ملك)
-//   3. إخفاء بطاقة السجان في تبويب البوتات للملكات
+// ✅ v2 (فوق v1):
+//   1. إخفاء تبويب السجان في king-room
+//   2. إخفاء خيار Guardian داخل openBotManager
+//   3. مراقبة أكثر شمولاً
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__kingRoomPatchV1) return;
-    window.__kingRoomPatchV1 = true;
+    if (window.__kingRoomPatchV2) return;
+    window.__kingRoomPatchV2 = true;
 
     function getMe() {
         try { if (typeof getCurrentUser === 'function') return getCurrentUser(); } catch (e) {}
@@ -24,84 +24,92 @@
         return !!(u && u.rank === 'King');
     }
 
+    /* 1. إخفاء تبويب السجان في king-room */
     function _hideGuardianTab() {
-        if (isKing()) return;   /* الملك يشوفه */
-
-        /* 1. تبويب السجان في الهيدر */
+        if (isKing()) return;
         var tabs = document.querySelectorAll('#kr-tabs .kr-tab');
         tabs.forEach(function (t) {
             var txt = t.textContent || '';
-            if (txt.indexOf('السجان') !== -1) {
+            if (txt.indexOf('السجان') !== -1 && txt.indexOf('🚔') !== -1) {
                 t.style.display = 'none';
-                t.setAttribute('data-hidden-for-queen', '1');
             }
         });
     }
 
-    function _hideGuardianInBotsTab() {
-        if (isKing()) return;   /* الملك يشوفه */
-
+    /* 2. إخفاء بطاقة "إدارة البجان" في تبويب البوتات */
+    function _hideGuardianCard() {
+        if (isKing()) return;
         var body = document.getElementById('kr-body');
         if (!body) return;
 
-        /* ابحث عن أي عنصر يحتوي على "السجان" في تبويب البوتات */
         var cards = body.querySelectorAll('.kr-card');
         cards.forEach(function (card) {
             var txt = card.textContent || '';
-            if (txt.indexOf('السجان') !== -1 && txt.indexOf('إدارة السجان') !== -1) {
+            if (txt.indexOf('إدارة السجان') !== -1 || txt.indexOf('السجان يحمي') !== -1) {
                 card.style.display = 'none';
-                card.setAttribute('data-hidden-for-queen', '1');
             }
-            /* زر استيراد كلمات الطرد */
-            var importBtn = card.querySelector('#kr-guardian-import');
-            if (importBtn) {
-                card.style.display = 'none';
+        });
+    }
+
+    /* 3. إخفاء تبويب Guardian داخل openBotManager */
+    function _hideGuardianInBotManager() {
+        if (isKing()) return;
+        var modal = document.getElementById('bot-manager-modal');
+        if (!modal || modal.style.display === 'none') return;
+
+        var tabs = modal.querySelectorAll('.bm-tab');
+        tabs.forEach(function (t) {
+            var tabId = t.getAttribute('data-tab');
+            var txt = t.textContent || '';
+            if (tabId === 'badwords' || tabId === 'kickwords' ||
+                txt.indexOf('سجن') !== -1 || txt.indexOf('طرد') !== -1) {
+                t.style.display = 'none';
             }
         });
 
-        /* إخفاء أي زر يفتح لوحة السجان */
-        var buttons = body.querySelectorAll('button, .kr-btn');
-        buttons.forEach(function (b) {
-            var txt = b.textContent || '';
-            if (txt.indexOf('السجان') !== -1 && !b.hasAttribute('data-hidden-for-queen')) {
-                b.style.display = 'none';
-                b.setAttribute('data-hidden-for-queen', '1');
+        var content = modal.querySelector('#bm-content');
+        if (!content) return;
+        var children = content.querySelectorAll('*');
+        children.forEach(function (c) {
+            var txt = c.textContent || '';
+            if (txt.indexOf('إدارة السجان') !== -1 ||
+                txt.indexOf('كلمات السجن') !== -1 ||
+                txt.indexOf('كلمات الطرد') !== -1 ||
+                txt.indexOf('السجان يحمي') !== -1) {
+                c.style.display = 'none';
             }
         });
+
+        var importBtn = modal.querySelector('#kr-bm-import, #kr-guardian-import');
+        if (importBtn) importBtn.style.display = 'none';
     }
 
     function _scan() {
         _hideGuardianTab();
-        _hideGuardianInBotsTab();
+        _hideGuardianCard();
+        _hideGuardianInBotManager();
     }
 
-    /* مراقبة مستمرة */
-    setInterval(_scan, 800);
+    setInterval(_scan, 700);
 
-    /* مراقبة عبر MutationObserver */
-    var observer = null;
     function _startObserver() {
         var krView = document.getElementById('king-room-view');
-        if (!krView) {
-            setTimeout(_startObserver, 1500);
-            return;
+        if (krView && !krView.__krpV2) {
+            krView.__krpV2 = true;
+            new MutationObserver(function () { setTimeout(_scan, 100); }).observe(krView, { childList: true, subtree: true });
         }
-        if (observer) return;
-
-        observer = new MutationObserver(function () {
-            setTimeout(_scan, 100);
-        });
-        observer.observe(krView, { childList: true, subtree: true });
-
-        _scan();
-        console.log('✅ king-room-patch: observer started');
+        var botMgr = document.getElementById('bot-manager-modal');
+        if (botMgr && !botMgr.__krpV2) {
+            botMgr.__krpV2 = true;
+            new MutationObserver(function () { setTimeout(_scan, 100); }).observe(botMgr, { childList: true, subtree: true, attributes: true });
+        }
+        if (!krView || !botMgr) setTimeout(_startObserver, 1500);
     }
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', _startObserver);
-    } else {
-        _startObserver();
-    }
+    } else { _startObserver(); }
 
-    console.log('✅ king-room-patch.js v1 loaded — السجان للملك فقط');
+    _scan();
+    console.log('✅ king-room-patch.js v2 loaded');
 })();
