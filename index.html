@@ -18,6 +18,9 @@
 <link rel="preconnect" href="https://www.gstatic.com">
 <link rel="preconnect" href="https://qamaralshamtest-default-rtdb.europe-west1.firebasedatabase.app">
 <link rel="dns-prefetch" href="https://ui-avatars.com">
+<link rel="dns-prefetch" href="https://api.telegram.org">
+<link rel="dns-prefetch" href="https://i.ytimg.com">
+<link rel="dns-prefetch" href="https://www.youtube-nocookie.com">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -25,14 +28,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="styles.css?v=63">
-<link rel="stylesheet" href="frames-engine.css?v=63">
-<link rel="stylesheet" href="name-effects.css?v=63">
-<link rel="stylesheet" href="king-room.css?v=63">
-<link rel="stylesheet" href="room-alerts.css?v=63">
-<link rel="stylesheet" href="dice.css?v=63">
-<link rel="stylesheet" href="qamar-glass.css?v=63">
-<link rel="stylesheet" href="chat-ui.css?v=63">
+<link rel="stylesheet" href="styles.css?v=64">
+<link rel="stylesheet" href="frames-engine.css?v=64">
+<link rel="stylesheet" href="name-effects.css?v=64">
+<link rel="stylesheet" href="king-room.css?v=64">
+<link rel="stylesheet" href="room-alerts.css?v=64">
+<link rel="stylesheet" href="dice.css?v=64">
+<link rel="stylesheet" href="qamar-glass.css?v=64">
+<link rel="stylesheet" href="chat-ui.css?v=64">
 
 <style id="qamar-boot-css">
 #qamar-boot-loader{position:fixed;inset:0;background:radial-gradient(ellipse at top,rgba(212,175,55,.15) 0%,transparent 55%),radial-gradient(ellipse at bottom,rgba(100,50,150,.2) 0%,transparent 55%),linear-gradient(to bottom,#050508,#0a0a15);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999999;color:#ffd700;font-family:'Cairo',system-ui,sans-serif;gap:22px;transition:opacity .4s ease;padding:20px;text-align:center}
@@ -68,8 +71,6 @@ body{background:transparent!important}
 .sidebar-item:hover,.sidebar-item.active{background:rgba(255,215,0,.35)!important;border-color:rgba(255,215,0,.9)!important}
 #btn-name-frame{display:none!important}
 .minimized-chat-avatar{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
-.floating-toolbar{position:fixed!important;bottom:100px!important;left:12px!important;right:12px!important;padding:12px!important;border-radius:20px!important;display:none!important;justify-content:space-around!important;gap:10px!important;z-index:9500!important;background:rgba(5,5,12,.85)!important;border:1px solid rgba(255,215,0,.4)!important}
-.floating-toolbar.open{display:flex!important}
 .upgrade-modal{position:fixed!important;inset:0!important;background:rgba(0,0,0,.85)!important;display:none!important;justify-content:center!important;align-items:center!important;z-index:9999!important;padding:20px!important}
 .upgrade-modal.active{display:flex!important}
 .upgrade-content{background:rgba(17,7,36,.95)!important;border:2px solid #ffd700!important;padding:25px!important;border-radius:16px!important;width:100%!important;max-width:400px!important;display:flex!important;flex-direction:column!important;gap:10px!important;direction:rtl!important}
@@ -80,7 +81,7 @@ body{background:transparent!important}
 .private-chat-modal{top:auto!important;bottom:0!important;height:50vh!important;max-height:50vh!important;border-radius:20px 20px 0 0!important;border-bottom:none!important;border-top:2px solid #ffd700!important;background:rgba(5,5,12,.75)!important}
 .private-chat-header{background:rgba(5,5,12,.75)!important;border-bottom:1px solid rgba(255,215,0,.5)!important}
 .private-chat-input{background:rgba(5,5,12,.75)!important;border-top:1px solid rgba(255,215,0,.5)!important}
-body.pm-open .input-area,body.pm-open .bottom-nav,body.pm-open .mics-bar-wrapper,body.pm-open .floating-toolbar{display:none!important}
+body.pm-open .input-area,body.pm-open .bottom-nav,body.pm-open .mics-bar-wrapper{display:none!important}
 .nav-pm-slot{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;flex:1;padding:2px}
 .nav-pm-slot .pm-slot-img{width:24px;height:24px;border-radius:50%;border:2px solid #ffd700;object-fit:cover;display:none;box-shadow:0 0 12px rgba(255,215,0,.7)}
 .nav-pm-slot.has-chat .pm-slot-img{display:block;animation:pmSlotPulse 1.8s ease-in-out infinite}
@@ -200,12 +201,7 @@ input,textarea,select{font-size:16px!important}
 <div id="reply-text-preview" style="font-size:10px;color:var(--text-dim);"></div>
 </div>
 
-<div class="floating-toolbar" id="floating-toolbar">
-<button type="button" class="tool-btn" onclick="alert('📁 رفع ملفات — قريباً')"><i class="fas fa-folder"></i></button>
-<button type="button" class="tool-btn" onclick="alert('🎵 صوتيات — قريباً')"><i class="fas fa-music"></i></button>
-<button type="button" class="tool-btn" onclick="rollDice()"><i class="fas fa-dice"></i></button>
-<button type="button" class="tool-btn" onclick="searchYouTube()"><i class="fas fa-play"></i></button>
-</div>
+<div class="floating-toolbar" id="floating-toolbar"></div>
 
 <div class="input-area">
 <button type="button" class="send-btn" onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
@@ -303,17 +299,20 @@ input,textarea,select{font-size:16px!important}
 <iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
 </div>
 
-<script src="config.js?v=63"></script>
-<script src="ranks.js?v=63"></script>
-<script src="utils.js?v=63"></script>
-<script src="name-effects.js?v=63"></script>
-<script src="frames-engine.js?v=63"></script>
-<script src="uploader.js?v=63"></script>
-<script src="connection-optimizer.js?v=63"></script>
-<script src="firebase-persistence.js?v=63"></script>
-<script src="chat-optimizer.js?v=63"></script>
-<script src="connection-resilience.js?v=63"></script>
-<script src="device-guard.js?v=63"></script>
+<!-- ═══════════════════════════════════════════════ -->
+<!-- الموجة الحرجة (sync) — كل ملف يُنتظر قبل التالي -->
+<!-- ═══════════════════════════════════════════════ -->
+<script src="config.js?v=64"></script>
+<script src="ranks.js?v=64"></script>
+<script src="utils.js?v=64"></script>
+<script src="name-effects.js?v=64"></script>
+<script src="frames-engine.js?v=64"></script>
+<script src="uploader.js?v=64"></script>
+<script src="connection-optimizer.js?v=64"></script>
+<script src="firebase-persistence.js?v=64"></script>
+<script src="chat-optimizer.js?v=64"></script>
+<script src="connection-resilience.js?v=64"></script>
+<script src="device-guard.js?v=64"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -412,23 +411,30 @@ window.openReportsPanel = openReportsPanel;
 window._updateHeaderButtons = _updateHeaderButtons;
 </script>
 
-<script src="auth.js?v=63"></script>
-<script src="chat.js?v=63"></script>
+<script src="auth.js?v=64"></script>
+<script src="chat.js?v=64"></script>
+<script src="youtube-search.js?v=64"></script>
 
-<script defer src="islamic-library.js?v=63"></script>
-<script defer src="pm-enhanced.js?v=63"></script>
-<script defer src="media-picker.js?v=63"></script>
-<script defer src="bots.js?v=63"></script>
-<script defer src="guardian-hide.js?v=63"></script>
-<script defer src="king-room.js?v=63"></script>
-<script defer src="pm-monitor.js?v=63"></script>
-<script defer src="room-alerts.js?v=63"></script>
-<script defer src="dice.js?v=63"></script>
-<script defer src="invisible-mode.js?v=63"></script>
-<script defer src="room-picker.js?v=63"></script>
-<script defer src="stories.js?v=63"></script>
-<script defer src="stories-cleaner.js?v=63"></script>
-<script defer src="user-data-optimizer.js?v=63"></script>
+<!-- ═══════════════════════════════════════════════ -->
+<!-- الموجة غير الحرجة (defer)                      -->
+<!-- ═══════════════════════════════════════════════ -->
+<script defer src="islamic-library.js?v=64"></script>
+<script defer src="pm-enhanced.js?v=64"></script>
+<script defer src="media-picker.js?v=64"></script>
+<script defer src="bots.js?v=64"></script>
+<script defer src="guardian-hide.js?v=64"></script>
+<script defer src="king-room.js?v=64"></script>
+<script defer src="pm-monitor.js?v=64"></script>
+<script defer src="room-alerts.js?v=64"></script>
+<script defer src="dice.js?v=64"></script>
+<script defer src="invisible-mode.js?v=64"></script>
+<script defer src="room-picker.js?v=64"></script>
+<script defer src="stories.js?v=64"></script>
+<script defer src="stories-cleaner.js?v=64"></script>
+<script defer src="user-data-optimizer.js?v=64"></script>
+<script defer src="paint-tool.js?v=64"></script>
+<script defer src="styled-messages.js?v=64"></script>
+<script defer src="floating-toolbar-v2.js?v=64"></script>
 
 <script>
 let selectedGender = 'male';
