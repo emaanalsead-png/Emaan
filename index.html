@@ -28,14 +28,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="styles.css?v=64">
-<link rel="stylesheet" href="frames-engine.css?v=64">
-<link rel="stylesheet" href="name-effects.css?v=64">
-<link rel="stylesheet" href="king-room.css?v=64">
-<link rel="stylesheet" href="room-alerts.css?v=64">
-<link rel="stylesheet" href="dice.css?v=64">
-<link rel="stylesheet" href="qamar-glass.css?v=64">
-<link rel="stylesheet" href="chat-ui.css?v=64">
+<link rel="stylesheet" href="styles.css?v=65">
+<link rel="stylesheet" href="frames-engine.css?v=65">
+<link rel="stylesheet" href="name-effects.css?v=65">
+<link rel="stylesheet" href="king-room.css?v=65">
+<link rel="stylesheet" href="room-alerts.css?v=65">
+<link rel="stylesheet" href="dice.css?v=65">
+<link rel="stylesheet" href="qamar-glass.css?v=65">
+<link rel="stylesheet" href="chat-ui.css?v=65">
 
 <style id="qamar-boot-css">
 #qamar-boot-loader{position:fixed;inset:0;background:radial-gradient(ellipse at top,rgba(212,175,55,.15) 0%,transparent 55%),radial-gradient(ellipse at bottom,rgba(100,50,150,.2) 0%,transparent 55%),linear-gradient(to bottom,#050508,#0a0a15);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999999;color:#ffd700;font-family:'Cairo',system-ui,sans-serif;gap:22px;transition:opacity .4s ease;padding:20px;text-align:center}
@@ -65,7 +65,7 @@ body{background:transparent!important}
 .mics-bar{border-bottom:1px solid rgba(255,215,0,.45)!important}
 .overlay{background:rgba(0,0,0,.05)!important}
 .overlay.show{background:rgba(0,0,0,.05)!important;opacity:1!important}
-.sidebar{border:1px solid rgba(255,215,0,.65)!important;box-shadow:0 20px 60px rgba(0,0,0,.4),0 0 40px rgba(255,215,0,.18)!important;width:45vw!important;min-width:0!important;max-width:400px!important;z-index:400!important}
+.sidebar{border:1px solid rgba(255,215,0,.65)!important;box-shadow:0 20px 60px rgba(0,0,0,.4),0 0 40px rgba(255,215,0,.18)!important;width:45vw!important;min-width:0!important;max-width:400px!important}
 @media(max-width:480px){.sidebar{width:55vw!important}}
 .sidebar-item{background:rgba(255,255,255,.05)!important;border:1px solid rgba(255,215,0,.3)!important}
 .sidebar-item:hover,.sidebar-item.active{background:rgba(255,215,0,.35)!important;border-color:rgba(255,215,0,.9)!important}
@@ -299,20 +299,18 @@ input,textarea,select{font-size:16px!important}
 <iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
 </div>
 
-<!-- ═══════════════════════════════════════════════ -->
-<!-- الموجة الحرجة (sync) — كل ملف يُنتظر قبل التالي -->
-<!-- ═══════════════════════════════════════════════ -->
-<script src="config.js?v=64"></script>
-<script src="ranks.js?v=64"></script>
-<script src="utils.js?v=64"></script>
-<script src="name-effects.js?v=64"></script>
-<script src="frames-engine.js?v=64"></script>
-<script src="uploader.js?v=64"></script>
-<script src="connection-optimizer.js?v=64"></script>
-<script src="firebase-persistence.js?v=64"></script>
-<script src="chat-optimizer.js?v=64"></script>
-<script src="connection-resilience.js?v=64"></script>
-<script src="device-guard.js?v=64"></script>
+<!-- ═══ الموجة الحرجة (sync) ═══ -->
+<script src="config.js?v=65"></script>
+<script src="ranks.js?v=65"></script>
+<script src="utils.js?v=65"></script>
+<script src="name-effects.js?v=65"></script>
+<script src="frames-engine.js?v=65"></script>
+<script src="uploader.js?v=65"></script>
+<script src="connection-optimizer.js?v=65"></script>
+<script src="firebase-persistence.js?v=65"></script>
+<script src="chat-optimizer.js?v=65"></script>
+<script src="connection-resilience.js?v=65"></script>
+<script src="device-guard.js?v=65"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -411,30 +409,27 @@ window.openReportsPanel = openReportsPanel;
 window._updateHeaderButtons = _updateHeaderButtons;
 </script>
 
-<script src="auth.js?v=64"></script>
-<script src="chat.js?v=64"></script>
-<script src="youtube-search.js?v=64"></script>
+<script src="auth.js?v=65"></script>
+<script src="chat.js?v=65"></script>
+<script src="youtube-search.js?v=65"></script>
 
-<!-- ═══════════════════════════════════════════════ -->
-<!-- الموجة غير الحرجة (defer)                      -->
-<!-- ═══════════════════════════════════════════════ -->
-<script defer src="islamic-library.js?v=64"></script>
-<script defer src="pm-enhanced.js?v=64"></script>
-<script defer src="media-picker.js?v=64"></script>
-<script defer src="bots.js?v=64"></script>
-<script defer src="guardian-hide.js?v=64"></script>
-<script defer src="king-room.js?v=64"></script>
-<script defer src="pm-monitor.js?v=64"></script>
-<script defer src="room-alerts.js?v=64"></script>
-<script defer src="dice.js?v=64"></script>
-<script defer src="invisible-mode.js?v=64"></script>
-<script defer src="room-picker.js?v=64"></script>
-<script defer src="stories.js?v=64"></script>
-<script defer src="stories-cleaner.js?v=64"></script>
-<script defer src="user-data-optimizer.js?v=64"></script>
-<script defer src="paint-tool.js?v=64"></script>
-<script defer src="styled-messages.js?v=64"></script>
-<script defer src="floating-toolbar-v2.js?v=64"></script>
+<script defer src="islamic-library.js?v=65"></script>
+<script defer src="pm-enhanced.js?v=65"></script>
+<script defer src="media-picker.js?v=65"></script>
+<script defer src="bots.js?v=65"></script>
+<script defer src="guardian-hide.js?v=65"></script>
+<script defer src="king-room.js?v=65"></script>
+<script defer src="pm-monitor.js?v=65"></script>
+<script defer src="room-alerts.js?v=65"></script>
+<script defer src="dice.js?v=65"></script>
+<script defer src="invisible-mode.js?v=65"></script>
+<script defer src="room-picker.js?v=65"></script>
+<script defer src="stories.js?v=65"></script>
+<script defer src="stories-cleaner.js?v=65"></script>
+<script defer src="user-data-optimizer.js?v=65"></script>
+<script defer src="paint-tool.js?v=65"></script>
+<script defer src="styled-messages.js?v=65"></script>
+<script defer src="floating-toolbar-v2.js?v=65"></script>
 
 <script>
 let selectedGender = 'male';
