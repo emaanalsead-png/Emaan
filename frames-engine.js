@@ -1,28 +1,32 @@
 // ==============================================
-// frames-engine.js v12 — WeakSet + Profile-Ready
+// frames-engine.js v13 — تثبيت GIF + WeakSet + Profile-Ready
 // ==============================================
-// ✅ v12:
-//   1. renderFramesGrid تدعم Object {avatarSrc, currentFrameId, onSelect}
-//   2. تدعم Signature القديم (avatarSrc, currentFrameId) للتوافق
-//   3. onSelect يُستدعى عند اختيار إطار (لحفظ Firebase)
-//   4. باقي المنطق كما v11 بالضبط
-// ✅ v11 (محفوظ):
-//   1. WeakSet بدل global lock (لا يفقد رسائل)
-//   2. applyAvatarFrameFromUser — API موحّد للبروفايل
-//   3. لا localStorage (مسؤولية profile-core.js)
-//   4. تكامل مع NameEffects.applyDefaultAvatarFrame
-//   5. observer نظيف وآمن
+// ✅ v13 (فوق v12):
+//   1. كشف تلقائي للصور المتحركة (GIF/WebP/APNG)
+//   2. للصور المتحركة: loading=eager + decoding=sync
+//   3. للصور المتحركة: animations آمنة (.qf-animated — بدون transform/filter)
+//   4. لا نعيد تعيين src لو نفسه (يفقد الحركة)
+//   5. forceGifRestart helper
+//   6. preload للصور المتحركة
+// ✅ v12 (محفوظ):
+//   1. renderFramesGrid Signature موسّع (Object)
+//   2. WeakSet بدل global lock
+//   3. applyAvatarFrameFromUser
+//   4. تكامل مع NameEffects
 // ==============================================
 
 const FRAMES_REPO = 'qamaralsham/qamaralsham';
 const FRAMES_FOLDER = 'frames/';
 const FRAMES_EXTS = ['png', 'gif', 'webp', 'jpg', 'jpeg', 'apng'];
+const ANIMATED_EXTS = ['gif', 'webp', 'apng'];
 const FRAMES_CACHE_TTL = 24 * 60 * 60 * 1000;
 const FRAMES_CACHE_KEY = 'qamar_frames_cache_v1';
-const ANIM_CYCLE = ['royal-glow', 'wing-flutter', 'flame-flicker', 'celestial-spin', 'none'];
 
-// ⭐ v11: WeakSet بدل global lock
-// كل wrapper يمر مرة واحدة عبر observer
+// ⭐ v13: دورة عادية للصور الثابتة
+const ANIM_CYCLE = ['royal-glow', 'wing-flutter', 'flame-flicker', 'celestial-spin', 'none'];
+// ⭐ v13: دورة آمنة للصور المتحركة (بدون transform/filter — يوقف GIF)
+const ANIM_CYCLE_ANIMATED = ['opacity-pulse', 'opacity-gentle', 'none'];
+
 var _framesProcessed = new WeakSet();
 
 const FRAMES_OVERRIDES = {
@@ -30,18 +34,49 @@ const FRAMES_OVERRIDES = {
 };
 
 const FALLBACK_FRAMES = [
-    { id: "f1", file: "frame1.png", name: "إطار 1", animation: "royal-glow", rank: "User" },
-    { id: "f2", file: "frame2.png", name: "إطار 2", animation: "wing-flutter", rank: "User" },
-    { id: "f3", file: "frame3.png", name: "إطار 3", animation: "flame-flicker", rank: "User" },
-    { id: "f4", file: "frame4.png", name: "إطار 4", animation: "celestial-spin", rank: "User" },
-    { id: "f5", file: "frame5.png", name: "إطار 5", animation: "none", rank: "User" },
-    { id: "f6", file: "frame6.png", name: "إطار 6", animation: "royal-glow", rank: "User" },
-    { id: "f7", file: "frame7.png", name: "إطار 7", animation: "wing-flutter", rank: "User" },
-    { id: "f8", file: "frame8.png", name: "إطار 8", animation: "none", rank: "User" }
+    { id: "f1", file: "frame1.png", name: "إطار 1", animation: "royal-glow", isAnimated: false, rank: "User" },
+    { id: "f2", file: "frame2.png", name: "إطار 2", animation: "wing-flutter", isAnimated: false, rank: "User" },
+    { id: "f3", file: "frame3.png", name: "إطار 3", animation: "flame-flicker", isAnimated: false, rank: "User" },
+    { id: "f4", file: "frame4.png", name: "إطار 4", animation: "celestial-spin", isAnimated: false, rank: "User" },
+    { id: "f5", file: "frame5.png", name: "إطار 5", animation: "none", isAnimated: false, rank: "User" },
+    { id: "f6", file: "frame6.png", name: "إطار 6", animation: "royal-glow", isAnimated: false, rank: "User" },
+    { id: "f7", file: "frame7.png", name: "إطار 7", animation: "wing-flutter", isAnimated: false, rank: "User" },
+    { id: "f8", file: "frame8.png", name: "إطار 8", animation: "none", isAnimated: false, rank: "User" }
 ];
 
 let ALL_FRAMES = FALLBACK_FRAMES.slice();
 let _refreshing = false;
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v13: أدوات كشف الصور المتحركة               */
+/* ══════════════════════════════════════════════ */
+
+function _getExt(filename) {
+    if (!filename) return '';
+    // نتجاهل query string
+    var clean = String(filename).split('?')[0].split('#')[0];
+    return (clean.split('.').pop() || '').toLowerCase();
+}
+
+function _isAnimatedFile(filename) {
+    return ANIMATED_EXTS.indexOf(_getExt(filename)) !== -1;
+}
+
+/**
+ * ⭐ v13: إعادة تشغيل GIF (لو احتاجنا)
+ * iOS Safari أحياناً يوقف GIF بعد إخفاء/إظهار
+ * نبعت cache-buster صغير عشان يُعاد التحميل
+ */
+function _forceGifRestart(imgEl) {
+    if (!imgEl || !imgEl.src) return;
+    if (!_isAnimatedFile(imgEl.src)) return;
+    try {
+        var src = imgEl.src.split('?')[0].split('#')[0];
+        var sep = imgEl.src.indexOf('?') === -1 ? '?' : '&';
+        // نبعت cache-buster
+        imgEl.src = src + '?__gifr=' + Date.now();
+    } catch (e) {}
+}
 
 /* ══════════════════════════════════════════════ */
 /* أدوات مساعدة                                    */
@@ -72,17 +107,29 @@ function extractNum(filename) {
 
 function buildFrameFromFile(fileObj, index) {
     var name = fileObj.name;
-    var ext = (name.split('.').pop() || '').toLowerCase();
-    var isAnimated = (ext === 'gif' || ext === 'webp' || ext === 'apng');
+    var ext = _getExt(name);
+    var isAnimated = ANIMATED_EXTS.indexOf(ext) !== -1;
     var num = extractNum(name);
     var id = 'f' + (num || (index + 1));
     var override = FRAMES_OVERRIDES[name] || {};
+
+    // ⭐ v13: نختار animation حسب نوع الملف
+    var anim;
+    if (override.animation) {
+        anim = override.animation;
+    } else if (isAnimated) {
+        // للصور المتحركة: animations آمنة فقط (بدون transform/filter)
+        anim = ANIM_CYCLE_ANIMATED[index % ANIM_CYCLE_ANIMATED.length];
+    } else {
+        anim = ANIM_CYCLE[index % ANIM_CYCLE.length];
+    }
 
     return {
         id: override.id || id,
         file: name,
         name: override.name || ('إطار ' + (num || (index + 1))),
-        animation: override.animation || (isAnimated ? 'none' : ANIM_CYCLE[index % ANIM_CYCLE.length]),
+        animation: anim,
+        isAnimated: isAnimated,
         rank: override.rank || 'User'
     };
 }
@@ -109,7 +156,7 @@ async function fetchFramesFromGitHub() {
         var files = data.filter(function (f) {
             if (f.type !== 'file') return false;
             if (f.name.charAt(0) === '.') return false;
-            var ext = (f.name.split('.').pop() || '').toLowerCase();
+            var ext = _getExt(f.name);
             if (FRAMES_EXTS.indexOf(ext) === -1) return false;
             if (!/^frame/i.test(f.name)) return false;
             return true;
@@ -126,9 +173,6 @@ async function fetchFramesFromGitHub() {
 /* ══════════════════════════════════════════════ */
 /* Cache (localStorage — خاص بالإطارات فقط)      */
 /* ══════════════════════════════════════════════ */
-/* ⚠️ ملاحظة: هذا Cache لعامّة الإطارات،           */
-/*    وليس Cache لاختيار المستخدم.                 */
-/*    اختيار المستخدم مسؤولية profile-core.js.     */
 
 function loadFromCache() {
     try {
@@ -154,6 +198,7 @@ async function initFrames() {
     if (cached) {
         ALL_FRAMES = cached;
         console.log('📦 إطارات من الذاكرة: ' + cached.length);
+        _preloadAnimatedFrames();
     }
 
     var fresh = await fetchFramesFromGitHub();
@@ -161,12 +206,31 @@ async function initFrames() {
         ALL_FRAMES = fresh;
         saveToCache(fresh);
         console.log('🔄 إطارات محدّثة من GitHub: ' + fresh.length);
+        _preloadAnimatedFrames();
         var c = document.getElementById('frames-container');
         if (c && c.children.length > 0) renderFramesGrid(c);
     } else if (!cached) {
         ALL_FRAMES = FALLBACK_FRAMES.slice();
         console.log('📌 استخدام القائمة الاحتياطية');
     }
+}
+
+/**
+ * ⭐ v13: preload للصور المتحركة فقط
+ * لضمان أنها تظهر متحركة من أول مرة
+ */
+function _preloadAnimatedFrames() {
+    var animated = ALL_FRAMES.filter(function (f) {
+        return f.isAnimated === true || _isAnimatedFile(f.file);
+    });
+    if (!animated.length) return;
+    console.log('🎬 preloading ' + animated.length + ' animated frames');
+    animated.forEach(function (f) {
+        try {
+            var img = new Image();
+            img.src = buildFrameSrc(f.file);
+        } catch (e) {}
+    });
 }
 
 /* ══════════════════════════════════════════════ */
@@ -186,6 +250,7 @@ window.reloadFrames = async function () {
         if (fresh && fresh.length > 0) {
             ALL_FRAMES = fresh;
             saveToCache(fresh);
+            _preloadAnimatedFrames();
             var c = document.getElementById('frames-container');
             if (c) renderFramesGrid(c);
             if (typeof toast === 'function') toast('✅ تم تحديث القائمة (' + fresh.length + ' إطار)');
@@ -201,92 +266,119 @@ window.reloadFrames = async function () {
 };
 
 /* ══════════════════════════════════════════════ */
+/* ⭐ v13: بناء عنصر الإطار (كامل)                */
+/* ══════════════════════════════════════════════ */
+
+/**
+ * نبني عنصر الإطار مع كل الاعتبارات:
+ *   - للصور الثابتة: loading=lazy + animations عادية
+ *   - للصور المتحركة: loading=eager + animations آمنة + .qf-animated
+ *   - ضبط classes بشكل نظيف
+ *
+ * @param {Object} frame — كائن الإطار من ALL_FRAMES
+ * @param {boolean} forMessage — هل للرسالة؟ (يضيف inline styles)
+ * @returns {HTMLElement}
+ */
+function _buildFrameElement(frame, forMessage) {
+    var isAnim = frame.isAnimated === true || _isAnimatedFile(frame.file);
+
+    var el = document.createElement('div');
+    var classes = ['qf'];
+    // ⭐ v13: class خاص بالصور المتحركة
+    if (isAnim) classes.push('qf-animated');
+    // animation — نتجنب none
+    if (frame.animation && frame.animation !== 'none') {
+        classes.push(frame.animation);
+    }
+    el.className = classes.join(' ');
+    el.setAttribute('data-frame-id', frame.id);
+    if (isAnim) el.setAttribute('data-animated', '1');
+
+    // ⭐ v13: inline styles للرسائل
+    if (forMessage) {
+        el.style.cssText = 'position:absolute;inset:var(--frame-inset,-8%);pointer-events:none;z-index:20;display:flex;align-items:center;justify-content:center;';
+    }
+
+    var img = document.createElement('img');
+    img.src = buildFrameSrc(frame.file);
+    img.alt = frame.name;
+
+    // ⭐ v13: تحميل مختلف حسب النوع
+    if (isAnim) {
+        img.loading = 'eager';
+        img.decoding = 'sync';
+    } else {
+        img.loading = 'lazy';
+        img.decoding = 'async';
+    }
+
+    // ⭐ v13: styles الصورة في الرسائل
+    if (forMessage) {
+        img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
+    }
+
+    img.onerror = function () { el.remove(); };
+    el.appendChild(img);
+
+    return el;
+}
+
+/* ══════════════════════════════════════════════ */
 /* التطبيق الأساسي                                */
 /* ══════════════════════════════════════════════ */
 
 /**
- * ⭐ v11: تطبيق إطار على صندوق أفاتار (بدون localStorage).
+ * تطبيق إطار على صندوق أفاتار (بدون localStorage).
  * @param {HTMLElement} box
  * @param {string} frameId
  */
 function applyFrameTo(box, frameId) {
     if (!box) return;
-    box.querySelectorAll('.qf').forEach(function(e) { e.remove(); });
+    box.querySelectorAll('.qf').forEach(function (e) { e.remove(); });
 
     if (!frameId || frameId === 'none') return;
 
-    var frame = ALL_FRAMES.find(function(f) { return f.id === frameId; });
+    var frame = ALL_FRAMES.find(function (f) { return f.id === frameId; });
     if (!frame) return;
 
-    var el = document.createElement('div');
-    el.className = 'qf ' + (frame.animation && frame.animation !== 'none' ? frame.animation : '');
-    el.setAttribute('data-frame-id', frameId);
-
-    var img = document.createElement('img');
-    img.src = buildFrameSrc(frame.file);
-    img.alt = frame.name;
-    img.loading = 'lazy';
-    img.onerror = function() { el.remove(); };
-    el.appendChild(img);
-
+    var el = _buildFrameElement(frame, false);
     box.appendChild(el);
 }
 
 /**
- * ⭐ v11: تطبيق إطار على رسالة (wrapper).
+ * تطبيق إطار على رسالة (wrapper).
  */
 function applyFrameToMessage(wrapper, frameId) {
     if (!wrapper) return;
-    wrapper.querySelectorAll('.qf').forEach(function(e) { e.remove(); });
+    wrapper.querySelectorAll('.qf').forEach(function (e) { e.remove(); });
     if (!frameId || frameId === 'none') return;
 
-    var frame = ALL_FRAMES.find(function(f) { return f.id === frameId; });
+    var frame = ALL_FRAMES.find(function (f) { return f.id === frameId; });
     if (!frame) return;
 
-    var el = document.createElement('div');
-    el.className = 'qf ' + (frame.animation && frame.animation !== 'none' ? frame.animation : '');
-    el.setAttribute('data-frame-id', frameId);
-    el.style.cssText = 'position:absolute;inset:var(--frame-inset,-8%);pointer-events:none;z-index:20;display:flex;align-items:center;justify-content:center;';
-
-    var img = document.createElement('img');
-    img.src = buildFrameSrc(frame.file);
-    img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
-    img.onerror = function() { el.remove(); };
-    el.appendChild(img);
-
+    var el = _buildFrameElement(frame, true);
     wrapper.appendChild(el);
 }
 
 /* ══════════════════════════════════════════════ */
-/* ⭐ v11: API موحّد للبروفايل                     */
+/* API موحّد للبروفايل                            */
 /* ══════════════════════════════════════════════ */
 
-/**
- * يطبّق إطار الأفاتار حسب بيانات المستخدم:
- *   1. لو عند user.avatarFrame → إطار مخصص.
- *   2. لو ما عنده → الإطار الافتراضي حسب الرتبة.
- *
- * @param {HTMLElement} box — عنصر .avatar-box
- * @param {Object} user — { avatarFrame, rank, rankLevel }
- */
 function applyAvatarFrameFromUser(box, user) {
     if (!box) return;
 
-    // نظّف كل الإطارات (مخصص + افتراضي)
-    box.querySelectorAll('.qf').forEach(function(e) { e.remove(); });
+    box.querySelectorAll('.qf').forEach(function (e) { e.remove(); });
     if (window.NameEffects && typeof window.NameEffects.clearDefaultAvatarFrame === 'function') {
         window.NameEffects.clearDefaultAvatarFrame(box);
     }
 
     if (!user) return;
 
-    // 1. إطار مخصص؟
     if (user.avatarFrame && user.avatarFrame !== 'none') {
         applyFrameTo(box, user.avatarFrame);
         return;
     }
 
-    // 2. الإطار الافتراضي حسب الرتبة
     if (window.NameEffects && typeof window.NameEffects.applyDefaultAvatarFrame === 'function') {
         window.NameEffects.applyDefaultAvatarFrame(box, user.rank, user.rankLevel);
     }
@@ -321,32 +413,25 @@ function ensureRefreshButton() {
 }
 
 /**
- * ⭐ v12: تعرض شبكة الإطارات (3×N).
+ * تعرض شبكة الإطارات (3×N).
  * ✅ تدعم Signature القديم: renderFramesGrid(container, avatarSrc, currentFrameId)
  * ✅ تدعم Signature الجديد: renderFramesGrid(container, {avatarSrc, currentFrameId, onSelect})
  *
- * الصورة داخل كل إطار = صورة صاحب البروفايل الفعلية.
- *
- * @param {HTMLElement} container
- * @param {string|Object} arg2 — avatarSrc أو {avatarSrc, currentFrameId, onSelect}
- * @param {string} [arg3] — currentFrameId (الوضع القديم)
+ * ⭐ v13: الصور المتحركة تُعرض بـ loading=eager
  */
 function renderFramesGrid(container, arg2, arg3) {
     if (!container) return;
     container.innerHTML = '';
 
-    // ⭐ v12: كشف الـ signature
     var avatarSrc = null;
     var currentFrameId = null;
     var onSelect = null;
 
     if (arg2 && typeof arg2 === 'object' && !Array.isArray(arg2)) {
-        // Signature الجديد (Object)
         avatarSrc = arg2.avatarSrc || null;
         currentFrameId = arg2.currentFrameId || null;
         onSelect = (typeof arg2.onSelect === 'function') ? arg2.onSelect : null;
     } else {
-        // Signature القديم
         avatarSrc = arg2 || null;
         currentFrameId = arg3 || null;
     }
@@ -361,7 +446,6 @@ function renderFramesGrid(container, arg2, arg3) {
     const currentId = currentFrameId || null;
     const previewAvatar = avatarSrc || 'https://ui-avatars.com/api/?name=U&background=333&color=fff';
 
-    // ⭐ v12: دالة مركزية للاختيار
     function _selectFrame(id) {
         if (onSelect) {
             try {
@@ -370,7 +454,6 @@ function renderFramesGrid(container, arg2, arg3) {
                 console.error('onSelect threw:', e);
             }
         } else if (typeof window.applyAvatarFrame === 'function') {
-            // Fallback للواجهات القديمة (بصري فقط)
             window.applyAvatarFrame(id);
         }
     }
@@ -384,6 +467,7 @@ function renderFramesGrid(container, arg2, arg3) {
     noneAvatar.className = 'frame-avatar';
     const noneImg = document.createElement('img');
     noneImg.src = previewAvatar;
+    noneImg.loading = 'eager';
     noneAvatar.appendChild(noneImg);
 
     const noneIcon = document.createElement('div');
@@ -409,11 +493,23 @@ function renderFramesGrid(container, arg2, arg3) {
         avatarBox.className = 'frame-avatar';
         const av = document.createElement('img');
         av.src = previewAvatar;
+        av.loading = 'eager';
         avatarBox.appendChild(av);
 
         const fimg = document.createElement('img');
         fimg.src = buildFrameSrc(f.file);
         fimg.className = 'frame-img';
+
+        // ⭐ v13: eager + sync للصور المتحركة
+        const isAnim = f.isAnimated === true || _isAnimatedFile(f.file);
+        if (isAnim) {
+            fimg.loading = 'eager';
+            fimg.decoding = 'sync';
+            fimg.setAttribute('data-animated', '1');
+        } else {
+            fimg.loading = 'lazy';
+        }
+
         fimg.onerror = function() { fimg.style.display = 'none'; };
         avatarBox.appendChild(fimg);
 
@@ -474,7 +570,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 var wrapper = node.querySelector('.message-avatar-wrapper');
                 if (!wrapper) return;
 
-                // ⭐ v11: WeakSet — كل wrapper يُعالَج مرة واحدة
                 if (_framesProcessed.has(wrapper)) return;
                 _framesProcessed.add(wrapper);
 
@@ -507,10 +602,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 window.addEventListener('load', function () {
     initFrames();
-
-    // ✅ v11: لم نعد نطبّق localStorage هنا
-    // profile-core.js يتولى المهمة في owner mode
-
     setTimeout(applyFramesToExistingMessages, 2000);
 });
 
@@ -518,14 +609,15 @@ window.addEventListener('load', function () {
 /* التصدير العام                                  */
 /* ══════════════════════════════════════════════ */
 
-// ⭐ API أساسي
 window.applyFrameTo = applyFrameTo;
 window.applyFrameToMessage = applyFrameToMessage;
 window.applyAvatarFrameFromUser = applyAvatarFrameFromUser;
 window.renderFramesGrid = renderFramesGrid;
 window.getFrames = function () { return ALL_FRAMES; };
+/* ⭐ v13 */
+window.forceGifRestart = _forceGifRestart;
+window.isAnimatedFile = _isAnimatedFile;
 
-// Legacy — للتوافق مع chat.js
 window.applyFrameToWrapper = function (wrapper, frameId) {
     if (!wrapper) return;
     wrapper.querySelectorAll('.qf, .dynamic-frame-wrapper, .qcf, .avatar-frame, .qamar-frame').forEach(function(e) { e.remove(); });
@@ -533,17 +625,14 @@ window.applyFrameToWrapper = function (wrapper, frameId) {
     applyFrameToMessage(wrapper, frameId);
 };
 
-// Legacy — يُستخدم من profile-appearance القديم
 window.applyAvatarFrame = function (fid) {
-    // ⚠️ deprecated — استخدم applyAvatarFrameFromUser
     const box = document.getElementById('avatar-box');
     if (box) applyFrameTo(box, fid);
 };
 
-// Legacy — للتوافق مع profile-core.js v4
 window.renderFrames = function () {
     const c = document.getElementById('frames-container');
     if (c) renderFramesGrid(c);
 };
 
-console.log('✅ frames-engine.js v12 loaded — WeakSet + profile-ready API + onSelect support');
+console.log('✅ frames-engine.js v13 loaded — GIF stabilized + WeakSet + profile-ready API');
