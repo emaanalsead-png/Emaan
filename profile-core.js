@@ -1,14 +1,21 @@
 // ==============================================
-// profile-core.js v15 (TEST)
+// profile-core.js v16 (TEST)
 // ==============================================
-// ✅ v15 (فوق v14):
+// ✅ v16 (فوق v15):
+//   1. shuffle لأنماط السينما (عبر NameEffects.getDisplayStyles)
+//   2. زر نقل الأعضاء (Master Owner+ = 90+)
+//   3. زر كتم كامل (دائم حتى يُلغى)
+//   4. زر كتم في غرفة (دائم حتى يُلغى)
+//   5. زر طرد كامل (ban + بصمة + IP)
+//   6. زر طرد من غرفة (دائم)
+//   7. كل عملية → audit_log
+// ✅ v15 (محفوظ بالكامل):
 //   1. presence listener — آخر تواجد حقيقي + مكان تواجد صحيح
 //   2. UID في info-grid + زر نسخ
 //   3. tab "أوامر": + ترقية/تخفيض + زر مراقبة الملك (PmMonitor.openFor)
 //   4. اسم 35 حرف — فحص كامل
-//   5. الاسم/الصورة قابلان للنقر (فتح بروفايل عند الحاجة)
+//   5. الاسم/الصورة قابلان للنقر
 //   6. توافق كامل مع profile-optimizer v2 + stories v4
-//   7. إصلاح _formatLastSeen + _getCurrentRoom
 // ==============================================
 
 const ProfileState = {
@@ -20,13 +27,13 @@ const ProfileState = {
     likes: { isLiked: false, count: 0 },
     friends: { state: 'off', count: 0 },
     blocked: { isBlocked: false },
-    presence: null,                  /* ⭐ v15 */
-    presenceInterval: null           /* ⭐ v15 */
+    presence: null,
+    presenceInterval: null
 };
 
 const IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
 const MAX_AUDIO_MB = 10;
-const MAX_NAME_LENGTH = 35;          /* ⭐ v15 */
+const MAX_NAME_LENGTH = 35;
 
 const NAME_GRADIENTS = [
     ['#d4af37','#ffec8b'], ['#b8860b','#ffd700'], ['#ffd700','#ff8c00'],
@@ -54,7 +61,21 @@ const NAME_GRADIENTS = [
     ['#00ccff','#6600ff'], ['#c0c0c0','#ffd700']
 ];
 
+/* ⭐ v16: shuffle لأنماط السينما */
 function _getCinemaBgStyles() {
+    if (window.NameEffects && typeof window.NameEffects.getDisplayStyles === 'function') {
+        try {
+            var shuffled = window.NameEffects.getDisplayStyles();
+            if (Array.isArray(shuffled) && shuffled.length > 0) {
+                var bgOnly = shuffled.filter(function (s) {
+                    return s && s.targets && s.targets.indexOf('bg') !== -1;
+                });
+                return [{ id: '', label: 'بدون', icon: '❌' }].concat(bgOnly);
+            }
+        } catch (e) {
+            console.warn('getDisplayStyles failed, fallback:', e);
+        }
+    }
     if (window.NameEffects && Array.isArray(window.NameEffects.CINEMA_BG_STYLES)) {
         const list = window.NameEffects.CINEMA_BG_STYLES.map(function (id) {
             if (window.NameEffects.CINEMA_STYLES) {
@@ -119,7 +140,6 @@ function _esc(s) {
     });
 }
 
-/* ⭐ v15: _formatLastSeen يستخدم presence */
 function _formatLastSeen(ts, roomId) {
     if (!ts) return '—';
     const d = new Date(ts);
@@ -132,7 +152,6 @@ function _formatLastSeen(ts, roomId) {
     return result;
 }
 
-/* ⭐ v15: آخر تواجد (نسبي) */
 function _relativeLastSeen(ts) {
     if (!ts) return '—';
     var diff = Date.now() - ts;
@@ -192,7 +211,6 @@ function _openUserProfile(uid, name) {
     }
 }
 
-/* ⭐ v15: نسخ للحافظة */
 function _copyToClipboard(text, label) {
     if (!text) return;
     var doFallback = function () {
@@ -217,6 +235,19 @@ function _copyToClipboard(text, label) {
     } else {
         doFallback();
     }
+}
+
+/* ⭐ v16: audit log helper */
+function _logAudit(type, data) {
+    try {
+        var me = ProfileState.me || {};
+        db.ref('audit_log').push(Object.assign({
+            type: type,
+            byUid: me.uid || null,
+            byName: me.name || 'admin',
+            at: firebase.database.ServerValue.TIMESTAMP
+        }, data || {})).catch(function () {});
+    } catch (e) {}
 }
 
 /* ═══ Modal ═══ */
@@ -300,22 +331,19 @@ function openAppModal(opts) {
 window.openAppModal = openAppModal;
 
 /* ══════════════════════════════════════════════ */
-/* ⭐ v15: Presence Listener                      */
+/* Presence Listener                              */
 /* ══════════════════════════════════════════════ */
 function _startPresenceListener(uid) {
     if (!uid) return;
     if (typeof db === 'undefined' || !db) return;
 
-    /* تنظيف القديم */
     if (ProfileState.presenceInterval) {
         clearInterval(ProfileState.presenceInterval);
         ProfileState.presenceInterval = null;
     }
 
-    /* قراءة فورية */
     _fetchPresence(uid);
 
-    /* listener */
     try {
         var ref = db.ref('user_presence/' + uid);
         ref.on('value', function (s) {
@@ -325,7 +353,6 @@ function _startPresenceListener(uid) {
         }, function () {});
     } catch (e) {}
 
-    /* polling كل 90 ثانية (احتياطي) */
     ProfileState.presenceInterval = setInterval(function () {
         _fetchPresence(uid);
     }, 90000);
@@ -343,7 +370,6 @@ function _fetchPresence(uid) {
 function _applyPresenceToDOM(p) {
     if (!p) return;
 
-    /* ─── dot الحالة ─── */
     var dot = document.getElementById('status-dot');
     if (dot) {
         if (p.state === 'online' && (Date.now() - (p.lastChanged || 0)) < 120000) {
@@ -355,7 +381,6 @@ function _applyPresenceToDOM(p) {
         }
     }
 
-    /* ─── تحديث grid المعلومات ─── */
     _updateInfoGridPresence(p);
 }
 
@@ -363,7 +388,6 @@ function _updateInfoGridPresence(p) {
     var grid = document.getElementById('info-grid');
     if (!grid) return;
 
-    /* آخر تواجد */
     var lastSeenEl = grid.querySelector('[data-info="lastSeen"] .ii-value');
     if (lastSeenEl) {
         var isOnline = (p.state === 'online' && (Date.now() - (p.lastChanged || 0)) < 120000);
@@ -375,7 +399,6 @@ function _updateInfoGridPresence(p) {
         }
     }
 
-    /* مكان التواجد */
     var roomEl = grid.querySelector('[data-info="room"] .ii-value');
     if (roomEl) {
         var roomId = p.room;
@@ -394,7 +417,7 @@ function _updateInfoGridPresence(p) {
 /* Bootstrap                                      */
 /* ══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async function () {
-    console.log('🚀 profile-core.js v15 booting...');
+    console.log('🚀 profile-core.js v16 booting...');
 
     try {
         localStorage.removeItem('saved_avatar_frame_motion');
@@ -455,7 +478,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     applyIdentityToDOM();
     _startSubjectListener();
 
-    /* ⭐ v15: presence listener */
     if (ProfileState.subject && ProfileState.subject.uid) {
         _startPresenceListener(ProfileState.subject.uid);
     }
@@ -479,7 +501,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         renderFriendsTab();
     }, 400);
 
-    console.log('✅ profile-core.js v15 ready | Mode:', ProfileState.mode);
+    console.log('✅ profile-core.js v16 ready | Mode:', ProfileState.mode);
 });
 
 /* ═══ Legacy cleanup ═══ */
@@ -584,16 +606,13 @@ function _mergeIdentity(cachedUser, remoteUser) {
     return Object.assign({}, remoteUser, patch);
 }
 
-/* ⭐ v15: _startSubjectListener — نبقي نفس الاسم (للـ optimizer) */
 function _startSubjectListener() {
     if (typeof db === 'undefined' || !db) return;
     const subj = ProfileState.subject;
     if (!subj || !subj.uid) return;
 
-    /* نحاول نستخدم user-data-optimizer إن وُجد */
     if (window.__profileOptimizerV2) {
-        /* الـ optimizer رح يستخدم نسخته الخاصة */
-        console.log('📡 profile-core v15: deferring to profile-optimizer');
+        console.log('📡 profile-core v16: deferring to profile-optimizer');
         return;
     }
 
@@ -812,9 +831,7 @@ function _applyMusicButton(subj) {
     }
 }
 
-/* ══════════════════════════════════════════════ */
-/* ⭐ v15: renderInfoGrid — UID + place + time   */
-/* ══════════════════════════════════════════════ */
+/* ═══ renderInfoGrid — UID + place + time ═══ */
 function renderInfoGrid() {
     const grid = document.getElementById('info-grid');
     if (!grid) return;
@@ -826,11 +843,9 @@ function renderInfoGrid() {
 
     const items = [];
 
-    /* UID ⭐ */
     if (subj.uid) {
         items.push({ icon: '🆔', label: 'UID', value: subj.uid, key: 'uid', copy: true, label_copy: 'UID' });
     }
-    /* code */
     if (subj.code) {
         items.push({ icon: '🔑', label: 'المعرّف', value: subj.code, key: 'code', copy: true, label_copy: 'الكود' });
     }
@@ -844,7 +859,6 @@ function renderInfoGrid() {
     }
     if (subj.createdAt && _canView('joinedAt')) items.push({ icon: '📅', label: 'الانضمام', value: _formatDate(subj.createdAt) });
 
-    /* آخر تواجد ⭐ */
     if (_canView('lastSeen')) {
         var p = ProfileState.presence || {};
         var isOnline = (p.state === 'online' && (Date.now() - (p.lastChanged || 0)) < 120000);
@@ -852,7 +866,6 @@ function renderInfoGrid() {
         items.push({ icon: '🕐', label: 'آخر تواجد', value: lastSeenText, key: 'lastSeen' });
     }
 
-    /* مكان التواجد ⭐ */
     if (_canView('lastSeen')) {
         var pRoom = (ProfileState.presence && ProfileState.presence.room) || subj.currentRoom || null;
         var roomText = '—';
@@ -865,7 +878,6 @@ function renderInfoGrid() {
         items.push({ icon: '📍', label: 'مكان التواجد', value: roomText, key: 'room' });
     }
 
-    /* نقاط */
     if (_canView('points')) {
         db.ref('bot_data/quiz/scores/' + subj.uid).once('value').then(function (s) {
             const pts = s.val() || 0;
@@ -1081,9 +1093,6 @@ async function updateIdentityField(field, value) {
     } catch (e) {}
 }
 
-/* ══════════════════════════════════════════════ */
-/* ⭐ v15: _bindEditName — 35 حرف + فحص كامل    */
-/* ══════════════════════════════════════════════ */
 function _bindEditName() {
     const btn = document.getElementById('btn-edit-username');
     if (!btn || btn.__bound) return;
@@ -1397,6 +1406,7 @@ function renderNameBgGradientPicker() {
     }
 }
 
+/* ⭐ v16: يستخدم shuffle من NameEffects.getDisplayStyles */
 function renderNameCinemaBgPicker() {
     const grid = document.getElementById('name-cinema-bg-grid');
     const preview = document.getElementById('name-preview-cinema-bg');
@@ -2443,7 +2453,7 @@ async function renderLikers() {
 window.renderVisitors = renderVisitors;
 window.renderLikers = renderLikers;
 
-/* ⭐ v15: renderMomentsTab — يستخدم Stories v4 */
+/* ═══ Moments Tab ═══ */
 async function renderMomentsTab() {
     const grid = document.getElementById('moments-grid');
     if (!grid) return;
@@ -2461,7 +2471,6 @@ async function renderMomentsTab() {
 
         try {
             window.Stories.renderMyTab(wrapper);
-            console.log('✅ Moments tab rendered via Stories.renderMyTab');
         } catch (e) {
             console.error('renderMyTab failed:', e);
             grid.style.display = 'grid';
@@ -2504,7 +2513,7 @@ async function renderMomentsTab() {
                 '<div class="moment-tile-name">' + _esc(preview) + '</div>';
             tile.onclick = function () {
                 if (typeof window.openStoryViewer === 'function') {
-                    window.openStoryViewer([st], subj.uid, false, { mini: true });   /* ⭐ v15: mini */
+                    window.openStoryViewer([st], subj.uid, false, { mini: true });
                 } else if (window.Stories && typeof window.Stories.openViewer === 'function') {
                     window.Stories.openViewer([st], subj.uid, false, { mini: true });
                 } else {
@@ -2564,9 +2573,8 @@ async function renderFriendsTab() {
         grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#ff6666;padding:20px;font-size:12px;">⚠️ فشل</div>';
     }
 }
-
 /* ══════════════════════════════════════════════ */
-/* ⭐ v15: renderAdminTab — + ترقية/تخفيض + مراقبة */
+/* ⭐ v16: renderAdminTab — موسّع               */
 /* ══════════════════════════════════════════════ */
 function renderAdminTab() {
     const container = document.getElementById('admin-actions-container');
@@ -2582,20 +2590,28 @@ function renderAdminTab() {
         container.innerHTML = '<div class="empty" style="text-align:center;padding:30px;color:#666;">لا يمكن تنفيذ أوامر على نفسك</div>';
         return;
     }
+
     const meLvl = me.rankLevel || _getRankLevel(me.rank);
     const tgLvl = subj.rankLevel || _getRankLevel(subj.rank);
+
     const canWarn = meLvl >= 65;
     const canJail = meLvl >= 75 && meLvl > tgLvl;
     const canKick = meLvl >= 80 && meLvl > tgLvl;
     const canBan = meLvl >= 90 && meLvl > tgLvl;
     const canPoints = meLvl >= 75;
-    /* ⭐ v15: ترقية/تخفيض عبر دوال ranks.js */
     const canP = (typeof canPromoteTo === 'function') ? canPromoteTo(me, subj, 'Room Owner') : false;
     const canD = (typeof canDemoteUser === 'function') ? canDemoteUser(me, subj) : false;
     const isKing = me.rank === 'King';
 
+    /* ⭐ v16: صلاحيات جديدة */
+    const canTransfer = meLvl >= 90 && meLvl > tgLvl;   /* Master Owner+ */
+    const canMute = meLvl >= 90 && meLvl > tgLvl;       /* Master Owner+ */
+    const canKickFull = meLvl >= 90 && meLvl > tgLvl;   /* Master Owner+ */
+    const canKickFromRoom = meLvl >= 80 && meLvl > tgLvl; /* Grand Owner+ */
+
     let h = '';
-    /* ⭐ v15: الملك — مراقبة الخاص */
+
+    /* ⭐ الملك — مراقبة الخاص */
     if (isKing) {
         h += '<div class="action-category">';
         h += '<div class="action-category-title">👑 صلاحيات الملك</div>';
@@ -2608,7 +2624,7 @@ function renderAdminTab() {
     h += '<button class="action-btn" data-action="message"><i class="fas fa-comment"></i> إرسال رسالة</button>';
     h += '</div>';
 
-    /* ⭐ v15: ترقية/تخفيض */
+    /* ترقية/تخفيض */
     if (canP || canD) {
         h += '<div class="action-category">';
         h += '<div class="action-category-title">🎖️ إدارة الرتب</div>';
@@ -2617,26 +2633,57 @@ function renderAdminTab() {
         h += '</div>';
     }
 
+    /* ⭐ v16: نقل الأعضاء */
+    if (canTransfer) {
+        h += '<div class="action-category">';
+        h += '<div class="action-category-title">🚪 إدارة الغرف</div>';
+        h += '<button class="action-btn" data-action="transfer" style="border-color:rgba(59,130,246,0.6);color:#93c5fd;"><i class="fas fa-exchange-alt" style="color:#3b82f6;"></i> 🔀 نقل إلى غرفة</button>';
+        h += '</div>';
+    }
+
+    /* نقاط */
     if (canPoints) {
         h += '<div class="action-category">';
         h += '<div class="action-category-title">🎁 المكافآت</div>';
         h += '<button class="action-btn" data-action="points"><i class="fas fa-star"></i> إهداء نقاط</button>';
         h += '</div>';
     }
-    if (canWarn || canJail || canKick) {
+
+    /* ⭐ v16: كتم */
+    if (canMute) {
+        h += '<div class="action-category">';
+        h += '<div class="action-category-title">🔇 الكتم</div>';
+        h += '<button class="action-btn warning" data-action="muteGlobal" style="border-color:rgba(255,152,0,0.6);color:#ffbb66;"><i class="fas fa-microphone-slash" style="color:#ff9800;"></i> 🔇 كتم كامل (دائم)</button>';
+        h += '<button class="action-btn warning" data-action="muteRoom" style="border-color:rgba(255,152,0,0.6);color:#ffbb66;"><i class="fas fa-volume-mute" style="color:#ff9800;"></i> 🔇 كتم في غرفة (دائم)</button>';
+        h += '</div>';
+    }
+
+    /* العقوبات */
+    if (canWarn || canJail || canKick || canKickFromRoom) {
         h += '<div class="action-category">';
         h += '<div class="action-category-title">🛡️ العقوبات</div>';
         if (canWarn) h += '<button class="action-btn warning" data-action="warn"><i class="fas fa-exclamation-triangle"></i> تحذير</button>';
-        if (canKick) h += '<button class="action-btn warning" data-action="kick"><i class="fas fa-door-closed"></i> طرد</button>';
-        if (canJail) h += '<button class="action-btn danger" data-action="jail"><i class="fas fa-lock"></i> سجن</button>';
+        if (canKickFromRoom) h += '<button class="action-btn warning" data-action="kickFromRoom" style="border-color:rgba(255,68,68,0.5);color:#ff9999;"><i class="fas fa-door-closed" style="color:#ff6666;"></i> 🚪 طرد من غرفة (دائم)</button>';
+        if (canJail) h += '<button class="action-btn danger" data-action="jail"><i class="fas fa-lock"></i> ⛓️ سجن</button>';
         h += '</div>';
     }
+
+    /* ⭐ v16: طرد كامل */
+    if (canKickFull) {
+        h += '<div class="action-category">';
+        h += '<div class="action-category-title">⛔ الطرد النهائي</div>';
+        h += '<button class="action-btn danger" data-action="kickFull" style="border-color:rgba(220,38,38,0.7);background:linear-gradient(135deg,rgba(120,0,0,0.3),rgba(0,0,0,0.4));"><i class="fas fa-skull" style="color:#ff2222;"></i> 🛑 طرد كامل (ban + بصمة + IP)</button>';
+        h += '</div>';
+    }
+
+    /* حظر */
     if (canBan) {
         h += '<div class="action-category">';
-        h += '<div class="action-category-title">⛔ الحظر</div>';
-        h += '<button class="action-btn danger" data-action="ban"><i class="fas fa-ban"></i> حظر</button>';
+        h += '<div class="action-category-title">🚫 الحظر</div>';
+        h += '<button class="action-btn danger" data-action="ban"><i class="fas fa-ban"></i> 🚫 حظر مؤقت</button>';
         h += '</div>';
     }
+
     container.innerHTML = h;
     container.querySelectorAll('[data-action]').forEach(function (btn) {
         btn.onclick = function () {
@@ -2645,13 +2692,16 @@ function renderAdminTab() {
     });
 }
 
+/* ══════════════════════════════════════════════ */
+/* ⭐ v16: _executeAdminAction — موسّع           */
+/* ══════════════════════════════════════════════ */
 function _executeAdminAction(action) {
     const subj = ProfileState.subject;
     if (!subj) return;
     const me = ProfileState.me;
     if (!me) return;
 
-    /* ⭐ v15: مراقبة الخاص */
+    /* ── مراقبة الملك ── */
     if (action === 'monitorPM') {
         if (me.rank !== 'King') { _toast('⚠️ للملك فقط'); return; }
         if (window.PmMonitor && typeof window.PmMonitor.openFor === 'function') {
@@ -2666,6 +2716,7 @@ function _executeAdminAction(action) {
         return;
     }
 
+    /* ── رسالة ── */
     if (action === 'message') {
         try {
             if (window.parent && typeof window.parent.openPrivateChatWith === 'function') {
@@ -2680,7 +2731,7 @@ function _executeAdminAction(action) {
         return;
     }
 
-    /* ⭐ v15: ترقية */
+    /* ── ترقية ── */
     if (action === 'promote') {
         const all = ['User', 'Premium', 'Admin', 'Super Admin', 'Owner', 'Grand Owner', 'Room Owner', 'Master Owner'];
         if (me.rank === 'King') all.push('Queen');
@@ -2692,16 +2743,14 @@ function _executeAdminAction(action) {
             title: '🎖️ ترقية ' + (subj.name || ''),
             text: 'الحالية: ' + subj.rank,
             type: 'select',
-            options: opts.map(function (r) { return { value: r, label: r; }; }),
+            options: opts.map(function (r) { return { value: r, label: r }; }),
             value: opts[0],
             onSave: async function (newRank) {
                 if (!newRank) return;
                 if (newRank === 'Queen') {
-                    /* نطلب الرقم */
                     var order = prompt('رقم الملكة (1-4):', '1');
                     var n = parseInt(order);
                     if (!n || n < 1 || n > 4) { _toast('⚠️ رقم غير صحيح'); return; }
-                    /* نتحقق من الملكة الحالية في هذا الرقم */
                     try {
                         var qSnap = await db.ref('users').limitToLast(500).once('value');
                         var allU = qSnap.val() || {};
@@ -2712,7 +2761,6 @@ function _executeAdminAction(action) {
                         });
                         if (existingUid && existingUid !== subj.uid) {
                             if (!confirm('رقم ' + n + ' مشغول. تبديل؟')) return;
-                            /* نبحث عن رقم فاضي */
                             var used = {};
                             Object.keys(allU).forEach(function (k) {
                                 var u = allU[k];
@@ -2732,14 +2780,10 @@ function _executeAdminAction(action) {
                         rank: newRank, rankLevel: lvl, queenOrder: null, customPermissions: null
                     });
                 }
-                try {
-                    db.ref('audit_log').push({
-                        type: 'promote', byUid: me.uid, byName: me.name,
-                        targetUid: subj.uid, targetName: subj.name,
-                        fromRank: subj.rank, toRank: newRank,
-                        at: firebase.database.ServerValue.TIMESTAMP
-                    }).catch(function () {});
-                } catch (e) {}
+                _logAudit('promote', {
+                    targetUid: subj.uid, targetName: subj.name,
+                    fromRank: subj.rank, toRank: newRank
+                });
                 _toast('✅ تم');
                 setTimeout(function () { location.reload(); }, 800);
             }
@@ -2747,7 +2791,7 @@ function _executeAdminAction(action) {
         return;
     }
 
-    /* ⭐ v15: تخفيض */
+    /* ── تخفيض ── */
     if (action === 'demote') {
         if (!(typeof canDemoteUser === 'function' && canDemoteUser(me, subj))) { _toast('⚠️ لا صلاحية'); return; }
         openAppModal({
@@ -2757,14 +2801,10 @@ function _executeAdminAction(action) {
                 await db.ref('users/' + subj.uid).update({
                     rank: 'User', rankLevel: 50, queenOrder: null, customPermissions: null
                 });
-                try {
-                    db.ref('audit_log').push({
-                        type: 'demote', byUid: me.uid, byName: me.name,
-                        targetUid: subj.uid, targetName: subj.name,
-                        fromRank: subj.rank, toRank: 'User',
-                        at: firebase.database.ServerValue.TIMESTAMP
-                    }).catch(function () {});
-                } catch (e) {}
+                _logAudit('demote', {
+                    targetUid: subj.uid, targetName: subj.name,
+                    fromRank: subj.rank, toRank: 'User'
+                });
                 _toast('✅ تم');
                 setTimeout(function () { location.reload(); }, 800);
             }
@@ -2772,6 +2812,14 @@ function _executeAdminAction(action) {
         return;
     }
 
+    /* ⭐ v16: نقل إلى غرفة */
+    if (action === 'transfer') {
+        if ((me.rankLevel || 0) < 90) { _toast('⚠️ Master Owner+ فقط'); return; }
+        _askTransfer(subj);
+        return;
+    }
+
+    /* ── نقاط ── */
     if (action === 'points') {
         openAppModal({
             title: '⭐ إهداء نقاط',
@@ -2781,12 +2829,31 @@ function _executeAdminAction(action) {
                 if (!amt || amt < 1) return;
                 try {
                     await db.ref('bot_data/quiz/scores/' + subj.uid).transaction(function (c) { return (c || 0) + amt; });
+                    _logAudit('give_points', {
+                        targetUid: subj.uid, targetName: subj.name, amount: amt
+                    });
                     _toast('⭐ تم');
                 } catch (e) { _toast('⚠️ فشل'); }
             }
         });
         return;
     }
+
+    /* ⭐ v16: كتم كامل */
+    if (action === 'muteGlobal') {
+        if ((me.rankLevel || 0) < 90) { _toast('⚠️ Master Owner+ فقط'); return; }
+        _askMuteGlobal(subj);
+        return;
+    }
+
+    /* ⭐ v16: كتم في غرفة */
+    if (action === 'muteRoom') {
+        if ((me.rankLevel || 0) < 90) { _toast('⚠️ Master Owner+ فقط'); return; }
+        _askMuteRoom(subj);
+        return;
+    }
+
+    /* ── تحذير ── */
     if (action === 'warn') {
         openAppModal({
             title: '⚠️ تحذير',
@@ -2794,28 +2861,22 @@ function _executeAdminAction(action) {
             onSave: async function () {
                 try {
                     await db.ref('users/' + subj.uid + '/warnings').transaction(function (c) { return (c || 0) + 1; });
+                    _logAudit('warn', { targetUid: subj.uid, targetName: subj.name });
                     _toast('✅ تم');
                 } catch (e) { _toast('⚠️ فشل'); }
             }
         });
         return;
     }
-    if (action === 'kick') {
-        openAppModal({
-            title: '🚪 طرد',
-            text: 'طرد ' + subj.name + ' من الغرفة الحالية؟',
-            onSave: async function () {
-                const roomId = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
-                try {
-                    await db.ref('room_kicks/' + roomId + '/' + subj.uid).set({
-                        by: me.uid, byName: me.name, at: Date.now()
-                    });
-                    _toast('🚪 تم');
-                } catch (e) { _toast('⚠️ فشل'); }
-            }
-        });
+
+    /* ⭐ v16: طرد من غرفة (دائم) */
+    if (action === 'kickFromRoom') {
+        if ((me.rankLevel || 0) < 80) { _toast('⚠️ Grand Owner+ فقط'); return; }
+        _askKickFromRoom(subj);
         return;
     }
+
+    /* ── سجن ── */
     if (action === 'jail') {
         openAppModal({
             title: '⛓️ سجن',
@@ -2824,17 +2885,29 @@ function _executeAdminAction(action) {
                 const m = parseInt((document.getElementById('cmd-jm') || {}).value);
                 if (!m || m < 1) return;
                 try {
+                    /* نحفظ الغرفة قبل السجن */
+                    await db.ref('users/' + subj.uid + '/lastRoomBeforeJail').set(subj.currentRoom || 'general').catch(function(){});
                     await db.ref('users/' + subj.uid).update({
                         isJailed: true,
                         jailUntil: Date.now() + m * 60000,
                         jailReason: 'إجراء إداري'
                     });
-                    _toast('⛓️ تم');
+                    _logAudit('jail', { targetUid: subj.uid, targetName: subj.name, minutes: m });
+                    _toast('⛓️ تم — ' + m + ' دقيقة');
                 } catch (e) { _toast('⚠️ فشل'); }
             }
         });
         return;
     }
+
+    /* ⭐ v16: طرد كامل */
+    if (action === 'kickFull') {
+        if ((me.rankLevel || 0) < 90) { _toast('⚠️ Master Owner+ فقط'); return; }
+        _askKickFull(subj);
+        return;
+    }
+
+    /* ── حظر مؤقت ── */
     if (action === 'ban') {
         openAppModal({
             title: '🚫 حظر',
@@ -2854,11 +2927,334 @@ function _executeAdminAction(action) {
                         bannedUntil: Date.now() + d * 60000,
                         banReason: 'إجراء إداري'
                     });
+                    _logAudit('ban', { targetUid: subj.uid, targetName: subj.name, minutes: d });
                     _toast('🚫 تم');
                 } catch (e) { _toast('⚠️ فشل'); }
             }
         });
     }
+}
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v16: دوال الإجراءات الجديدة                 */
+/* ══════════════════════════════════════════════ */
+
+/* ── نقل إلى غرفة ── */
+function _askTransfer(subj) {
+    const me = ProfileState.me;
+    const visibleRooms = Object.values(QAMAR.ROOMS || {}).filter(function (r) {
+        return !r.invisible && r.id !== 'jail';
+    });
+
+    let opts = '';
+    visibleRooms.forEach(function (r) {
+        opts += '<option value="' + _esc(r.id) + '">' + (r.icon || '🚪') + ' ' + _esc(r.name) + '</option>';
+    });
+
+    openAppModal({
+        title: '🔀 نقل ' + (subj.name || ''),
+        html:
+            '<div style="color:#ccc;font-size:12px;line-height:1.6;margin-bottom:12px;padding:10px;background:rgba(59,130,246,0.1);border-radius:8px;border:1px solid rgba(59,130,246,0.3);">' +
+                '🚪 سيُنقل <b style="color:#fff;">' + _esc(subj.name || '') + '</b> قسرياً إلى الغرفة المحددة.' +
+            '</div>' +
+            '<label style="display:block;color:#ffd700;font-size:12px;font-weight:900;margin-bottom:6px;">اختر الغرفة:</label>' +
+            '<select id="transfer-room" style="width:100%;padding:12px;background:rgba(255,255,255,0.08);border:1px solid #3b82f6;border-radius:10px;color:#fff;font-family:inherit;box-sizing:border-box;">' +
+                opts +
+            '</select>',
+        okLabel: '🔀 نقل',
+        onSave: async function () {
+            const sel = document.getElementById('transfer-room');
+            if (!sel || !sel.value) return;
+            const roomId = sel.value;
+            const room = QAMAR.ROOMS[roomId];
+            const roomName = room ? ((room.icon || '🚪') + ' ' + room.name) : roomId;
+
+            try {
+                await db.ref('user_presence/' + subj.uid).update({
+                    state: 'online',
+                    room: roomId,
+                    lastChanged: Date.now(),
+                    forced: true,
+                    forcedBy: me.uid,
+                    forcedReason: 'admin_transfer'
+                });
+                _logAudit('transfer', {
+                    targetUid: subj.uid, targetName: subj.name,
+                    roomId: roomId, roomName: roomName
+                });
+                _toast('🔀 تم نقله إلى ' + roomName);
+            } catch (e) {
+                console.error('transfer failed:', e);
+                _toast('⚠️ فشل: ' + e.message);
+            }
+        }
+    });
+}
+
+/* ── كتم كامل (دائم) ── */
+function _askMuteGlobal(subj) {
+    const me = ProfileState.me;
+    openAppModal({
+        title: '🔇 كتم كامل',
+        html:
+            '<div style="color:#ffcccc;font-size:12px;line-height:1.6;margin-bottom:12px;padding:10px;background:rgba(255,152,0,0.15);border-radius:8px;border:1px solid rgba(255,152,0,0.4);">' +
+                '🔇 سيُكتم <b style="color:#fff;">' + _esc(subj.name || '') + '</b> من الكتابة في <b style="color:#ff9800;">كل الغرف</b>.<br>' +
+                '⏰ دائم حتى يُلغى يدوياً.' +
+            '</div>' +
+            '<label style="display:block;color:#ffd700;font-size:12px;font-weight:900;margin-bottom:6px;">السبب (اختياري):</label>' +
+            '<input type="text" id="mute-global-reason" placeholder="سبب الكتم..." style="width:100%;padding:12px;background:rgba(255,255,255,0.08);border:1px solid #ff9800;border-radius:10px;color:#fff;font-family:inherit;text-align:right;box-sizing:border-box;">',
+        okLabel: '🔇 كتم',
+        okCls: 'danger',
+        onSave: async function () {
+            const reason = (document.getElementById('mute-global-reason') || {}).value || '';
+            try {
+                await db.ref('users/' + subj.uid + '/mutes/global').set({
+                    at: Date.now(),
+                    byUid: me.uid,
+                    byName: me.name || 'admin',
+                    reason: reason.trim() || 'كتم إداري'
+                });
+                _logAudit('mute_global', {
+                    targetUid: subj.uid, targetName: subj.name,
+                    reason: reason.trim()
+                });
+                _toast('🔇 تم الكتم الكامل');
+            } catch (e) {
+                console.error('muteGlobal failed:', e);
+                _toast('⚠️ فشل: ' + e.message);
+            }
+        }
+    });
+}
+
+/* ── كتم في غرفة (دائم) ── */
+function _askMuteRoom(subj) {
+    const me = ProfileState.me;
+    const visibleRooms = Object.values(QAMAR.ROOMS || {}).filter(function (r) {
+        return !r.invisible && r.id !== 'jail';
+    });
+
+    let opts = '';
+    visibleRooms.forEach(function (r) {
+        opts += '<option value="' + _esc(r.id) + '">' + (r.icon || '🚪') + ' ' + _esc(r.name) + '</option>';
+    });
+
+    openAppModal({
+        title: '🔇 كتم في غرفة',
+        html:
+            '<div style="color:#ffcccc;font-size:12px;line-height:1.6;margin-bottom:12px;padding:10px;background:rgba(255,152,0,0.15);border-radius:8px;border:1px solid rgba(255,152,0,0.4);">' +
+                '🔇 سيُكتم <b style="color:#fff;">' + _esc(subj.name || '') + '</b> من الكتابة في <b style="color:#ff9800;">الغرفة المحددة فقط</b>.<br>' +
+                '⏰ دائم حتى يُلغى يدوياً.' +
+            '</div>' +
+            '<label style="display:block;color:#ffd700;font-size:12px;font-weight:900;margin-bottom:6px;">اختر الغرفة:</label>' +
+            '<select id="mute-room-id" style="width:100%;padding:12px;background:rgba(255,255,255,0.08);border:1px solid #ff9800;border-radius:10px;color:#fff;font-family:inherit;box-sizing:border-box;margin-bottom:10px;">' +
+                opts +
+            '</select>' +
+            '<label style="display:block;color:#ffd700;font-size:12px;font-weight:900;margin-bottom:6px;">السبب (اختياري):</label>' +
+            '<input type="text" id="mute-room-reason" placeholder="سبب الكتم..." style="width:100%;padding:12px;background:rgba(255,255,255,0.08);border:1px solid #ff9800;border-radius:10px;color:#fff;font-family:inherit;text-align:right;box-sizing:border-box;">',
+        okLabel: '🔇 كتم',
+        okCls: 'danger',
+        onSave: async function () {
+            const sel = document.getElementById('mute-room-id');
+            if (!sel || !sel.value) return;
+            const roomId = sel.value;
+            const room = QAMAR.ROOMS[roomId];
+            const roomName = room ? ((room.icon || '🚪') + ' ' + room.name) : roomId;
+            const reason = (document.getElementById('mute-room-reason') || {}).value || '';
+
+            try {
+                await db.ref('users/' + subj.uid + '/mutes/' + roomId).set({
+                    at: Date.now(),
+                    byUid: me.uid,
+                    byName: me.name || 'admin',
+                    reason: reason.trim() || 'كتم إداري',
+                    roomId: roomId,
+                    roomName: roomName
+                });
+                _logAudit('mute_room', {
+                    targetUid: subj.uid, targetName: subj.name,
+                    roomId: roomId, roomName: roomName,
+                    reason: reason.trim()
+                });
+                _toast('🔇 تم كتمه في ' + roomName);
+            } catch (e) {
+                console.error('muteRoom failed:', e);
+                _toast('⚠️ فشل: ' + e.message);
+            }
+        }
+    });
+}
+
+/* ── طرد كامل (ban + بصمة + IP) ── */
+function _askKickFull(subj) {
+    const me = ProfileState.me;
+    openAppModal({
+        title: '🛑 طرد كامل (دائم)',
+        html:
+            '<div style="color:#ffcccc;font-size:12px;line-height:1.8;margin-bottom:12px;padding:12px;background:rgba(220,38,38,0.15);border-radius:8px;border:1px solid rgba(220,38,38,0.5);">' +
+                '⚠️ <b>تحذير خطير!</b><br>' +
+                '👤 الهدف: <b style="color:#fff;">' + _esc(subj.name || '') + '</b><br>' +
+                '🔑 الكود: <b style="color:#ffd700;">' + _esc(subj.code || '—') + '</b><br><br>' +
+                '<b>سيتم:</b><br>' +
+                '🚫 حظر الحساب نهائياً<br>' +
+                '📱 حرق بصمة الجهاز<br>' +
+                '🌐 حرق عنوان IP<br>' +
+                '<br><b style="color:#ff2222;">لا يمكن التراجع!</b>' +
+            '</div>' +
+            '<label style="display:block;color:#ffd700;font-size:12px;font-weight:900;margin-bottom:6px;">السبب (اختياري):</label>' +
+            '<input type="text" id="kickfull-reason" placeholder="سبب الطرد..." style="width:100%;padding:12px;background:rgba(255,255,255,0.08);border:1px solid #dc2626;border-radius:10px;color:#fff;font-family:inherit;text-align:right;box-sizing:border-box;margin-bottom:10px;">' +
+            '<div style="display:flex;align-items:center;gap:10px;padding:8px;">' +
+                '<input type="checkbox" id="kickfull-confirm" style="width:20px;height:20px;accent-color:#dc2626;">' +
+                '<label for="kickfull-confirm" style="flex:1;color:#fff;font-size:12px;font-weight:700;cursor:pointer;">أؤكد أنني أريد الطرد الكامل</label>' +
+            '</div>',
+        okLabel: '🛑 طرد نهائي',
+        okCls: 'danger',
+        onSave: async function () {
+            const cb = document.getElementById('kickfull-confirm');
+            if (!cb || !cb.checked) {
+                _toast('⚠️ يجب تأكيد العملية');
+                return;
+            }
+            const reason = (document.getElementById('kickfull-reason') || {}).value || '';
+            await _executeKickFull(subj, reason.trim());
+        }
+    });
+}
+
+async function _executeKickFull(subj, reason) {
+    const me = ProfileState.me;
+    _toast('⏳ جاري الطرد...');
+
+    try {
+        const now = Date.now();
+        const PERMANENT_BAN_MS = 365 * 24 * 60 * 60 * 1000;
+
+        /* 1. تحديث المستخدم */
+        await db.ref('users/' + subj.uid).update({
+            isBanned: true,
+            bannedUntil: now + PERMANENT_BAN_MS,
+            permanentBan: true,
+            banReason: reason || 'طرد كامل — إجراء إداري',
+            bannedBy: me.uid,
+            bannedByName: me.name || 'admin',
+            bannedAt: now
+        });
+
+        /* 2. استدعاء DeviceGuard.ban */
+        if (window.DeviceGuard && typeof window.DeviceGuard.ban === 'function') {
+            try {
+                await window.DeviceGuard.ban(
+                    subj.uid,
+                    me.uid,
+                    me.name || 'admin',
+                    reason || 'طرد كامل'
+                );
+                console.log('🛡️ DeviceGuard.ban: success');
+            } catch (e) {
+                console.warn('⚠️ DeviceGuard.ban failed:', e);
+            }
+        }
+
+        /* 3. طرد من الغرفة الحالية */
+        try {
+            var roomId = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
+            await db.ref('room_kicks/' + roomId + '/' + subj.uid).set({
+                by: me.uid,
+                byName: me.name || 'admin',
+                at: now,
+                permanent: true
+            });
+        } catch (e) {}
+
+        /* 4. log */
+        _logAudit('kick_full', {
+            targetUid: subj.uid,
+            targetName: subj.name,
+            targetCode: subj.code || '',
+            reason: reason
+        });
+
+        _toast('🛑 تم الطرد الكامل');
+
+        setTimeout(function () {
+            location.reload();
+        }, 1200);
+
+    } catch (e) {
+        console.error('_executeKickFull failed:', e);
+        _toast('⚠️ فشل: ' + e.message);
+    }
+}
+
+/* ── طرد من غرفة (دائم) ── */
+function _askKickFromRoom(subj) {
+    const me = ProfileState.me;
+    const visibleRooms = Object.values(QAMAR.ROOMS || {}).filter(function (r) {
+        return !r.invisible && r.id !== 'jail';
+    });
+
+    let opts = '';
+    visibleRooms.forEach(function (r) {
+        opts += '<option value="' + _esc(r.id) + '">' + (r.icon || '🚪') + ' ' + _esc(r.name) + '</option>';
+    });
+
+    openAppModal({
+        title: '🚪 طرد من غرفة',
+        html:
+            '<div style="color:#ffcccc;font-size:12px;line-height:1.6;margin-bottom:12px;padding:10px;background:rgba(255,68,68,0.1);border-radius:8px;border:1px solid rgba(255,68,68,0.4);">' +
+                '🚪 سيُطرد <b style="color:#fff;">' + _esc(subj.name || '') + '</b> من الغرفة المحددة.<br>' +
+                '⏰ دائم حتى يُلغى يدوياً.' +
+            '</div>' +
+            '<label style="display:block;color:#ffd700;font-size:12px;font-weight:900;margin-bottom:6px;">اختر الغرفة:</label>' +
+            '<select id="kickroom-id" style="width:100%;padding:12px;background:rgba(255,255,255,0.08);border:1px solid #dc2626;border-radius:10px;color:#fff;font-family:inherit;box-sizing:border-box;margin-bottom:10px;">' +
+                opts +
+            '</select>' +
+            '<label style="display:block;color:#ffd700;font-size:12px;font-weight:900;margin-bottom:6px;">السبب (اختياري):</label>' +
+            '<input type="text" id="kickroom-reason" placeholder="سبب الطرد..." style="width:100%;padding:12px;background:rgba(255,255,255,0.08);border:1px solid #dc2626;border-radius:10px;color:#fff;font-family:inherit;text-align:right;box-sizing:border-box;">',
+        okLabel: '🚪 طرد',
+        okCls: 'danger',
+        onSave: async function () {
+            const sel = document.getElementById('kickroom-id');
+            if (!sel || !sel.value) return;
+            const roomId = sel.value;
+            const room = QAMAR.ROOMS[roomId];
+            const roomName = room ? ((room.icon || '🚪') + ' ' + room.name) : roomId;
+            const reason = (document.getElementById('kickroom-reason') || {}).value || '';
+
+            try {
+                await db.ref('room_kicks/' + roomId + '/' + subj.uid).set({
+                    by: me.uid,
+                    byName: me.name || 'admin',
+                    at: Date.now(),
+                    permanent: true,
+                    reason: reason.trim() || 'طرد إداري'
+                });
+
+                /* لو كان بنفس الغرفة → ينقله للعام */
+                if (subj.currentRoom === roomId) {
+                    await db.ref('user_presence/' + subj.uid).update({
+                        room: 'general',
+                        lastChanged: Date.now(),
+                        forced: true,
+                        forcedBy: me.uid,
+                        forcedReason: 'kick_from_room'
+                    }).catch(function () {});
+                }
+
+                _logAudit('kick_from_room', {
+                    targetUid: subj.uid,
+                    targetName: subj.name,
+                    roomId: roomId,
+                    roomName: roomName,
+                    reason: reason.trim()
+                });
+                _toast('🚪 تم طرده من ' + roomName);
+            } catch (e) {
+                console.error('kickFromRoom failed:', e);
+                _toast('⚠️ فشل: ' + e.message);
+            }
+        }
+    });
 }
 
 /* ═══ Helper: pickImageFile ═══ */
@@ -2895,6 +3291,13 @@ window._openUserProfile = _openUserProfile;
 window._loadVisitorSubject = _loadVisitorSubject;
 window._loadOwnerSubject = _loadOwnerSubject;
 window._startSubjectListener = _startSubjectListener;
-window._startPresenceListener = _startPresenceListener;   /* ⭐ v15 */
+window._startPresenceListener = _startPresenceListener;
+/* ⭐ v16: exports جديدة */
+window._executeAdminAction = _executeAdminAction;
+window._askTransfer = _askTransfer;
+window._askMuteGlobal = _askMuteGlobal;
+window._askMuteRoom = _askMuteRoom;
+window._askKickFull = _askKickFull;
+window._askKickFromRoom = _askKickFromRoom;
 
-console.log('✅ profile-core.js v15 (TEST) loaded — presence + UID copy + promote/demote + monitor');
+console.log('✅ profile-core.js v16 (TEST) loaded — shuffle + transfer + mutes + kickFull + kickFromRoom');
