@@ -1,20 +1,22 @@
 // ==============================================
-// youtube-search.js v1 (TEST) — يوتيوب بدون API key
+// youtube-search.js v2 (TEST) — fallback محسّن
 // ==============================================
-// ✅ v1 (جديد كلياً):
-//   1. بحث يوتيوب بدون API key (Piped + Invidious fallback)
-//   2. أيقونة 16:9 بالشات + الخاص
-//   3. نافذة مصغّرة داخل الشات (iframe embed)
-//   4. كشف رابط YouTube في الإدخال → تحويل تلقائي إلى [yt:ID]
-//   5. Token: [yt:VIDEO_ID]
-//   6. Cache 5 دقائق
-//   7. يعمل في العام + الخاص
+// ✅ v2 (فوق v1):
+//   1. مصادر إضافية (Piped + Invidious)
+//   2. Fallback ذكي: زر "افتح في يوتيوب" عند فشل APIs
+//   3. دعم كامل للرابط المباشر
+//   4. رسائل أوضح
+//   5. زر "افتح YouTube" دائماً ظاهر
+// ✅ v1 (محفوظ):
+//   - بحث بدون API key
+//   - نافذة مصغرة draggable
+//   - paste detection
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__youtubeSearchV1) return;
-    window.__youtubeSearchV1 = true;
+    if (window.__youtubeSearchV2) return;
+    window.__youtubeSearchV2 = true;
 
     /* ══════════════════════════════════════════════ */
     /* Config                                         */
@@ -23,23 +25,24 @@
         'https://pipedapi.kavin.rocks',
         'https://pipedapi.adminforge.de',
         'https://pipedapi.reallyaweso.me',
-        'https://api.piped.yt'
+        'https://api.piped.yt',
+        'https://pipedapi.syncpundit.io',
+        'https://piped-api.lunar.icu'
     ];
     var INVIDIOUS_APIS = [
         'https://invidious.nerdvpn.de',
         'https://inv.nadeko.net',
         'https://yewtu.be',
-        'https://invidious.privacyredirect.com'
+        'https://invidious.privacyredirect.com',
+        'https://iv.melmac.space',
+        'https://invidious.f5.si'
     ];
     var CACHE_TTL_MS = 5 * 60 * 1000;
     var MAX_RESULTS = 24;
-    var SEARCH_TIMEOUT_MS = 6000;
+    var SEARCH_TIMEOUT_MS = 5000;
 
-    /* ══════════════════════════════════════════════ */
-    /* State                                          */
-    /* ══════════════════════════════════════════════ */
     var YT = {
-        ctx: 'general',           // 'general' | 'private'
+        ctx: 'general',
         cache: {},
         lastQuery: '',
         currentResults: [],
@@ -101,15 +104,19 @@
         else console.log('[YouTube]', msg);
     }
 
+    function openYouTubeExternal(query) {
+        var url = 'https://www.youtube.com/results?search_query=' + encodeURIComponent(query);
+        window.open(url, '_blank');
+    }
+
     /* ══════════════════════════════════════════════ */
     /* CSS                                            */
     /* ══════════════════════════════════════════════ */
     (function injectCSS() {
-        if (document.getElementById('yt-search-css-v1')) return;
+        if (document.getElementById('yt-search-css-v2')) return;
         var s = document.createElement('style');
-        s.id = 'yt-search-css-v1';
+        s.id = 'yt-search-css-v2';
         s.textContent = `
-/* ═══ Search Dialog ═══ */
 #yt-search-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.92);
@@ -189,6 +196,7 @@
     outline: none;
     text-align: right;
     box-sizing: border-box;
+    min-width: 0;
 }
 #yt-search-input:focus { border-color: #ff0000; }
 #yt-search-btn {
@@ -204,6 +212,39 @@
     flex-shrink: 0;
 }
 #yt-search-btn:disabled { opacity: 0.5; cursor: wait; }
+
+/* ⭐ v2: شريط الأدوات الجانبية */
+#yt-quick-actions {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,0,0,0.15);
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+.yt-quick-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,0,0,0.3);
+    border-radius: 8px;
+    color: #fff;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.15s;
+}
+.yt-quick-btn:hover {
+    background: rgba(255,0,0,0.15);
+    border-color: #ff0000;
+}
+.yt-quick-btn:active { transform: scale(0.96); }
 
 #yt-search-body {
     flex: 1;
@@ -313,7 +354,51 @@
     font-size: 12px;
     background: rgba(255,68,68,0.1);
     border-radius: 10px;
+    line-height: 1.6;
 }
+
+/* ⭐ v2: fallback card */
+.yt-fallback {
+    text-align: center;
+    padding: 24px 16px;
+    background: linear-gradient(135deg, rgba(255,0,0,0.1), rgba(0,0,0,0.4));
+    border: 1px dashed rgba(255,0,0,0.5);
+    border-radius: 14px;
+    margin: 10px 0;
+}
+.yt-fallback-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 0 15px rgba(255,0,0,0.6));
+}
+.yt-fallback-title {
+    color: #ff6666;
+    font-size: 15px;
+    font-weight: 900;
+    margin-bottom: 8px;
+}
+.yt-fallback-desc {
+    color: #aaa;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+.yt-fallback-btn {
+    padding: 12px 24px;
+    background: #ff0000;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(255,0,0,0.4);
+}
+.yt-fallback-btn:active { transform: scale(0.96); }
 
 /* ═══ Chat card [yt:ID] ═══ */
 .yt-msg-card {
@@ -406,26 +491,6 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.yt-msg-compact {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    background: linear-gradient(135deg, rgba(255,0,0,0.15), rgba(0,0,0,0.4));
-    border: 1px solid rgba(255,0,0,0.4);
-    border-radius: 20px;
-    color: #ff6666;
-    font-size: 11px;
-    font-weight: 900;
-    cursor: pointer;
-    margin: 2px 0;
-    transition: all 0.15s;
-}
-.yt-msg-compact:hover {
-    background: linear-gradient(135deg, rgba(255,0,0,0.3), rgba(0,0,0,0.5));
-    border-color: #ff0000;
-    color: #fff;
-}
 
 /* ═══ Mini Player ═══ */
 #yt-mini-player {
@@ -447,15 +512,11 @@
     animation: ytMiniIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 #yt-mini-player.active { display: flex; }
-#yt-mini-player.minimized {
-    width: 200px;
-}
-
+#yt-mini-player.minimized { width: 200px; }
 @keyframes ytMiniIn {
     0% { transform: translateY(40px) scale(0.85); opacity: 0; }
     100% { transform: translateY(0) scale(1); opacity: 1; }
 }
-
 #yt-mini-header {
     padding: 8px 10px;
     background: linear-gradient(135deg, rgba(255,0,0,0.2), rgba(0,0,0,0.4));
@@ -494,10 +555,7 @@
     justify-content: center;
     font-family: inherit;
 }
-.yt-mini-btn:hover { background: rgba(255,255,255,0.15); }
 .yt-mini-btn.close { background: rgba(255,68,68,0.3); border-color: rgba(255,68,68,0.6); }
-.yt-mini-btn.close:hover { background: rgba(255,68,68,0.5); }
-
 #yt-mini-body {
     position: relative;
     width: 100%;
@@ -519,10 +577,6 @@
     text-align: center;
     cursor: pointer;
     border-top: 1px solid rgba(255,0,0,0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
 }
 #yt-mini-ytlink:hover { color: #ff6666; background: rgba(255,0,0,0.1); }
 #yt-mini-player.minimized #yt-mini-ytlink { display: none; }
@@ -535,7 +589,7 @@
     })();
 
     /* ══════════════════════════════════════════════ */
-    /* Search API (Piped + Invidious fallback)        */
+    /* Search API                                     */
     /* ══════════════════════════════════════════════ */
     async function searchYouTubeAPI(query) {
         if (!query || !query.trim()) return [];
@@ -544,39 +598,32 @@
         var cacheKey = 'q_' + q.toLowerCase();
         var cached = YT.cache[cacheKey];
         if (cached && (Date.now() - cached.at) < CACHE_TTL_MS) {
-            console.log('📺 YouTube: cache hit (' + q + ')');
             return cached.results;
         }
 
-        // 1. جرّب Piped
+        // جرّب Piped
         for (var i = 0; i < PIPED_APIS.length; i++) {
             try {
                 var res = await _searchPiped(PIPED_APIS[i], q);
                 if (res && res.length > 0) {
                     YT.cache[cacheKey] = { results: res, at: Date.now() };
-                    console.log('📺 YouTube: Piped ✓ ' + PIPED_APIS[i]);
                     return res;
                 }
-            } catch (e) {
-                console.warn('Piped fail:', PIPED_APIS[i], e.message);
-            }
+            } catch (e) {}
         }
 
-        // 2. جرّب Invidious
+        // جرّب Invidious
         for (var j = 0; j < INVIDIOUS_APIS.length; j++) {
             try {
                 var res2 = await _searchInvidious(INVIDIOUS_APIS[j], q);
                 if (res2 && res2.length > 0) {
                     YT.cache[cacheKey] = { results: res2, at: Date.now() };
-                    console.log('📺 YouTube: Invidious ✓ ' + INVIDIOUS_APIS[j]);
                     return res2;
                 }
-            } catch (e) {
-                console.warn('Invidious fail:', INVIDIOUS_APIS[j], e.message);
-            }
+            } catch (e) {}
         }
 
-        throw new Error('كل خدمات البحث فشلت — جرب كلمة أخرى');
+        throw new Error('fallback');
     }
 
     async function _searchPiped(api, query) {
@@ -642,7 +689,7 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* UI — Search Dialog                             */
+    /* UI                                             */
     /* ══════════════════════════════════════════════ */
     function ensureDialog() {
         var ov = document.getElementById('yt-search-overlay');
@@ -657,8 +704,11 @@
                     '<button id="yt-search-close" type="button">✕</button>' +
                 '</div>' +
                 '<div id="yt-search-bar-wrap">' +
-                    '<input type="text" id="yt-search-input" placeholder="🔍 ابحث في يوتيوب..." autocomplete="off">' +
+                    '<input type="text" id="yt-search-input" placeholder="🔍 ابحث أو الصق رابط..." autocomplete="off">' +
                     '<button id="yt-search-btn" type="button">🔎</button>' +
+                '</div>' +
+                '<div id="yt-quick-actions">' +
+                    '<button class="yt-quick-btn" id="yt-open-external" type="button">🌐 افتح في يوتيوب</button>' +
                 '</div>' +
                 '<div id="yt-search-body">' +
                     '<div class="yt-empty">اكتب كلمة أو الصق رابط YouTube</div>' +
@@ -668,9 +718,7 @@
         document.body.appendChild(ov);
 
         ov.querySelector('#yt-search-close').onclick = closeDialog;
-        ov.addEventListener('click', function (e) {
-            if (e.target === ov) closeDialog();
-        });
+        ov.addEventListener('click', function (e) { if (e.target === ov) closeDialog(); });
 
         var inp = ov.querySelector('#yt-search-input');
         var btn = ov.querySelector('#yt-search-btn');
@@ -680,17 +728,25 @@
         });
         btn.onclick = doSearch;
 
+        ov.querySelector('#yt-open-external').onclick = function () {
+            var q = inp.value.trim();
+            if (!q) { toast('fa-info', 'اكتب شي أولاً'); return; }
+            // لو رابط → افتح الفيديو، لو نص → بحث
+            var vid = extractYouTubeId(q);
+            if (vid) {
+                window.open('https://www.youtube.com/watch?v=' + vid, '_blank');
+            } else {
+                openYouTubeExternal(q);
+            }
+        };
+
         inp.addEventListener('paste', function (e) {
-            // ⭐ لو الصق رابط → ابحث مباشرة
             var paste = (e.clipboardData || window.clipboardData).getData('text');
             var vid = extractYouTubeId(paste);
             if (vid) {
                 e.preventDefault();
                 inp.value = paste;
-                // ننتظر tick ثم نبحث
-                setTimeout(function () {
-                    _insertAndClose(vid);
-                }, 100);
+                setTimeout(function () { _insertAndClose(vid); }, 100);
             }
         });
 
@@ -698,7 +754,6 @@
             var q = inp.value.trim();
             if (!q) return;
 
-            // ⭐ لو الرابط الفوري → احفظه مباشرة بدون بحث
             var vid = extractYouTubeId(q);
             if (vid) {
                 _insertAndClose(vid);
@@ -741,11 +796,37 @@
             YT.currentResults = results;
             renderResults(results);
         } catch (e) {
-            console.error('Search error:', e);
-            body.innerHTML = '<div class="yt-error">⚠️ ' + esc(e.message) + '</div>';
+            // ⭐ v2: fallback
+            _renderFallback(query);
         } finally {
             YT.loading = false;
             if (btn) btn.disabled = false;
+        }
+    }
+
+    /* ⭐ v2: fallback */
+    function _renderFallback(query) {
+        var body = document.getElementById('yt-search-body');
+        if (!body) return;
+
+        body.innerHTML =
+            '<div class="yt-fallback">' +
+                '<div class="yt-fallback-icon">📺</div>' +
+                '<div class="yt-fallback-title">البحث الداخلي غير متاح</div>' +
+                '<div class="yt-fallback-desc">' +
+                    'تعذّر الاتصال بخدمات البحث المجانية.<br>' +
+                    'يمكنك فتح يوتيوب مباشرة في تبويب جديد.' +
+                '</div>' +
+                '<button class="yt-fallback-btn" id="yt-fallback-open" type="button">' +
+                    '🌐 افتح يوتيوب في تبويب جديد' +
+                '</button>' +
+            '</div>';
+
+        var btn = document.getElementById('yt-fallback-open');
+        if (btn) {
+            btn.onclick = function () {
+                openYouTubeExternal(query);
+            };
         }
     }
 
@@ -813,9 +894,6 @@
         });
     }
 
-    /* ══════════════════════════════════════════════ */
-    /* Token insert                                   */
-    /* ══════════════════════════════════════════════ */
     function _insertAndClose(videoId, meta) {
         var targetId = (YT.ctx === 'private') ? 'pc-input' : 'message-input';
         var inp = document.getElementById(targetId);
@@ -829,20 +907,17 @@
         inp.value = (cur ? cur + ' ' : '') + token + ' ';
         try { inp.focus(); } catch (e) {}
 
-        // إغلاق النافذة بعد الاختيار
         closeDialog();
-        console.log('📺 YouTube: inserted ' + token + (meta ? ' (' + meta.title + ')' : ''));
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Message observer — replace [yt:ID] with card   */
+    /* Message token processing                       */
     /* ══════════════════════════════════════════════ */
     function _processElement(rootEl) {
         if (!rootEl || rootEl.nodeType !== 1) return;
         if (YT._processed.has(rootEl)) return;
         YT._processed.add(rootEl);
 
-        // ابحث في text nodes عن [yt:ID]
         var walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT);
         var toProcess = [];
         while (walker.nextNode()) {
@@ -938,30 +1013,21 @@
         card.appendChild(thumb);
         card.appendChild(meta);
 
-        // ⭐ نجلب العنوان الفعلي في الخلفية (اختياري، لا يعطل العرض)
         _fetchVideoMeta(videoId).then(function (info) {
-            if (info && info.title) {
-                title.textContent = info.title;
-            }
-            if (info && info.channel) {
-                channel.textContent = info.channel;
-            }
+            if (info && info.title) title.textContent = info.title;
+            if (info && info.channel) channel.textContent = info.channel;
         }).catch(function () {});
 
         return card;
     }
 
-    /* ⭐ جلب عنوان الفيديو (best-effort — لا يعطل شي) */
     var _metaCache = {};
     async function _fetchVideoMeta(videoId) {
         if (!videoId) return null;
         if (_metaCache[videoId]) return _metaCache[videoId];
 
-        // جرّب oEmbed — يحتاج CORS لكن بعض الأوقات يشتغل
         try {
-            var res = await fetch('https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' + videoId + '&format=json', {
-                signal: (new AbortController()).signal
-            });
+            var res = await fetch('https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=' + videoId + '&format=json');
             if (res.ok) {
                 var data = await res.json();
                 var info = { title: data.title || '', channel: data.author_name || '' };
@@ -970,7 +1036,6 @@
             }
         } catch (e) {}
 
-        // Fallback: جرّب Piped /streams
         for (var i = 0; i < PIPED_APIS.length; i++) {
             try {
                 var res2 = await fetch(PIPED_APIS[i] + '/streams/' + videoId);
@@ -986,7 +1051,7 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Observers for messages                         */
+    /* Observers                                      */
     /* ══════════════════════════════════════════════ */
     function installObserver(containerId) {
         var container = document.getElementById(containerId);
@@ -998,7 +1063,6 @@
             muts.forEach(function (m) {
                 m.addedNodes.forEach(function (node) {
                     if (node.nodeType !== 1) return;
-                    // رسالة عامة أو خاصة
                     if (node.classList && (
                         node.classList.contains('message') ||
                         node.classList.contains('pc-msg')
@@ -1010,7 +1074,6 @@
         });
         obs.observe(container, { childList: true, subtree: false });
 
-        // عالج الموجود مسبقاً
         container.querySelectorAll('.message, .pc-msg').forEach(function (el) {
             _processElement(el);
         });
@@ -1057,9 +1120,7 @@
             }
         };
 
-        // سحب بسيط
         _makeDraggable(p, p.querySelector('#yt-mini-header'));
-
         return p;
     }
 
@@ -1084,17 +1145,12 @@
 
         document.addEventListener('mousemove', function (e) {
             if (!isDragging) return;
-            var dx = e.clientX - startX;
-            var dy = e.clientY - startY;
-            el.style.left = (initialX + dx) + 'px';
-            el.style.top = (initialY + dy) + 'px';
+            el.style.left = (initialX + (e.clientX - startX)) + 'px';
+            el.style.top = (initialY + (e.clientY - startY)) + 'px';
         });
 
-        document.addEventListener('mouseup', function () {
-            isDragging = false;
-        });
+        document.addEventListener('mouseup', function () { isDragging = false; });
 
-        // لمس
         handle.addEventListener('touchstart', function (e) {
             if (e.target.tagName === 'BUTTON') return;
             var t = e.touches[0];
@@ -1113,15 +1169,11 @@
         document.addEventListener('touchmove', function (e) {
             if (!isDragging) return;
             var t = e.touches[0];
-            var dx = t.clientX - startX;
-            var dy = t.clientY - startY;
-            el.style.left = (initialX + dx) + 'px';
-            el.style.top = (initialY + dy) + 'px';
+            el.style.left = (initialX + (t.clientX - startX)) + 'px';
+            el.style.top = (initialY + (t.clientY - startY)) + 'px';
         }, { passive: true });
 
-        document.addEventListener('touchend', function () {
-            isDragging = false;
-        });
+        document.addEventListener('touchend', function () { isDragging = false; });
     }
 
     function openMiniPlayer(videoId) {
@@ -1136,10 +1188,8 @@
         iframe.src = 'https://www.youtube-nocookie.com/embed/' + videoId + '?autoplay=1&rel=0&modestbranding=1';
         iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
         iframe.allowFullscreen = true;
-        iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
         body.appendChild(iframe);
 
-        // تحديث العنوان
         var titleEl = p.querySelector('#yt-mini-title');
         titleEl.textContent = '⏳ جاري التحميل...';
         _fetchVideoMeta(videoId).then(function (info) {
@@ -1151,20 +1201,19 @@
 
         p.classList.add('active');
         p.classList.remove('minimized');
-        console.log('📺 YouTube: mini player opening ' + videoId);
     }
 
     function closeMiniPlayer() {
         var p = document.getElementById('yt-mini-player');
         if (!p) return;
         var body = p.querySelector('#yt-mini-body');
-        if (body) body.innerHTML = '';   // إيقاف الفيديو فوراً
+        if (body) body.innerHTML = '';
         p.classList.remove('active');
         YT.openPlayer = null;
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Paste detection — تحويل روابط YouTube تلقائياً */
+    /* Paste detection                                */
     /* ══════════════════════════════════════════════ */
     function installPasteDetection() {
         ['message-input', 'pc-input'].forEach(function (id) {
@@ -1195,21 +1244,11 @@
     /* Override searchYouTube                         */
     /* ══════════════════════════════════════════════ */
     function _overrideSearchYouTube() {
-        // احفظ الأصلي (لو احتجنا نرجع له)
-        if (!window.__ytOrigSearchYouTube) {
-            window.__ytOrigSearchYouTube = window.searchYouTube;
-        }
-
-        // ⭐ Override
         window.searchYouTube = function () {
             var ctx = 'general';
-            // لو الخاص مفتوح → private
             var pmModal = document.getElementById('private-chat-modal');
-            if (pmModal && pmModal.classList.contains('open')) {
-                ctx = 'private';
-            }
+            if (pmModal && pmModal.classList.contains('open')) ctx = 'private';
             openDialog(ctx);
-            // إغلاق الشريط العائم
             try {
                 var t = document.getElementById('floating-toolbar');
                 if (t) t.classList.remove('open');
@@ -1226,14 +1265,10 @@
         _overrideSearchYouTube();
         installAllObservers();
         setTimeout(installPasteDetection, 1500);
-        // نشغل فحص دوري (في حال الحركات على DOM)
         setInterval(installPasteDetection, 5000);
-        console.log('📺 YouTube Search: ready');
+        console.log('📺 YouTube Search v2: ready (fallback enabled)');
     }
 
-    /* ══════════════════════════════════════════════ */
-    /* Exports                                        */
-    /* ══════════════════════════════════════════════ */
     window.YouTubeSearch = {
         open: openDialog,
         close: closeDialog,
@@ -1241,7 +1276,7 @@
         closeMiniPlayer: closeMiniPlayer,
         extractId: extractYouTubeId,
         thumbUrl: thumbUrl,
-        version: 1
+        version: 2
     };
 
     if (document.readyState === 'loading') {
@@ -1250,5 +1285,5 @@
         init();
     }
 
-    console.log('📺 youtube-search.js v1 (TEST) loaded — Piped+Invidious + mini player + paste detect');
+    console.log('📺 youtube-search.js v2 (TEST) loaded — extended sources + fallback + open external');
 })();
