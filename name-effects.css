@@ -1,9 +1,10 @@
 /* ==============================================
-   name-effects.css v11
+   name-effects.css v12 (TEST)
    ==============================================
-   ✅ v11:
-     1. 11 نمط إضافي للخلفية السينمائية
-     2. كل الأنظمة السابقة كما هي
+   ✅ v12:
+     1. هالة الاسم مشدودة (padding: 1px 6px / line-height: 1.05)
+     2. +20 خلفية سينمائية جديدة (حركات فريدة، مش بطيئة)
+     3. بدون تغيير على الـ20 القديمة
    ============================================== */
 
 :root {
@@ -16,9 +17,9 @@
 .username.name-styled {
     position: relative !important;
     display: inline-block !important;
-    padding: 3px 10px;
+    padding: 1px 6px;
     font-weight: 900;
-    line-height: 1.3;
+    line-height: 1.05;
     border-radius: 8px;
     color: var(--name-color, #ffffff);
     isolation: isolate;
@@ -30,10 +31,10 @@
 .name-styled.has-bg::before {
     content: '';
     position: absolute;
-    top: -1px;
-    right: -1px;
-    bottom: -1px;
-    left: -1px;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     border-radius: inherit;
     background: var(--name-bg, transparent);
     box-shadow:
@@ -53,10 +54,10 @@
 .name-styled.has-gradient::after {
     content: attr(data-text);
     position: absolute;
-    top: -1px;
-    right: -1px;
-    bottom: -1px;
-    left: -1px;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     padding: inherit;
     border-radius: inherit;
     background: var(--name-gradient);
@@ -69,7 +70,7 @@
     pointer-events: none;
     z-index: 2;
     opacity: var(--name-gradient-opacity, 0.85);
-    line-height: 1.3;
+    line-height: 1.05;
     font-weight: 900;
     box-sizing: content-box;
 }
@@ -93,15 +94,15 @@
 .name-styled.name-gradient-only::after { display: none; }
 
 /* ══════════════════════════════════════════════ */
-/* الأنماط السينمائية — النص                      */
+/* الأنماط السينمائية — النص (20 القديمة)         */
 /* ══════════════════════════════════════════════ */
 .name-styled[data-cinema-text]:not(.cinema-split)::after {
     content: attr(data-text);
     position: absolute;
-    top: -1px;
-    right: -1px;
-    bottom: -1px;
-    left: -1px;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     padding: inherit;
     border-radius: inherit;
     background: var(--cinema-bg, transparent);
@@ -116,7 +117,7 @@
     text-shadow: var(--cinema-shadow, none);
     z-index: 2;
     pointer-events: none;
-    line-height: 1.3;
+    line-height: 1.05;
     font-weight: 900;
     box-sizing: content-box;
 }
@@ -236,15 +237,15 @@
 }
 
 /* ══════════════════════════════════════════════ */
-/* الأنماط السينمائية — الخلفية                   */
+/* الأنماط السينمائية — الخلفية (20 القديمة)      */
 /* ══════════════════════════════════════════════ */
 .name-styled[data-cinema-bg]::before {
     content: '';
     position: absolute;
-    top: -1px;
-    right: -1px;
-    bottom: -1px;
-    left: -1px;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     border-radius: inherit;
     background: var(--cinema-bg, transparent);
     background-size: var(--cinema-bg-size, 100% 100%);
@@ -349,11 +350,7 @@
     --cinema-anim: cinemaWavesFlow 3s linear infinite;
 }
 
-/* ══════════════════════════════════════════════ */
-/* ⭐ v11: 11 نمط جديد للخلفية                    */
-/* ══════════════════════════════════════════════ */
-
-/* gold — ذهبي فاخر */
+/* gold */
 .name-styled[data-cinema-bg="gold"] {
     --cinema-bg: repeating-linear-gradient(90deg, #8b6914 0%, #b8860b 12%, #d4af37 25%, #ffd700 38%, #ffec8b 50%, #fff8dc 62%, #ffec8b 75%, #ffd700 88%, #8b6914 100%);
     --cinema-bg-size: 300% 100%;
@@ -361,14 +358,14 @@
     --cinema-filter: drop-shadow(0 0 6px #ffd700);
 }
 
-/* sunset — غروب */
+/* sunset */
 .name-styled[data-cinema-bg="sunset"] {
     --cinema-bg: linear-gradient(90deg, #ff006e, #fb5607, #ffbe0b, #ffd60a, #3a86ff, #8338ec, #c77dff, #8338ec, #3a86ff, #ffd60a, #ffbe0b, #fb5607, #ff006e);
     --cinema-bg-size: 300% 100%;
     --cinema-anim: nameGradientSlide 4s linear infinite;
 }
 
-/* aurora — شفق قطبي */
+/* aurora */
 .name-styled[data-cinema-bg="aurora"] {
     --cinema-bg: repeating-linear-gradient(90deg, #00ff87 0%, #3affaa 15%, #60efff 30%, #80c0ff 45%, #a070ff 60%, #ff00ff 75%, #a070ff 88%, #00ff87 100%);
     --cinema-bg-size: 300% 100%;
@@ -376,7 +373,7 @@
     --cinema-filter: drop-shadow(0 0 8px #3affaa);
 }
 
-/* ocean — محيط */
+/* ocean */
 .name-styled[data-cinema-bg="ocean"] {
     --cinema-bg: repeating-linear-gradient(90deg, #001a66 0%, #004080 15%, #0080ff 30%, #00bfff 45%, #00ffff 60%, #00bfff 75%, #0080ff 88%, #001a66 100%);
     --cinema-bg-size: 300% 100%;
@@ -384,7 +381,7 @@
     --cinema-filter: drop-shadow(0 0 5px #00bfff);
 }
 
-/* galaxy — مجرة */
+/* galaxy */
 .name-styled[data-cinema-bg="galaxy"] {
     --cinema-bg:
         radial-gradient(circle at 15% 30%, rgba(255,255,255,0.8) 1px, transparent 2px),
@@ -395,7 +392,7 @@
     --cinema-anim: cinemaNebulaShift 4s ease-in-out infinite alternate;
 }
 
-/* fire — نار */
+/* fire */
 .name-styled[data-cinema-bg="fire"] {
     --cinema-bg: repeating-linear-gradient(90deg, #330000 0%, #990000 15%, #ff2200 30%, #ff6600 45%, #ffaa00 60%, #ffdd00 75%, #ffaa00 88%, #330000 100%);
     --cinema-bg-size: 250% 100%;
@@ -403,7 +400,7 @@
     --cinema-filter: drop-shadow(0 0 10px #ff4400);
 }
 
-/* neon — نيون */
+/* neon */
 .name-styled[data-cinema-bg="neon"] {
     --cinema-bg: repeating-linear-gradient(90deg, #ff00ff 0%, #00ffff 25%, #ff00ff 50%, #00ffff 75%, #ff00ff 100%);
     --cinema-bg-size: 200% 100%;
@@ -411,7 +408,7 @@
     --cinema-filter: drop-shadow(0 0 8px #ff00ff) drop-shadow(0 0 15px #00ffff);
 }
 
-/* emerald — زمرد */
+/* emerald */
 .name-styled[data-cinema-bg="emerald"] {
     --cinema-bg: repeating-linear-gradient(90deg, #004d40 0%, #00695c 15%, #00c853 30%, #2ecc71 45%, #69f0ae 60%, #a5f5b0 75%, #69f0ae 88%, #004d40 100%);
     --cinema-bg-size: 250% 100%;
@@ -419,7 +416,7 @@
     --cinema-filter: drop-shadow(0 0 6px #00c853);
 }
 
-/* diamond — ماسي */
+/* diamond */
 .name-styled[data-cinema-bg="diamond"] {
     --cinema-bg: repeating-linear-gradient(90deg, #c0c0c0 0%, #e0e0e0 12%, #fff 25%, #f0f8ff 38%, #87ceeb 50%, #fff 62%, #e0e0e0 75%, #c0c0c0 100%);
     --cinema-bg-size: 250% 100%;
@@ -427,7 +424,7 @@
     --cinema-filter: drop-shadow(0 0 8px #e0f7fa);
 }
 
-/* blood — دماء */
+/* blood */
 .name-styled[data-cinema-bg="blood"] {
     --cinema-bg: repeating-linear-gradient(90deg, #1a0000 0%, #4d0000 15%, #8b0000 30%, #b22222 45%, #dc143c 60%, #ff0040 75%, #dc143c 88%, #1a0000 100%);
     --cinema-bg-size: 250% 100%;
@@ -435,7 +432,7 @@
     --cinema-filter: drop-shadow(0 0 8px #8b0000);
 }
 
-/* cyber — سايبر */
+/* cyber */
 .name-styled[data-cinema-bg="cyber"] {
     --cinema-bg: repeating-linear-gradient(90deg, #00fff7 0%, #00d4ff 15%, #00aaff 30%, #ff00e0 45%, #ff00c0 60%, #ff00a0 75%, #ff00e0 88%, #00fff7 100%);
     --cinema-bg-size: 250% 100%;
@@ -443,7 +440,7 @@
     --cinema-filter: drop-shadow(0 0 6px #00d4ff) drop-shadow(0 0 12px #ff00e0);
 }
 
-/* rainbowtext — قوس قزح متحرك */
+/* rainbowtext */
 .name-styled[data-cinema-bg="rainbowtext"] {
     --cinema-bg: repeating-linear-gradient(90deg, #ff0000 0%, #ff8800 10%, #ffff00 20%, #00ff00 30%, #00ffff 40%, #0080ff 50%, #8800ff 60%, #ff00ff 70%, #ff0000 80%);
     --cinema-bg-size: 300% 100%;
@@ -451,12 +448,254 @@
     --cinema-filter: drop-shadow(0 0 6px rgba(255,255,255,0.6));
 }
 
-/* royal — ملكي */
+/* royal */
 .name-styled[data-cinema-bg="royal"] {
     --cinema-bg: repeating-linear-gradient(90deg, #4a148c 0%, #8b0000 15%, #d4af37 30%, #ffd700 45%, #d4af37 60%, #8b0000 75%, #4a148c 88%);
     --cinema-bg-size: 250% 100%;
     --cinema-anim: nameGradientSlide 3s linear infinite;
     --cinema-filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 14px #8b0000);
+}
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v12: 20 خلفية جديدة — حركات فريدة           */
+/* ══════════════════════════════════════════════ */
+
+/* 1. hue-rotate — دوران الألوان */
+.name-styled[data-cinema-bg="hue-rotate"] {
+    --cinema-bg: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0080ff, #8800ff, #ff00ff, #ff0000);
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaHueRotate 8s linear infinite;
+}
+@keyframes cinemaHueRotate {
+    from { filter: hue-rotate(0deg) saturate(1.4); }
+    to   { filter: hue-rotate(360deg) saturate(1.4); }
+}
+
+/* 2. breathe — تنفّس */
+.name-styled[data-cinema-bg="breathe"] {
+    --cinema-bg: radial-gradient(ellipse at center, #ffd700, #b8860b 80%, #4a3800);
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaBreathe 4s ease-in-out infinite;
+}
+@keyframes cinemaBreathe {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50%      { transform: scale(1.08); opacity: 1; }
+}
+
+/* 3. shimmer-gold — لمعة ذهبية تمر */
+.name-styled[data-cinema-bg="shimmer-gold"] {
+    --cinema-bg:
+        linear-gradient(90deg, transparent 35%, rgba(255,255,255,0.95) 50%, transparent 65%),
+        linear-gradient(90deg, #8b6914, #d4af37, #ffd700, #d4af37, #8b6914);
+    --cinema-bg-size: 200% 100%, 100% 100%;
+    --cinema-anim: cinemaShimmer 3s linear infinite;
+    --cinema-filter: drop-shadow(0 0 8px #ffd700);
+}
+@keyframes cinemaShimmer {
+    from { background-position: -200% 0, 0 0; }
+    to   { background-position: 200% 0, 0 0; }
+}
+
+/* 4. shimmer-rainbow — لمعة قوس قزح */
+.name-styled[data-cinema-bg="shimmer-rainbow"] {
+    --cinema-bg:
+        linear-gradient(90deg, transparent 35%, rgba(255,255,255,1) 50%, transparent 65%),
+        linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0080ff, #8800ff, #ff00ff);
+    --cinema-bg-size: 200% 100%, 100% 100%;
+    --cinema-anim: cinemaShimmer 3.5s linear infinite;
+}
+
+/* 5. glow-breathe — هالة تتنفس */
+.name-styled[data-cinema-bg="glow-breathe"] {
+    --cinema-bg: radial-gradient(ellipse at center, #000, #1a1a2e);
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaGlowBreathe 3s ease-in-out infinite;
+}
+@keyframes cinemaGlowBreathe {
+    0%, 100% { filter: drop-shadow(0 0 6px #00f3ff) drop-shadow(0 0 12px rgba(0,243,255,0.4)); }
+    50%      { filter: drop-shadow(0 0 18px #00f3ff) drop-shadow(0 0 40px rgba(0,243,255,0.9)); }
+}
+
+/* 6. neon-flicker — وميض نيوني */
+.name-styled[data-cinema-bg="neon-flicker"] {
+    --cinema-bg: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaNeonFlicker 2s steps(1) infinite;
+}
+@keyframes cinemaNeonFlicker {
+    0%, 100% { opacity: 1; filter: drop-shadow(0 0 10px #ff00ff); }
+    15%      { opacity: 0.6; filter: none; }
+    20%      { opacity: 1; filter: drop-shadow(0 0 15px #00ffff); }
+    45%      { opacity: 0.75; filter: drop-shadow(0 0 8px #ff00ff); }
+    50%      { opacity: 1; filter: drop-shadow(0 0 12px #00ffff); }
+    85%      { opacity: 0.7; }
+}
+
+/* 7. diagonal-flow — تدفق قطري */
+.name-styled[data-cinema-bg="diagonal-flow"] {
+    --cinema-bg: linear-gradient(135deg, #4a148c, #8b0000, #d4af37, #ffd700, #d4af37, #8b0000, #4a148c);
+    --cinema-bg-size: 300% 300%;
+    --cinema-anim: cinemaDiagonalFlow 6s linear infinite;
+}
+@keyframes cinemaDiagonalFlow {
+    0%   { background-position: 0% 0%; }
+    50%  { background-position: 100% 100%; }
+    100% { background-position: 0% 0%; }
+}
+
+/* 8. radial-pulse — نبض دائري */
+.name-styled[data-cinema-bg="radial-pulse"] {
+    --cinema-bg: radial-gradient(circle, #ff006e 0%, #8338ec 40%, #1a0033 100%);
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaRadialPulse 4s ease-in-out infinite;
+}
+@keyframes cinemaRadialPulse {
+    0%, 100% { background-size: 100% 100%; filter: drop-shadow(0 0 5px #ff006e); }
+    50%      { background-size: 180% 180%; filter: drop-shadow(0 0 15px #8338ec); }
+}
+
+/* 9. saturate-breathe — تشبّع */
+.name-styled[data-cinema-bg="saturate-breathe"] {
+    --cinema-bg: linear-gradient(90deg, #ff6b6b, #4ecdc4, #ffe66d, #ff6b6b);
+    --cinema-bg-size: 200% 100%;
+    --cinema-anim: cinemaSaturateBreathe 5s ease-in-out infinite, nameGradientSlide 5s linear infinite;
+}
+@keyframes cinemaSaturateBreathe {
+    0%, 100% { filter: saturate(0.5); }
+    50%      { filter: saturate(2); }
+}
+
+/* 10. brightness-pulse — سطوع */
+.name-styled[data-cinema-bg="brightness-pulse"] {
+    --cinema-bg: linear-gradient(90deg, #1a1a2e, #d4af37, #1a1a2e);
+    --cinema-bg-size: 200% 100%;
+    --cinema-anim: cinemaBrightnessPulse 3s ease-in-out infinite, nameGradientSlide 3s linear infinite;
+}
+@keyframes cinemaBrightnessPulse {
+    0%, 100% { filter: brightness(0.7); }
+    50%      { filter: brightness(1.5); }
+}
+
+/* 11. skew-wave — موجة مائلة */
+.name-styled[data-cinema-bg="skew-wave"] {
+    --cinema-bg: linear-gradient(90deg, #001a66, #00bfff, #00ffff, #00bfff, #001a66);
+    --cinema-bg-size: 200% 100%;
+    --cinema-anim: cinemaSkewWave 3s ease-in-out infinite, nameGradientSlide 4s linear infinite;
+    --cinema-filter: drop-shadow(0 0 8px #00bfff);
+}
+@keyframes cinemaSkewWave {
+    0%, 100% { transform: skewX(-4deg) scaleX(1); }
+    50%      { transform: skewX(4deg) scaleX(1.03); }
+}
+
+/* 12. tilt-swing — ميل يتأرجح */
+.name-styled[data-cinema-bg="tilt-swing"] {
+    --cinema-bg: linear-gradient(90deg, #4a148c, #d4af37, #4a148c);
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaTiltSwing 4s ease-in-out infinite;
+    --cinema-filter: drop-shadow(0 0 8px #ffd700);
+}
+@keyframes cinemaTiltSwing {
+    0%, 100% { transform: rotate(-2deg); }
+    50%      { transform: rotate(2deg); }
+}
+
+/* 13. sunrise — شروق تدريجي */
+.name-styled[data-cinema-bg="sunrise"] {
+    --cinema-bg: linear-gradient(180deg, #ffd700 0%, #fb5607 30%, #ff006e 60%, #4a148c 100%);
+    --cinema-bg-size: 100% 400%;
+    --cinema-anim: cinemaSunrise 8s ease-in-out infinite;
+}
+@keyframes cinemaSunrise {
+    0%   { background-position: 0% 100%; }
+    50%  { background-position: 0% 0%; }
+    100% { background-position: 0% 100%; }
+}
+
+/* 14. candle — شمعة تتراقص */
+.name-styled[data-cinema-bg="candle"] {
+    --cinema-bg: radial-gradient(ellipse at center 70%, #ffdd00 0%, #ff8800 30%, #4a1a00 70%, #000 100%);
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaCandle 1.2s steps(4) infinite;
+}
+@keyframes cinemaCandle {
+    0%   { filter: brightness(1); transform: scale(1); }
+    25%  { filter: brightness(1.15); transform: scale(1.01); }
+    50%  { filter: brightness(0.95); transform: scale(0.99); }
+    75%  { filter: brightness(1.1); transform: scale(1.02); }
+    100% { filter: brightness(1); transform: scale(1); }
+}
+
+/* 15. electric — صعقة كهربائية */
+.name-styled[data-cinema-bg="electric"] {
+    --cinema-bg: linear-gradient(90deg, #000033, #0080ff, #ffffff, #00f3ff, #000033);
+    --cinema-bg-size: 300% 100%;
+    --cinema-anim: cinemaElectric 0.8s steps(2) infinite;
+}
+@keyframes cinemaElectric {
+    0%, 100% { background-position: 0 0; filter: contrast(1) brightness(1); }
+    50%      { background-position: 200% 0; filter: contrast(1.6) brightness(1.4); }
+}
+
+/* 16. twinkle — نجوم تلمع */
+.name-styled[data-cinema-bg="twinkle"] {
+    --cinema-bg:
+        radial-gradient(circle at 20% 30%, #fff 1px, transparent 2px),
+        radial-gradient(circle at 60% 50%, #ffd700 1px, transparent 2px),
+        radial-gradient(circle at 80% 80%, #fff 1px, transparent 2px),
+        radial-gradient(circle at 40% 70%, #ffd700 1px, transparent 2px),
+        linear-gradient(90deg, #0a0520, #1a0033, #0a0520);
+    --cinema-bg-size: 20px 20px, 25px 25px, 30px 30px, 15px 15px, 100% 100%;
+    --cinema-anim: cinemaTwinkle 4s ease-in-out infinite alternate;
+}
+@keyframes cinemaTwinkle {
+    0%   { filter: brightness(0.6) drop-shadow(0 0 3px #ffd700); }
+    100% { filter: brightness(1.4) drop-shadow(0 0 12px #ffd700); }
+}
+
+/* 17. liquid — سائل متموج */
+.name-styled[data-cinema-bg="liquid"] {
+    --cinema-bg: linear-gradient(90deg, #0066cc, #00bfff, #00ffff, #00bfff, #0066cc);
+    --cinema-bg-size: 200% 100%;
+    --cinema-anim: cinemaLiquid 4s ease-in-out infinite, nameGradientSlide 4s linear infinite;
+}
+@keyframes cinemaLiquid {
+    0%, 100% { transform: skewY(-2deg) scaleY(1); }
+    50%      { transform: skewY(2deg) scaleY(1.05); }
+}
+
+/* 18. silk — حرير ينساب */
+.name-styled[data-cinema-bg="silk"] {
+    --cinema-bg: repeating-linear-gradient(90deg, #8b0000 0%, #d4af37 10%, #ffd700 20%, #d4af37 30%, #8b0000 40%);
+    --cinema-bg-size: 200% 100%;
+    --cinema-anim: cinemaSilk 7s linear infinite;
+    --cinema-filter: drop-shadow(0 0 6px #ffd700);
+}
+@keyframes cinemaSilk {
+    from { background-position: 0 0; }
+    to   { background-position: 400% 0; }
+}
+
+/* 19. spin-slow — دوران كامل */
+.name-styled[data-cinema-bg="spin-slow"] {
+    --cinema-bg: conic-gradient(from 0deg, rgba(255,0,0,0.5), rgba(255,215,0,0.5), rgba(0,255,136,0.5), rgba(0,243,255,0.5), rgba(168,85,247,0.5), rgba(255,0,128,0.5), rgba(255,0,0,0.5));
+    --cinema-bg-size: 100% 100%;
+    --cinema-anim: cinemaSpinSlow 8s linear infinite;
+}
+@keyframes cinemaSpinSlow {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* 20. contrast-flash — تباين */
+.name-styled[data-cinema-bg="contrast-flash"] {
+    --cinema-bg: linear-gradient(90deg, #1a0000, #ff0040, #ffffff, #ff0040, #1a0000);
+    --cinema-bg-size: 200% 100%;
+    --cinema-anim: cinemaContrastFlash 3s ease-in-out infinite, nameGradientSlide 3s linear infinite;
+}
+@keyframes cinemaContrastFlash {
+    0%, 100% { filter: contrast(0.8) brightness(0.9); }
+    50%      { filter: contrast(1.6) brightness(1.3); }
 }
 
 /* ══════════════════════════════════════════════ */
