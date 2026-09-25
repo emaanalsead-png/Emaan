@@ -1,9 +1,13 @@
 // ==============================================
-// قمر الشام — config.js v6 (TEST)
+// قمر الشام — config.js v7 (TEST)
 // ==============================================
-// ✅ v6:
-//   1. إصلاح ARABIC_EQUIVALENTS (3 مفاتيح مكررة → مُصلحة)
-//   2. باقي كل شيء كما v5
+// ✅ v7:
+//   1. PATHS جديدة: mutes, banned_devices, banned_ips, device_registry,
+//      ip_registry, multi_account_alerts
+//   2. MUTE_TYPES: global + room (دائم حتى يُلغى)
+//   3. BAN_TYPES: permanent + temporary
+//   4. PRESENCE_ROOMS: نقل قسري + سجن
+//   5. ما تبقى من v6 محفوظ
 // ==============================================
 
 const firebaseConfig = {
@@ -200,7 +204,9 @@ const QAMAR = {
         PROFILE_BIO:  'profile_bio',
         POETRY_TEXT:  'poetry_text',
         MUSIC_URL:    'profile_music_url',
-        DEVICE_HASH:  'qamar_device_hash'
+        DEVICE_HASH:  'qamar_device_hash',
+        DEVICE_ID:    'qamar_device_id',
+        IP_HASH:      'qamar_ip_hash'
     },
 
     SETTINGS: {
@@ -236,7 +242,10 @@ const QAMAR = {
                 { key: 'canBanQueens',    label: 'حظر الملكات' },
                 { key: 'canUnban',        label: 'فك الحظر' },
                 { key: 'canKickFromRoom', label: 'طرد من الغرفة' },
-                { key: 'canKickFromMic',  label: 'طرد من المايك' }
+                { key: 'canKickFromMic',  label: 'طرد من المايك' },
+                { key: 'canMuteGlobal',   label: 'كتم كامل' },
+                { key: 'canMuteInRoom',   label: 'كتم في غرفة' },
+                { key: 'canTransferUsers',label: 'نقل الأعضاء' }
             ]
         },
         {
@@ -252,7 +261,7 @@ const QAMAR = {
             group: '🤖 البوتات',
             items: [
                 { key: 'canOpenKingPanel', label: 'فتح لوحة الملك' },
-                { key: 'canEditHakawati',  label: 'تعديل حكواتي' },
+                { key: 'canEditHakawati',  label: 'تعديل حكاواتي' },
                 { key: 'canEditQuiz',      label: 'تعديل المسابقات' },
                 { key: 'canEditIslamic',   label: 'تعديل الإسلاميات' },
                 { key: 'canEditBadWords',  label: 'تعديل كلمات السجن' },
@@ -296,7 +305,8 @@ const QAMAR = {
                 { key: 'canViewAuditLog',   label: 'قراءة سجل النشاط' },
                 { key: 'canEditAllProfiles',label: 'تعديل بروفايلات الأعضاء' },
                 { key: 'canUseMic',         label: 'استخدام المايك' },
-                { key: 'canResetPasswords', label: 'إعادة كلمات السر' }
+                { key: 'canResetPasswords', label: 'إعادة كلمات السر' },
+                { key: 'canViewDevices',    label: 'عرض بيانات الأجهزة' }
             ]
         }
     ],
@@ -306,93 +316,109 @@ const QAMAR = {
         arabicFallback: 'https://cdn.jsdelivr.net/gh/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words@master/ar'
     },
 
-    /* ⭐ v6: ARABIC_EQUIVALENTS — إصلاح 3 مفاتيح مكررة */
-    /* المشكلة كانت: 'ڠ' مكرر (غ/ظ)، 'ﻉ' مكرر (ع/ش)، 'ڪ' مكرر (ك/ث) */
-    /* الحل: أبقينا الأكثر دقة لكل حرف */
     ARABIC_EQUIVALENTS: {
         /* ─── كاف ─── */
-        'ڪ': 'ك',   // Kaf Sindhi
-        'ک': 'ك',   // Kaf Farsi
-        'گ': 'ك',   // Gaf (يُستخدم للكاف أحياناً)
-        'ݢ': 'ك',   // Kaf with dot
+        'ڪ': 'ك', 'ک': 'ك', 'گ': 'ك', 'ݢ': 'ك',
         /* ─── ياء ─── */
-        'ی': 'ي',   // Yeh Farsi
-        'ے': 'ي',   // Yeh Barree
-        'ى': 'ي',   // Alef Maksura
-        'ئ': 'ي',   // Yeh with Hamza
-        'ﻯ': 'ي',   // Yeh final form
+        'ی': 'ي', 'ے': 'ي', 'ى': 'ي', 'ئ': 'ي', 'ﻯ': 'ي',
         /* ─── هاء ─── */
-        'ہ': 'ه',   // Heh Goal
-        'ۀ': 'ه',   // Heh with Yeh
-        'ھ': 'ه',   // Heh Doachashmee
-        'ە': 'ه',   // Ae (Kurdish)
-        'ﮪ': 'ه',   // Heh initial form
-        'ﮫ': 'ه',   // Heh medial form
-        'ﮬ': 'ه',   // Heh final form
+        'ہ': 'ه', 'ۀ': 'ه', 'ھ': 'ه', 'ە': 'ه', 'ﮪ': 'ه', 'ﮫ': 'ه', 'ﮬ': 'ه',
         /* ─── ألف ─── */
-        'ٱ': 'ا',   // Alef Wasla
-        'آ': 'ا',   // Alef with madda
-        'أ': 'ا',   // Alef with hamza above
-        'إ': 'ا',   // Alef with hamza below
-        'ٲ': 'ا',   // Alef with wasla above
-        'ٳ': 'ا',   // Alef with wasla below
+        'ٱ': 'ا', 'آ': 'ا', 'أ': 'ا', 'إ': 'ا', 'ٲ': 'ا', 'ٳ': 'ا',
         /* ─── واو ─── */
-        'ﻭ': 'و',   // Waw isolated form
-        'ۆ': 'و',   // Waw with dot (Kurdish)
-        'ۇ': 'و',   // Waw with hamza (Uyghur)
+        'ﻭ': 'و', 'ۆ': 'و', 'ۇ': 'و',
         /* ─── نون ─── */
-        'ں': 'ن',   // Noon Ghunna
+        'ں': 'ن',
         /* ─── راء ─── */
-        'ڕ': 'ر',   // Reh with small V (Kurdish)
-        'ڒ': 'ر',   // Reh with dot
-        'ړ': 'ر',   // Reh with loop
+        'ڕ': 'ر', 'ڒ': 'ر', 'ړ': 'ر',
         /* ─── لام ─── */
-        'ڵ': 'ل',   // Lam with V (Kurdish)
-        'ﻝ': 'ل',   // Lam isolated form
+        'ڵ': 'ل', 'ﻝ': 'ل',
         /* ─── ميم ─── */
-        'ﻡ': 'م',   // Meem isolated form
+        'ﻡ': 'م',
         /* ─── باء ─── */
-        'ٻ': 'ب',   // Beh with dot below
-        'پ': 'ب',   // Peh Farsi
+        'ٻ': 'ب', 'پ': 'ب',
         /* ─── تاء ─── */
-        'ٹ': 'ت',   // Tteh
-        'ٺ': 'ت',   // Tteheh
+        'ٹ': 'ت', 'ٺ': 'ت',
         /* ─── جيم ─── */
-        'چ': 'ج',   // Tcheh Farsi
+        'چ': 'ج',
         /* ─── دال ─── */
-        'ډ': 'د',   // Dal with loop
+        'ډ': 'د',
         /* ─── سين ─── */
-        'ښ': 'س',   // Seen with dots (Pashto)
-        'ڛ': 'س',   // Seen with 3 dots
+        'ښ': 'س', 'ڛ': 'س',
         /* ─── عين ─── */
-        'ﻉ': 'ع',   // Ain isolated form ✅ (أُبقيت للعين)
+        'ﻉ': 'ع',
         /* ─── غين ─── */
-        'ڠ': 'غ',   // Ghain with dot (Jawi) ✅ (أُبقيت للغين)
-        'ﻍ': 'غ',   // Ghain isolated form
+        'ڠ': 'غ', 'ﻍ': 'غ',
         /* ─── قاف ─── */
-        'ڨ': 'ق',   // Qaf with 3 dots (Tunisian)
-        'ﻕ': 'ق',   // Qaf isolated form
+        'ڨ': 'ق', 'ﻕ': 'ق',
         /* ─── فاء ─── */
-        'ڤ': 'ف',   // Veh
-        'ڦ': 'ف',   // Peh with 3 dots
+        'ڤ': 'ف', 'ڦ': 'ف',
         /* ─── حاء ─── */
-        'ځ': 'ح',   // Hah with hamza (Pashto)
-        'ڂ': 'ح',   // Hah with dot below
+        'ځ': 'ح', 'ڂ': 'ح',
         /* ─── صاد ─── */
-        'ڝ': 'ص',   // Sad with dot below
-        'ڞ': 'ص',   // Sad with 3 dots
+        'ڝ': 'ص', 'ڞ': 'ص',
         /* ─── طاء ─── */
-        'ڟ': 'ط',   // Tah with 3 dots
-        'ﻁ': 'ط',   // Tah isolated form
+        'ڟ': 'ط', 'ﻁ': 'ط',
         /* ─── ظاء ─── */
-        'ﻅ': 'ظ',   // Zah isolated form
+        'ﻅ': 'ظ',
         /* ─── ذال ─── */
-        'ڊ': 'ذ',   // Dal with dot below
-        'ڌ': 'ذ',   // Dal with 3 dots
+        'ڊ': 'ذ', 'ڌ': 'ذ',
         /* ─── شين ─── */
-        'ڜ': 'ش'    // Seen with 3 dots above + 3 below
-        /* ─── ثاء ─── */
-        /* 'ٿ': 'ث' أُبقي، و'ڪ': 'ك' أُبقي — لا تعارض */
+        'ڜ': 'ش'
+    },
+
+    /* ══════════════════════════════════════════════ */
+    /* ⭐ v7: بنية الحظر والكتم                       */
+    /* ══════════════════════════════════════════════ */
+
+    /* مسارات Firebase الجديدة */
+    PATHS: {
+        DEVICE_REGISTRY:     'device_registry',
+        IP_REGISTRY:         'ip_registry',
+        BANNED_DEVICES:      'banned_devices',
+        BANNED_IPS:          'banned_ips',
+        MULTI_ACCOUNT_ALERTS:'multi_account_alerts',
+        AUDIT_LOG:           'audit_log'
+    },
+
+    /* أنواع الكتم */
+    MUTE_TYPES: {
+        GLOBAL: 'global',    /* كل الغرف — دائم حتى يُلغى */
+        ROOM:   'room'       /* غرفة محددة — دائم حتى يُلغى */
+    },
+
+    /* أنواع البان */
+    BAN_TYPES: {
+        TEMPORARY: 'temp',   /* ساعة/يوم/أسبوع */
+        PERMANENT: 'perm'    /* دائم + بصمة + IP */
+    },
+
+    /* فحص IP */
+    IP_SERVICE: 'https://ipwho.is/',
+
+    /* الأجهزة الممنوعة */
+    DEVICE_HASH_LENGTH: 32,
+
+    /* سلوك النقل القسري */
+    TRANSFER: {
+        MIN_RANK_LEVEL: 90,   /* Master Owner+ */
+        NOTIFY_USER: true,    /* إشعار للمنقول */
+        SAVE_LAST_ROOM: true  /* حفظ الغرفة السابقة */
+    },
+
+    /* سلوك السجن */
+    JAIL_BEHAVIOR: {
+        FORCE_TRANSFER: true,    /* ينقل فوراً لغرفة السجن */
+        SAVE_LAST_ROOM: true,    /* يحفظ الغرفة قبل السجن */
+        LOCK_ROOM_SWITCH: true,  /* يمنع تغيير الغرفة حتى يُفك */
+        AUTO_RETURN: true        /* يعيده لآخر غرفة بعد السجن */
+    },
+
+    /* إشعارات الحسابات المكرّرة */
+    MULTI_ACCOUNT: {
+        ENABLED: true,
+        NOTIFY_KING_VIA_BOT: true,   /* السجان يرسل خاص للملك */
+        SHOW_TAB: true                /* تبويب في غرفة الملك */
     }
 };
 
@@ -400,11 +426,12 @@ window.getRankLevel = function (rank) {
     return QAMAR.getRankLevel(rank);
 };
 
-console.log('🔥 Qamar Config v6 (TEST) loaded:', {
+console.log('🔥 Qamar Config v7 (TEST) loaded:', {
     project: firebaseConfig.projectId,
     rooms:   Object.keys(QAMAR.ROOMS).length,
     ranks:   QAMAR.RANKS_ORDERED.length,
     queens:  Object.keys(QAMAR.QUEEN_ORDERS).length,
     permGroups: QAMAR.CUSTOMIZABLE_PERMISSIONS.length,
-    arabicEq: Object.keys(QAMAR.ARABIC_EQUIVALENTS).length
+    arabicEq: Object.keys(QAMAR.ARABIC_EQUIVALENTS).length,
+    newPaths: Object.keys(QAMAR.PATHS).length
 });
