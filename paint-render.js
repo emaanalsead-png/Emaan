@@ -1,96 +1,74 @@
 // ==============================================
-// paint-render.js v1 — عرض [paint:URL] كبطاقة
+// paint-render.js v2 — عرض [paint:URL] شفاف
 // ==============================================
-// ✅ v1:
-//   1. Scanner يعمل كل 800ms (لا يفشل)
-//   2. hook على displayMessage + displayPrivateMsg
-//   3. عرض بطاقة أنيقة للرسمة (checkerboard + badge)
-//   4. يعمل مع [paint:URL] في الشات + الخاص
+// ✅ v2 (فوق v1):
+//   1. إزالة badge "رسمة"
+//   2. إزالة "اضغط للتكبير"
+//   3. إزالة الخلفية checkerboard
+//   4. الصورة شفافة تماماً — يظهر الشات وراها
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__paintRenderV1) return;
-    window.__paintRenderV1 = true;
+    if (window.__paintRenderV2) return;
+    window.__paintRenderV2 = true;
 
     var SCAN_INTERVAL_MS = 800;
 
     /* ══════════════════════════════════════════════ */
-    /* CSS                                            */
+    /* CSS — بدون أي زخرفة                            */
     /* ══════════════════════════════════════════════ */
     (function injectCSS() {
-        if (document.getElementById('paint-render-css')) return;
+        // نحذف CSS القديم
+        var old = document.getElementById('paint-render-css');
+        if (old) old.remove();
+
+        if (document.getElementById('paint-render-css-v2')) return;
         var s = document.createElement('style');
-        s.id = 'paint-render-css';
+        s.id = 'paint-render-css-v2';
         s.textContent = `
+/* بطاقة الرسمة — شفافة تماماً */
 .pr-card {
     display: inline-block;
     max-width: 260px;
-    margin-top: 6px;
+    margin-top: 4px;
     border-radius: 12px;
     overflow: hidden;
-    border: 1px solid rgba(255,215,0,0.4);
-    background: #0a0a15;
     cursor: pointer;
     text-decoration: none;
-    transition: all 0.15s;
-    position: relative;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
     vertical-align: middle;
+    transition: transform 0.15s;
 }
 .pr-card:hover {
-    border-color: #ffd700;
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(255,215,0,0.35);
 }
 .pr-card:active { transform: scale(0.98); }
 .pr-thumb {
     width: 100%;
-    min-height: 140px;
-    background:
-        linear-gradient(45deg, #1a1a2e 25%, transparent 25%),
-        linear-gradient(-45deg, #1a1a2e 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #1a1a2e 75%),
-        linear-gradient(-45deg, transparent 75%, #1a1a2e 75%);
-    background-size: 16px 16px;
-    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-    background-color: #0a0a15;
+    background: transparent !important;
+    background-image: none !important;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 4px;
+    padding: 0;
     box-sizing: border-box;
 }
 .pr-thumb img {
     max-width: 100%;
-    max-height: 220px;
+    max-height: 260px;
     display: block;
-    border-radius: 6px;
+    border-radius: 8px;
+    background: transparent !important;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
 }
-.pr-badge {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    background: linear-gradient(135deg, #ffd700, #d4af37);
-    color: #000;
-    font-size: 10px;
-    font-weight: 900;
-    padding: 3px 9px;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-    letter-spacing: 0.3px;
-}
-.pr-meta {
-    padding: 6px 10px;
-    background: rgba(0,0,0,0.5);
-    color: #aaa;
-    font-size: 10px;
-    text-align: center;
-    font-weight: 900;
-    letter-spacing: 0.3px;
-}
+/* إزالة badge و meta */
+.pr-badge, .pr-meta { display: none !important; }
 
-/* Lightbox */
+/* Lightbox — لسه موجود */
 #pr-lightbox {
     position: fixed;
     inset: 0;
@@ -153,7 +131,7 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Build Card                                     */
+    /* Build Card — بدون badge ولا meta               */
     /* ══════════════════════════════════════════════ */
     function _buildCard(url) {
         var card = document.createElement('span');
@@ -166,25 +144,14 @@
 
         var img = document.createElement('img');
         img.src = url;
-        img.alt = '🎨 رسمة';
+        img.alt = '';
         img.loading = 'lazy';
         img.onerror = function () {
-            thumb.innerHTML = '<span style="color:#ff6666;font-size:11px;font-weight:900;padding:20px;">⚠️ فشل تحميل الرسمة</span>';
+            thumb.innerHTML = '<span style="color:#ff6666;font-size:11px;font-weight:900;padding:8px;">⚠️ فشل التحميل</span>';
         };
         thumb.appendChild(img);
 
-        var badge = document.createElement('span');
-        badge.className = 'pr-badge';
-        badge.textContent = '🎨 رسمة';
-        thumb.appendChild(badge);
-
-        var meta = document.createElement('span');
-        meta.className = 'pr-meta';
-        meta.style.display = 'block';
-        meta.textContent = 'اضغط للتكبير';
-
         card.appendChild(thumb);
-        card.appendChild(meta);
 
         card.onclick = function (e) {
             e.preventDefault();
@@ -226,11 +193,9 @@
         if (!rootEl || rootEl.nodeType !== 1) return;
         if (rootEl.getAttribute && rootEl.getAttribute('data-pr-done') === '1') return;
 
-        // نتجاوز أي عناصر داخل بطاقة موجودة
         var textNodes = [];
         var walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
             acceptNode: function (node) {
-                // تجاهل النصوص داخل بطاقة pr-card
                 var p = node.parentNode;
                 while (p && p !== rootEl) {
                     if (p.classList && p.classList.contains('pr-card')) return NodeFilter.FILTER_REJECT;
@@ -274,22 +239,17 @@
     /* ══════════════════════════════════════════════ */
     function _scanAll() {
         try {
-            // الشات العام
             var pubMessages = document.querySelectorAll('#messages .message:not([data-pr-done="1"])');
             pubMessages.forEach(_processElement);
-
-            // الشات الخاص
             var pcMessages = document.querySelectorAll('#pc-messages .pc-msg:not([data-pr-done="1"])');
             pcMessages.forEach(_processElement);
-
-            // بروفايل (iframe) — لا يعمل مباشرة، يتم عبر chat.js
         } catch (e) {
             console.warn('paint-render scan error:', e);
         }
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Hook displayMessage + displayPrivateMsg         */
+    /* Hooks                                          */
     /* ══════════════════════════════════════════════ */
     function _hookDisplay() {
         var attempts = 0;
@@ -297,47 +257,44 @@
             attempts++;
             var hooked = 0;
 
-            if (typeof window.displayMessage === 'function' && !window.displayMessage.__prWrapped) {
+            if (typeof window.displayMessage === 'function' && !window.displayMessage.__prV2Wrapped) {
                 var orig = window.displayMessage;
                 window.displayMessage = function (msg, msgId) {
                     var r = orig.apply(this, arguments);
                     setTimeout(_scanAll, 50);
                     return r;
                 };
-                window.displayMessage.__prWrapped = true;
+                window.displayMessage.__prV2Wrapped = true;
                 hooked++;
-            } else if (window.displayMessage && window.displayMessage.__prWrapped) {
+            } else if (window.displayMessage && window.displayMessage.__prV2Wrapped) {
                 hooked++;
             }
 
-            if (typeof window.displayPrivateMsg === 'function' && !window.displayPrivateMsg.__prWrapped) {
+            if (typeof window.displayPrivateMsg === 'function' && !window.displayPrivateMsg.__prV2Wrapped) {
                 var orig2 = window.displayPrivateMsg;
                 window.displayPrivateMsg = function (msg, isSent) {
                     var r = orig2.apply(this, arguments);
                     setTimeout(_scanAll, 50);
                     return r;
                 };
-                window.displayPrivateMsg.__prWrapped = true;
+                window.displayPrivateMsg.__prV2Wrapped = true;
                 hooked++;
-            } else if (window.displayPrivateMsg && window.displayPrivateMsg.__prWrapped) {
+            } else if (window.displayPrivateMsg && window.displayPrivateMsg.__prV2Wrapped) {
                 hooked++;
             }
 
             if (hooked === 2 || attempts >= 60) {
                 clearInterval(t);
-                if (hooked === 2) console.log('✅ paint-render: displayMessage + displayPrivateMsg hooked');
+                if (hooked === 2) console.log('✅ paint-render v2: hooked');
             }
         }, 200);
     }
 
-    /* ══════════════════════════════════════════════ */
-    /* Observer (احتياطي — للمعالجة الفورية)         */
-    /* ══════════════════════════════════════════════ */
     function _installObservers() {
         ['messages', 'pc-messages'].forEach(function (cid) {
             var container = document.getElementById(cid);
-            if (!container || container.__prObserved) return;
-            container.__prObserved = true;
+            if (!container || container.__prV2Observed) return;
+            container.__prV2Observed = true;
 
             new MutationObserver(function (muts) {
                 muts.forEach(function (m) {
@@ -356,32 +313,24 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* Scanner Loop                                   */
-    /* ══════════════════════════════════════════════ */
-    function _startScanner() {
-        setInterval(_scanAll, SCAN_INTERVAL_MS);
-    }
-
-    /* ══════════════════════════════════════════════ */
     /* Init                                           */
     /* ══════════════════════════════════════════════ */
     function init() {
         _hookDisplay();
         _installObservers();
-        _startScanner();
+        setInterval(_scanAll, SCAN_INTERVAL_MS);
 
-        // فحص أولي متعدد
         setTimeout(_scanAll, 500);
         setTimeout(_scanAll, 1500);
         setTimeout(_scanAll, 3000);
         setTimeout(_installObservers, 3000);
 
-        console.log('🎨 paint-render.js v1: scanner active (interval ' + SCAN_INTERVAL_MS + 'ms)');
+        console.log('🎨 paint-render.js v2: transparent + no badge');
     }
 
     window.PaintRender = {
         scan: _scanAll,
-        version: 1
+        version: 2
     };
 
     if (document.readyState === 'loading') {
@@ -390,5 +339,5 @@
         init();
     }
 
-    console.log('🎨 paint-render.js v1 loaded');
+    console.log('🎨 paint-render.js v2 loaded');
 })();
