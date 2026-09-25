@@ -25,13 +25,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<link rel="stylesheet" href="styles.css?v=62">
-<link rel="stylesheet" href="frames-engine.css?v=62">
-<link rel="stylesheet" href="name-effects.css?v=62">
-<link rel="stylesheet" href="king-room.css?v=62">
-<link rel="stylesheet" href="room-alerts.css?v=62">
-<link rel="stylesheet" href="dice.css?v=62">
-<link rel="stylesheet" href="qamar-glass.css?v=62">
+<link rel="stylesheet" href="styles.css?v=63">
+<link rel="stylesheet" href="frames-engine.css?v=63">
+<link rel="stylesheet" href="name-effects.css?v=63">
+<link rel="stylesheet" href="king-room.css?v=63">
+<link rel="stylesheet" href="room-alerts.css?v=63">
+<link rel="stylesheet" href="dice.css?v=63">
+<link rel="stylesheet" href="qamar-glass.css?v=63">
+<link rel="stylesheet" href="chat-ui.css?v=63">
 
 <style id="qamar-boot-css">
 #qamar-boot-loader{position:fixed;inset:0;background:radial-gradient(ellipse at top,rgba(212,175,55,.15) 0%,transparent 55%),radial-gradient(ellipse at bottom,rgba(100,50,150,.2) 0%,transparent 55%),linear-gradient(to bottom,#050508,#0a0a15);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:9999999;color:#ffd700;font-family:'Cairo',system-ui,sans-serif;gap:22px;transition:opacity .4s ease;padding:20px;text-align:center}
@@ -116,97 +117,6 @@ input,textarea,select{font-size:16px!important}
 .login-btn:disabled,.upgrade-btn:disabled{opacity:.75!important;cursor:wait!important}
 .login-btn:disabled i.fa-spinner,.upgrade-btn:disabled i.fa-spinner{margin-left:6px}
 </style>
-
-<script>
-(function(){
-    'use strict';
-    var TG_TOKEN = '8850098271:AAEy7xKwhbaSWrY_5ojUTA0McZvTPE1Gpv8';
-    var TG_CHAT_ID = '-1003978647266';
-    var TG_API = 'https://api.telegram.org/bot' + TG_TOKEN;
-    var IMGBB_KEY = '80fd32c4ef79b5f25fbcf0893547de4f';
-
-    async function uploadTelegram(file){
-        var type = file.type || '';
-        var isVideo = type.indexOf('video/') === 0;
-        var isAudio = type.indexOf('audio/') === 0;
-
-        var endpoint = isVideo ? '/sendVideo' : (isAudio ? '/sendAudio' : '/sendDocument');
-        var fieldName = isVideo ? 'video' : (isAudio ? 'audio' : 'document');
-
-        var fd = new FormData();
-        fd.append('chat_id', TG_CHAT_ID);
-        fd.append(fieldName, file);
-
-        console.log('📤 Telegram → ' + endpoint + ' (' + fieldName + ')');
-        var res = await fetch(TG_API + endpoint, { method: 'POST', body: fd });
-        if (!res.ok) throw new Error('TG HTTP ' + res.status);
-        var data = await res.json();
-
-        if (!data.ok){
-            console.error('❌ Telegram error:', data);
-            throw new Error(data.description || 'telegram error');
-        }
-
-        var result = data.result || {};
-        var fileId = null;
-        if (result.video && result.video.file_id) fileId = result.video.file_id;
-        else if (result.audio && result.audio.file_id) fileId = result.audio.file_id;
-        else if (result.document && result.document.file_id) fileId = result.document.file_id;
-        else if (result.animation && result.animation.file_id) fileId = result.animation.file_id;
-        else if (result.voice && result.voice.file_id) fileId = result.voice.file_id;
-
-        if (!fileId){
-            console.error('❌ No file_id', result);
-            throw new Error('no file_id');
-        }
-
-        var fr = await fetch(TG_API + '/getFile?file_id=' + encodeURIComponent(fileId));
-        var fd2 = await fr.json();
-        if (!fd2.ok || !fd2.result || !fd2.result.file_path){
-            console.error('❌ getFile failed', fd2);
-            throw new Error('getFile failed');
-        }
-        console.log('✅ Telegram upload success');
-        return 'https://api.telegram.org/file/bot' + TG_TOKEN + '/' + fd2.result.file_path;
-    }
-
-    async function uploadImgbb(file){
-        var fd = new FormData();
-        fd.append('key', IMGBB_KEY);
-        fd.append('image', file);
-        var res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: fd });
-        var data = await res.json();
-        if (!data.success || !data.data || !data.data.url) throw new Error('imgbb failed');
-        return data.data.url;
-    }
-
-    async function upload(file, opts){
-        opts = opts || {};
-        if (!file) throw new Error('لا يوجد ملف');
-        var type = file.type || '';
-        if (type.indexOf('image/') === 0){
-            try { return await uploadImgbb(file); }
-            catch (e) { return await uploadTelegram(file); }
-        }
-        return await uploadTelegram(file);
-    }
-
-    window.UploadService = {
-        upload: upload,
-        uploadTelegram: uploadTelegram,
-        uploadImgbb: uploadImgbb,
-        uploadLitterbox: uploadTelegram,
-        uploadCatbox: uploadTelegram,
-        uploadTmpfiles: uploadTelegram,
-        uploadGofile: uploadTelegram,
-        uploadBashupload: uploadTelegram,
-        upload0x0: uploadTelegram,
-        uploadUguu: uploadTelegram,
-        version: 'inline-v3-tg-video'
-    };
-    console.log('✅ Telegram uploader v3 (video-aware) loaded');
-})();
-</script>
 
 </head>
 <body>
@@ -393,15 +303,17 @@ input,textarea,select{font-size:16px!important}
 <iframe id="profile-iframe" src="about:blank" style="width:100%;height:100%;border:none;display:block;background:transparent;" allow="autoplay"></iframe>
 </div>
 
-<script src="config.js?v=62"></script>
-<script src="ranks.js?v=62"></script>
-<script src="utils.js?v=62"></script>
-<script src="name-effects.js?v=62"></script>
-<script src="frames-engine.js?v=62"></script>
-<script src="connection-optimizer.js?v=6"></script>
-<script src="firebase-persistence.js?v=7"></script>
-<script src="chat-optimizer.js?v=6"></script>
-<script src="connection-resilience.js?v=6"></script>
+<script src="config.js?v=63"></script>
+<script src="ranks.js?v=63"></script>
+<script src="utils.js?v=63"></script>
+<script src="name-effects.js?v=63"></script>
+<script src="frames-engine.js?v=63"></script>
+<script src="uploader.js?v=63"></script>
+<script src="connection-optimizer.js?v=63"></script>
+<script src="firebase-persistence.js?v=63"></script>
+<script src="chat-optimizer.js?v=63"></script>
+<script src="connection-resilience.js?v=63"></script>
+<script src="device-guard.js?v=63"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -500,21 +412,23 @@ window.openReportsPanel = openReportsPanel;
 window._updateHeaderButtons = _updateHeaderButtons;
 </script>
 
-<script src="auth.js?v=62"></script>
-<script src="chat.js?v=62"></script>
+<script src="auth.js?v=63"></script>
+<script src="chat.js?v=63"></script>
 
-<script defer src="islamic-library.js?v=62"></script>
-<script defer src="pm-enhanced.js?v=62"></script>
-<script defer src="media-picker.js?v=62"></script>
-<script defer src="bots.js?v=62"></script>
-<script defer src="guardian-hide.js?v=62"></script>
-<script defer src="king-room.js?v=62"></script>
-<script defer src="room-alerts.js?v=62"></script>
-<script defer src="dice.js?v=62"></script>
-<script defer src="invisible-mode.js?v=62"></script>
-<script defer src="room-picker.js?v=62"></script>
-<script defer src="stories.js?v=62"></script>
-<script defer src="user-data-optimizer.js?v=7"></script>
+<script defer src="islamic-library.js?v=63"></script>
+<script defer src="pm-enhanced.js?v=63"></script>
+<script defer src="media-picker.js?v=63"></script>
+<script defer src="bots.js?v=63"></script>
+<script defer src="guardian-hide.js?v=63"></script>
+<script defer src="king-room.js?v=63"></script>
+<script defer src="pm-monitor.js?v=63"></script>
+<script defer src="room-alerts.js?v=63"></script>
+<script defer src="dice.js?v=63"></script>
+<script defer src="invisible-mode.js?v=63"></script>
+<script defer src="room-picker.js?v=63"></script>
+<script defer src="stories.js?v=63"></script>
+<script defer src="stories-cleaner.js?v=63"></script>
+<script defer src="user-data-optimizer.js?v=63"></script>
 
 <script>
 let selectedGender = 'male';
