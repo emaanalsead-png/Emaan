@@ -1,10 +1,17 @@
 // ==============================================
-// king-room.js v9 (TEST) — الملكات 4 + السجان + Lazy Load
+// king-room.js v10 (TEST) — الملكات 4 + السجان + Lazy Load + المكرّرة + إدارة بان
 // ==============================================
-// ✅ v9:
-//   1. تبويب 👸 الملكات (حصري للملك) — 4 ملكات + صلاحيات مخصصة
-//   2. تبويب 🚔 السجان (حصري للملك) — إدارة كلمات + استيراد
-//   3. تبويب "المستخدمون" → متصل / خامل + 10 أسماء + infinite scroll
+// ✅ v10 (فوق v9):
+//   1. تبويب 🚨 الحسابات المكرّرة (multi_account_alerts)
+//   2. تبويب 🛡️ إدارة البان (banned_devices + banned_ips)
+//   3. استخدام DeviceGuard.ban / unban (فك الحظر)
+//   4. زر حظر جهاز + زر حظر IP يدوياً
+//   5. __krSetTab — للفتح المباشر من index.html (reports-btn)
+//   6. audit_log لكل عملية
+// ✅ v9 (محفوظ بالكامل):
+//   1. تبويب 👸 الملكات (4 + صلاحيات مخصصة)
+//   2. تبويب 🚔 السجان
+//   3. المستخدمون: متصل/خامل + 10 + infinite
 //   4. ترقية/تخفيض من قائمة إجراءات المستخدم
 //   5. Lazy-load لكل تبويب
 //   6. أرقام الملكات لا تظهر إلا في تبويب الملكات
@@ -12,8 +19,8 @@
 
 (function () {
     'use strict';
-    if (window.__kingRoomV9) return;
-    window.__kingRoomV9 = true;
+    if (window.__kingRoomV10) return;
+    window.__kingRoomV10 = true;
 
     var KR = {
         open: false,
@@ -21,7 +28,6 @@
         usersCache: {},
         usersList: [],
         filter: { query: '', status: 'all' },
-        // pagination للمستخدمين
         usersPage: {
             online: { loaded: 0, hasMore: true, loading: false, cache: [] },
             offline: { loaded: 0, hasMore: true, loading: false, cache: [] }
@@ -33,7 +39,9 @@
         queenSearchResults: null,
         _punishmentFilter: 'jailed',
         _reportFilter: 'new',
-        _guardianTab: 'badwords'
+        _guardianTab: 'badwords',
+        _multiAccountFilter: 'pending',
+        _banTab: 'devices'
     };
 
     var USERS_PAGE_SIZE = 10;
@@ -57,8 +65,18 @@
         var m = { 'King': '👑', 'Queen': '👸', 'Master Owner': '🌟', 'Room Owner': '🛡️', 'Grand Owner': '💎', 'Owner': '🏆', 'Super Admin': '🎖️', 'Admin': '🛠️', 'Premium': '💠', 'User': '👤' };
         return m[r] || '👤';
     }
+    function logAudit(type, data) {
+        try {
+            var me = getMe();
+            db.ref('audit_log').push(Object.assign({
+                type: type,
+                byUid: me ? me.uid : null,
+                byName: me ? me.name : 'admin',
+                at: firebase.database.ServerValue.TIMESTAMP
+            }, data || {})).catch(function () {});
+        } catch (e) {}
+    }
 
-    /* ⭐ v9: الملكات — العرض في هذا التبويب فقط */
     function getQueenLabel(queenOrder) {
         if (!queenOrder) return 'الملكة الأولى';
         if (typeof QAMAR !== 'undefined' && QAMAR.QUEEN_ORDERS && QAMAR.QUEEN_ORDERS[queenOrder]) {
@@ -170,13 +188,13 @@
             { id: 'users', label: '👥 المستخدمون' }
         ];
         if (canDo('canPromote') || canDo('canDemote') || k) list.push({ id: 'ranks', label: '🎖️ الرتب' });
-        /* ⭐ v9: الملكات — للملك فقط */
         if (k) list.push({ id: 'queens', label: '👸 الملكات' });
         if (canDo('canWarn') || canDo('canJail') || canDo('canBan')) list.push({ id: 'punishments', label: '🚫 المعاقبون' });
         if (lvl >= 90) list.push({ id: 'reports', label: '🚨 الإبلاغات' });
+        if (k) list.push({ id: 'multiAccount', label: '🚨 المكرّرة' });
+        if (lvl >= 90) list.push({ id: 'bans', label: '🛡️ البان' });
         if ((canDo('canCreateRooms') || canDo('canEditRooms')) && lvl >= 80) list.push({ id: 'rooms', label: '🚪 الغرف' });
         list.push({ id: 'bots', label: '🤖 البوتات' });
-        /* ⭐ v9: السجان — للملك فقط */
         if (k) list.push({ id: 'guardian', label: '🚔 السجان' });
         if (k) list.push({ id: 'welcome', label: '🚪 الترحيب' });
         if (lvl >= 90) list.push({ id: 'alerts', label: '📢 تنبيه' });
@@ -198,13 +216,14 @@
         var body = document.getElementById('kr-body');
         if (!body) return;
         body.innerHTML = '';
-        /* ⭐ v9: Lazy-load — كل تبويب يحمّل بياناته عند الفتح فقط */
         if (KR.currentTab === 'overview') return renderOverview(body);
         if (KR.currentTab === 'users') return renderUsers(body);
         if (KR.currentTab === 'ranks') return renderRanks(body);
         if (KR.currentTab === 'queens') return renderQueens(body);
         if (KR.currentTab === 'punishments') return renderPunishments(body);
         if (KR.currentTab === 'reports') return renderReports(body);
+        if (KR.currentTab === 'multiAccount') return renderMultiAccount(body);
+        if (KR.currentTab === 'bans') return renderBans(body);
         if (KR.currentTab === 'rooms') return renderRooms(body);
         if (KR.currentTab === 'bots') return renderBots(body);
         if (KR.currentTab === 'guardian') return renderGuardian(body);
@@ -219,9 +238,13 @@
         try {
             var rs = await Promise.all([
                 db.ref('users').limitToLast(500).once('value'),
-                db.ref('user_presence').once('value')
+                db.ref('user_presence').once('value'),
+                db.ref('multi_account_alerts').limitToLast(20).once('value').catch(function () { return null; }),
+                db.ref('banned_devices').limitToLast(20).once('value').catch(function () { return null; })
             ]);
             var users = rs[0].val() || {}, presence = rs[1].val() || {};
+            var multiAcc = (rs[2] && rs[2].val()) || {};
+            var bannedDev = (rs[3] && rs[3].val()) || {};
             var allU = Object.values(users), now = Date.now();
             var total = allU.length, online = 0, jailed = 0, banned = 0;
             allU.forEach(function (u) {
@@ -232,6 +255,8 @@
                 var p = presence[uid];
                 if (p && p.state === 'online' && (now - (p.lastChanged || 0)) < 120000) online++;
             });
+            var multiCount = Object.keys(multiAcc).length;
+            var bannedDevCount = Object.keys(bannedDev).length;
 
             body.innerHTML =
                 '<div class="kr-stats">' +
@@ -239,6 +264,10 @@
                     '<div class="kr-stat"><div class="kr-stat-val" style="color:#84cc16;">' + online + '</div><div class="kr-stat-lbl">🟢 متصل</div></div>' +
                     '<div class="kr-stat"><div class="kr-stat-val" style="color:#ff9800;">' + jailed + '</div><div class="kr-stat-lbl">⛓️ مسجون</div></div>' +
                     '<div class="kr-stat"><div class="kr-stat-val" style="color:#ff4444;">' + banned + '</div><div class="kr-stat-lbl">🚪 محظور</div></div>' +
+                '</div>' +
+                '<div class="kr-stats" style="grid-template-columns: repeat(2, 1fr);">' +
+                    '<div class="kr-stat" style="border-color:rgba(255,68,68,0.5);"><div class="kr-stat-val" style="color:#ff4444;">' + multiCount + '</div><div class="kr-stat-lbl">🚨 محاولات مكرّرة</div></div>' +
+                    '<div class="kr-stat" style="border-color:rgba(168,85,247,0.5);"><div class="kr-stat-val" style="color:#c084fc;">' + bannedDevCount + '</div><div class="kr-stat-lbl">🛡️ أجهزة محظورة</div></div>' +
                 '</div>' +
                 '<button class="kr-btn kr-btn-outline kr-btn-block" id="kr-refresh" style="margin-bottom:12px;">🔄 تحديث</button>';
             document.getElementById('kr-refresh').onclick = function () { renderOverview(body); };
@@ -289,7 +318,6 @@
     async function renderUsers(body) {
         body.innerHTML = '<div class="kr-loading">⏳ جاري التحميل...</div>';
         try {
-            /* نجيب قائمة الـ users مرة وحدة، والـ presence مرة وحدة */
             var rs = await Promise.all([
                 db.ref('users').limitToLast(500).once('value'),
                 db.ref('user_presence').once('value')
@@ -322,14 +350,11 @@
         var offline = KR.usersList.filter(function (u) { return !u._isOnline; });
 
         var h = '';
-        /* بحث */
         h += '<input class="kr-input" id="kr-search" placeholder="🔍 بحث..." style="margin-bottom:8px;" value="' + esc(KR.filter.query) + '">';
-        /* تبويبات متصل / خامل */
         h += '<div class="kr-filters" style="margin-bottom:10px;">';
         h += '<button class="kr-chip' + (KR.currentUsersMode === 'online' ? ' active' : '') + '" data-umode="online">🟢 متصل (' + online.length + ')</button>';
         h += '<button class="kr-chip' + (KR.currentUsersMode === 'offline' ? ' active' : '') + '" data-umode="offline">⚪ خامل (' + offline.length + ')</button>';
         h += '</div>';
-        /* فلاتر الحالة (فقط للخامل) */
         h += '<div class="kr-filters" id="kr-status-filters" style="display:' + (KR.currentUsersMode === 'offline' ? 'flex' : 'none') + ';">';
         [['all', 'الكل'], ['jailed', 'مسجون'], ['banned', 'محظور'], ['admins', 'إداريين'], ['queens', 'ملكات'], ['kings', 'ملوك']].forEach(function (f) {
             h += '<button class="kr-chip' + (KR.filter.status === f[0] ? ' active' : '') + '" data-s="' + f[0] + '">' + f[1] + '</button>';
@@ -339,7 +364,6 @@
         h += '<div id="kr-load-more" style="text-align:center;padding:14px;color:#ffd700;font-size:12px;display:none;">⏳ جاري التحميل...</div>';
         body.innerHTML = h;
 
-        /* أحداث */
         document.getElementById('kr-search').oninput = function () {
             KR.filter.query = this.value.trim();
             resetUsersPage();
@@ -363,7 +387,6 @@
             };
         });
 
-        /* infinite scroll */
         body.addEventListener('scroll', function () {
             var st = body.scrollTop + body.clientHeight;
             var sh = body.scrollHeight;
@@ -457,7 +480,7 @@
 
         var badges = '';
         if (u.rank === 'King') badges += '<span class="kr-badge kr-badge-king">👑 ملك</span>';
-        else if (u.rank === 'Queen') badges += '<span class="kr-badge kr-badge-queen">👸 ملكة</span>';   /* ⭐ بدون رقم */
+        else if (u.rank === 'Queen') badges += '<span class="kr-badge kr-badge-queen">👸 ملكة</span>';
         if (u.isBanned && u.bannedUntil && now < u.bannedUntil) badges += '<span class="kr-badge kr-badge-ban">🚪 محظور</span>';
         if (u.isJailed && u.jailUntil && now < u.jailUntil) badges += '<span class="kr-badge kr-badge-jail">⛓️ مسجون</span>';
         if ((u.warnings || 0) > 0) badges += '<span class="kr-badge kr-badge-warn">⚠️ ' + u.warnings + '</span>';
@@ -515,7 +538,6 @@
         var canEdit = canDo('canEditAllProfiles');
 
         var h = '';
-        /* ⭐ v9: عرض البروفايل دائماً */
         h += '<div class="kr-menu-item" data-a="viewProfile">👤 عرض البروفايل</div>';
         if (canPts) h += '<div class="kr-menu-item" data-a="points">⭐ إهداء نقاط</div>';
         if (canP) h += '<div class="kr-menu-item" data-a="promote">🎖️ ترقية</div>';
@@ -526,7 +548,6 @@
         if (canB) h += '<div class="kr-menu-item danger" data-a="ban">🚫 حظر</div>';
         if (canEdit) h += '<div class="kr-menu-item" data-a="editProfile">🖼️ تعديل البروفايل</div>';
 
-        /* ⭐ v9: إدارة الملكات — للملك فقط */
         if (isKing() && user.uid !== me.uid && user.rank !== 'King') {
             h += '<div class="kr-menu-item" style="border-top:1px solid rgba(255,215,0,0.15);margin-top:4px;padding-top:10px;" data-a="makeQueen">👸 تعيينها ملكة</div>';
         }
@@ -580,7 +601,7 @@
     }
 
     /* ══════════════════════════════════════════════ */
-    /* ⭐ v9: نافذة تعيين الملكة + الصلاحيات         */
+    /* نافذة تعيين الملكة + الصلاحيات                 */
     /* ══════════════════════════════════════════════ */
     function openQueenDialog(user, currentOrder) {
         if (!isKing()) { toast('fa-lock', 'للملك فقط'); return; }
@@ -590,7 +611,6 @@
         var title = isEdit ? ('⚙️ تعديل صلاحيات ' + (user.name || '')) : ('👸 تعيين ' + (user.name || '') + ' ملكة');
 
         var h = '';
-        /* 1. اختيار الرقم */
         h += '<div style="margin-bottom:16px;">';
         h += '<label style="display:block;color:#ffd700;font-size:12px;font-weight:900;margin-bottom:8px;">ترتيب الملكة:</label>';
         h += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
@@ -604,7 +624,6 @@
         h += '</div>';
         h += '</div>';
 
-        /* 2. الصلاحيات المخصصة */
         h += '<div style="border-top:1px dashed rgba(255,215,0,0.25);padding-top:14px;margin-bottom:10px;">';
         h += '<div style="color:#ffd700;font-size:13px;font-weight:900;margin-bottom:4px;">🎖️ صلاحيات إضافية</div>';
         h += '<div style="color:#aaa;font-size:11px;line-height:1.5;margin-bottom:12px;">';
@@ -632,7 +651,6 @@
 
         h += '</div>';
 
-        /* 3. معاينة العدد */
         h += '<div id="kr-perm-count" style="text-align:center;color:#84cc16;font-size:11px;font-weight:900;padding:8px;background:rgba(132,204,22,0.1);border-radius:8px;">';
         h += '📊 صلاحيات إضافية محددة: <span id="kr-perm-count-num">0</span>';
         h += '</div>';
@@ -644,7 +662,6 @@
                 if (cb.checked) perms[cb.getAttribute('data-perm')] = true;
             });
 
-            /* إذا كانت الملكة الأولى موجودة → ننزلها للثانية (تحذير) */
             if (!isEdit && order === 1) {
                 var existingQ1 = await findQueenByOrder(1);
                 if (existingQ1 && existingQ1 !== user.uid) {
@@ -652,11 +669,9 @@
                     await db.ref('users/' + existingQ1).update({ queenOrder: 2 });
                 }
             }
-            /* إذا كان الرقم مشغول → نبدّل */
             if (!isEdit) {
                 var existingQN = await findQueenByOrder(order);
                 if (existingQN && existingQN !== user.uid) {
-                    /* نبدّل المواقع — القديمة تأخذ الرقم الأول الفاضي */
                     var freeOrder = await findFreeQueenOrder();
                     if (freeOrder) {
                         await db.ref('users/' + existingQN).update({ queenOrder: freeOrder });
@@ -664,7 +679,6 @@
                 }
             }
 
-            /* الحفظ */
             await db.ref('users/' + user.uid).update({
                 rank: 'Queen',
                 rankLevel: 95,
@@ -672,20 +686,16 @@
                 customPermissions: perms
             });
 
-            db.ref('audit_log').push({
-                type: isEdit ? 'edit_queen' : 'set_queen',
-                byUid: me.uid, byName: me.name,
+            logAudit(isEdit ? 'edit_queen' : 'set_queen', {
                 targetUid: user.uid, targetName: user.name || '',
                 order: order,
-                permsCount: Object.keys(perms).length,
-                at: firebase.database.ServerValue.TIMESTAMP
-            }).catch(function () {});
+                permsCount: Object.keys(perms).length
+            });
 
             toast('fa-crown', '✅ ' + (user.name || '') + ' — ' + getQueenLabel(order));
             renderTab();
         }, isEdit ? 'حفظ التعديلات' : 'تعيين ملكة', 'kr-btn-green');
 
-        /* عداد الصلاحيات */
         setTimeout(function () {
             var counter = document.getElementById('kr-perm-count-num');
             function updateCount() {
@@ -769,7 +779,6 @@
         });
         h += '</div>';
 
-        /* بحث لتعيين ملكة */
         h += '<div class="kr-card">';
         h += '<div class="kr-card-title">➕ تعيين ملكة</div>';
         h += '<input class="kr-input" id="kr-qsearch" placeholder="🔍 اسم / كود / إيميل / UID" style="margin-bottom:8px;">';
@@ -779,7 +788,6 @@
 
         body.innerHTML = h;
 
-        /* أحداث */
         body.querySelectorAll('[data-qedit]').forEach(function (b) {
             b.onclick = function () {
                 var uid = this.getAttribute('data-qedit');
@@ -856,6 +864,260 @@
         searchInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') doSearch(); });
     }
 
+    /* ══════════════════════════════════════════════ */
+    /* ⭐ v10: تبويب الحسابات المكرّرة                */
+    /* ══════════════════════════════════════════════ */
+    async function renderMultiAccount(body) {
+        if (!isKing()) { body.innerHTML = '<div class="kr-empty">للملك فقط</div>'; return; }
+        body.innerHTML = '<div class="kr-loading">⏳</div>';
+
+        try {
+            var s = await db.ref('multi_account_alerts').limitToLast(100).once('value');
+            var data = s.val() || {};
+            var alerts = Object.keys(data).map(function (k) {
+                var a = data[k];
+                a._id = k;
+                return a;
+            }).sort(function (a, b) { return (b.at || 0) - (a.at || 0); });
+
+            var renderList = function () {
+                var filter = KR._multiAccountFilter;
+                var filtered = alerts;
+                if (filter === 'pending') filtered = alerts.filter(function (a) { return a.status !== 'resolved'; });
+                else if (filter === 'resolved') filtered = alerts.filter(function (a) { return a.status === 'resolved'; });
+
+                var listEl = document.getElementById('kr-ma-list');
+                if (!listEl) return;
+                listEl.innerHTML = '';
+
+                if (!filtered.length) {
+                    listEl.innerHTML = '<div style="text-align:center;color:#888;padding:20px;font-size:12px;">لا توجد تنبيهات</div>';
+                    return;
+                }
+
+                filtered.forEach(function (a) {
+                    var card = document.createElement('div');
+                    card.className = 'kr-card';
+                    card.style.cssText = 'padding:14px;margin-bottom:10px;border-color:rgba(255,68,68,0.4);background:linear-gradient(135deg,rgba(120,0,0,0.15),rgba(0,0,0,0.3));';
+
+                    var existingList = Array.isArray(a.existingUids) ? a.existingUids : Object.keys(a.existingUids || {});
+                    var isResolved = a.status === 'resolved';
+
+                    var h = '';
+                    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
+                    h += '<div style="color:#ff6666;font-weight:900;font-size:13px;">' + (isResolved ? '✅ مُعالَج' : '🚨 محاولة مكرّرة') + '</div>';
+                    h += '<div style="color:#888;font-size:10px;">' + timeAgo(a.at) + '</div>';
+                    h += '</div>';
+
+                    h += '<div style="color:#fff;font-size:13px;font-weight:900;margin-bottom:4px;">👤 ' + esc(a.name || 'مجهول') + '</div>';
+                    h += '<div style="color:#ff9999;font-size:11px;margin-bottom:8px;word-break:break-all;">UID: ' + esc(a.uid || '—') + '</div>';
+
+                    h += '<div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:8px;font-size:11px;line-height:1.6;margin-bottom:10px;">';
+                    h += '<div style="color:#aaa;"><b>📱 Device:</b> ' + esc((a.deviceId || '—').substring(0, 20)) + '...</div>';
+                    h += '<div style="color:#aaa;"><b>🌐 IP:</b> ' + esc(a.ip || '—') + '</div>';
+                    if (existingList.length) {
+                        h += '<div style="color:#ffbb66;margin-top:6px;"><b>👥 حسابات موجودة:</b> ' + existingList.length + '</div>';
+                        existingList.slice(0, 5).forEach(function (uid) {
+                            h += '<div style="color:#ffcc88;font-size:10px;padding-right:10px;">• ' + esc(uid.substring(0, 12)) + '...</div>';
+                        });
+                    }
+                    h += '</div>';
+
+                    card.innerHTML = h;
+
+                    var actions = document.createElement('div');
+                    actions.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;';
+
+                    if (!isResolved) {
+                        var delBtn = document.createElement('button');
+                        delBtn.className = 'kr-btn kr-btn-red kr-btn-sm';
+                        delBtn.textContent = '🗑️ حذف النبيه';
+                        delBtn.onclick = async function () {
+                            if (!confirm('حذف هذا التنبيه من القائمة؟')) return;
+                            try {
+                                await db.ref('multi_account_alerts/' + a._id).remove();
+                                toast('fa-check', '✅ حُذف');
+                                renderTab();
+                            } catch (e) { toast('fa-times', '⚠️ فشل'); }
+                        };
+
+                        var banBtn = document.createElement('button');
+                        banBtn.className = 'kr-btn kr-btn-red kr-btn-sm';
+                        banBtn.textContent = '🛡️ حظر الجهاز';
+                        banBtn.style.background = '#dc2626';
+                        banBtn.onclick = async function () {
+                            if (!confirm('حظر جهاز وIP هذا الحساب؟')) return;
+                            try {
+                                if (window.DeviceGuard && typeof window.DeviceGuard.ban === 'function') {
+                                    await window.DeviceGuard.ban(a.uid, getMe().uid, getMe().name || 'King', 'multi_account');
+                                    await db.ref('multi_account_alerts/' + a._id).update({
+                                        status: 'resolved',
+                                        resolvedAt: Date.now(),
+                                        resolvedBy: getMe().uid,
+                                        resolvedAction: 'device_ban'
+                                    });
+                                    toast('fa-check', '🛡️ تم حظر الجهاز + IP');
+                                } else {
+                                    toast('fa-times', '⚠️ DeviceGuard غير محمّل');
+                                }
+                                renderTab();
+                            } catch (e) { toast('fa-times', '⚠️ فشل: ' + e.message); }
+                        };
+
+                        var viewBtn = document.createElement('button');
+                        viewBtn.className = 'kr-btn kr-btn-outline kr-btn-sm';
+                        viewBtn.textContent = '👤 عرض الحساب';
+                        viewBtn.onclick = function () {
+                            closeRoom();
+                            setTimeout(function () { openUserProfile(a.uid, a.name || ''); }, 200);
+                        };
+
+                        actions.appendChild(banBtn);
+                        actions.appendChild(delBtn);
+                        actions.appendChild(viewBtn);
+                    } else {
+                        var resInfo = document.createElement('div');
+                        resInfo.style.cssText = 'flex:1;color:#84cc16;font-size:11px;font-weight:900;padding:6px;';
+                        resInfo.textContent = '✅ معالَج (' + (a.resolvedAction || 'admin') + ')';
+                        actions.appendChild(resInfo);
+                    }
+
+                    card.appendChild(actions);
+                    listEl.appendChild(card);
+                });
+            };
+
+            var h = '<div class="kr-card">';
+            h += '<div class="kr-card-title">🚨 الحسابات المكرّرة</div>';
+            h += '<div style="color:#888;font-size:11px;margin-bottom:10px;">يتم الكشف تلقائياً عند محاولة تسجيل حساب ثانٍ من نفس الجهاز</div>';
+            h += '</div>';
+
+            h += '<div class="kr-filters">';
+            h += '<button class="kr-chip' + (KR._multiAccountFilter === 'pending' ? ' active' : '') + '" data-maf="pending">🆕 جديدة</button>';
+            h += '<button class="kr-chip' + (KR._multiAccountFilter === 'resolved' ? ' active' : '') + '" data-maf="resolved">✅ معالَجة</button>';
+            h += '</div>';
+            h += '<div id="kr-ma-list"></div>';
+            body.innerHTML = h;
+
+            body.querySelectorAll('[data-maf]').forEach(function (c) {
+                c.onclick = function () {
+                    KR._multiAccountFilter = c.getAttribute('data-maf');
+                    body.querySelectorAll('[data-maf]').forEach(function (x) { x.classList.remove('active'); });
+                    c.classList.add('active');
+                    renderList();
+                };
+            });
+
+            renderList();
+        } catch (e) {
+            body.innerHTML = '<div class="kr-empty">❌ ' + esc(e.message) + '</div>';
+        }
+    }
+
+    /* ══════════════════════════════════════════════ */
+    /* ⭐ v10: تبويب إدارة البان (devices + IPs)      */
+    /* ══════════════════════════════════════════════ */
+    async function renderBans(body) {
+        var lvl = myLevel();
+        if (lvl < 90) { body.innerHTML = '<div class="kr-empty">Master Owner+ فقط</div>'; return; }
+        body.innerHTML = '<div class="kr-loading">⏳</div>';
+
+        try {
+            var rs = await Promise.all([
+                db.ref('banned_devices').limitToLast(200).once('value').catch(function () { return null; }),
+                db.ref('banned_ips').limitToLast(200).once('value').catch(function () { return null; })
+            ]);
+            var bannedDevices = (rs[0] && rs[0].val()) || {};
+            var bannedIps = (rs[1] && rs[1].val()) || {};
+
+            var renderList = function () {
+                var tab = KR._banTab;
+                var data = (tab === 'devices') ? bannedDevices : bannedIps;
+                var prefix = (tab === 'devices') ? '📱 ' : '🌐 ';
+
+                var listEl = document.getElementById('kr-ban-list');
+                if (!listEl) return;
+                listEl.innerHTML = '';
+
+                var keys = Object.keys(data);
+                if (!keys.length) {
+                    listEl.innerHTML = '<div style="text-align:center;color:#888;padding:20px;font-size:12px;">لا توجد عناصر محظورة</div>';
+                    return;
+                }
+
+                keys.forEach(function (key) {
+                    var entry = data[key] || {};
+                    var card = document.createElement('div');
+                    card.className = 'kr-card';
+                    card.style.cssText = 'padding:12px;margin-bottom:10px;border-color:rgba(168,85,247,0.4);';
+
+                    var shortKey = key.length > 24 ? (key.substring(0, 12) + '...' + key.substring(key.length - 8)) : key;
+
+                    var h = '';
+                    h += '<div style="color:#c084fc;font-weight:900;font-size:12px;margin-bottom:6px;word-break:break-all;">' + prefix + esc(shortKey) + '</div>';
+                    h += '<div style="color:#fff;font-size:11px;">👤 <b>' + esc(entry.name || 'مجهول') + '</b></div>';
+                    h += '<div style="color:#888;font-size:10px;margin-top:2px;">UID: ' + esc((entry.uid || '—').substring(0, 16)) + '...</div>';
+                    if (entry.ip) h += '<div style="color:#888;font-size:10px;margin-top:2px;">IP: ' + esc(entry.ip) + '</div>';
+                    if (entry.reason) h += '<div style="color:#ff9999;font-size:10px;margin-top:4px;">📝 ' + esc(entry.reason) + '</div>';
+                    h += '<div style="color:#666;font-size:10px;margin-top:4px;">🕐 ' + timeAgo(entry.at) + '</div>';
+
+                    card.innerHTML = h;
+
+                    var unbanBtn = document.createElement('button');
+                    unbanBtn.className = 'kr-btn kr-btn-green kr-btn-sm';
+                    unbanBtn.textContent = '🔓 فك الحظر';
+                    unbanBtn.style.marginTop = '8px';
+                    unbanBtn.style.width = '100%';
+                    unbanBtn.onclick = async function () {
+                        if (!confirm('فك حظر هذا العنصر؟')) return;
+                        try {
+                            var path = (tab === 'devices') ? 'banned_devices/' : 'banned_ips/';
+                            await db.ref(path + key).remove();
+                            logAudit('unban_' + tab.slice(0, -1), {
+                                targetKey: key,
+                                targetUid: entry.uid || '',
+                                targetName: entry.name || ''
+                            });
+                            toast('fa-check', '🔓 تم فك الحظر');
+                            renderTab();
+                        } catch (e) { toast('fa-times', '⚠️ فشل: ' + e.message); }
+                    };
+                    card.appendChild(unbanBtn);
+                    listEl.appendChild(card);
+                });
+            };
+
+            var h = '<div class="kr-card">';
+            h += '<div class="kr-card-title">🛡️ إدارة البان</div>';
+            h += '<div style="color:#888;font-size:11px;margin-bottom:6px;">';
+            h += '<b style="color:#ffd700;">' + Object.keys(bannedDevices).length + '</b> جهاز · ';
+            h += '<b style="color:#ffd700;">' + Object.keys(bannedIps).length + '</b> IP';
+            h += '</div>';
+            h += '</div>';
+
+            h += '<div class="kr-filters" style="margin-bottom:12px;">';
+            h += '<button class="kr-chip' + (KR._banTab === 'devices' ? ' active' : '') + '" data-btab="devices">📱 الأجهزة (' + Object.keys(bannedDevices).length + ')</button>';
+            h += '<button class="kr-chip' + (KR._banTab === 'ips' ? ' active' : '') + '" data-btab="ips">🌐 الشبكات (' + Object.keys(bannedIps).length + ')</button>';
+            h += '</div>';
+
+            h += '<div id="kr-ban-list"></div>';
+            body.innerHTML = h;
+
+            body.querySelectorAll('[data-btab]').forEach(function (c) {
+                c.onclick = function () {
+                    KR._banTab = c.getAttribute('data-btab');
+                    body.querySelectorAll('[data-btab]').forEach(function (x) { x.classList.remove('active'); });
+                    c.classList.add('active');
+                    renderList();
+                };
+            });
+
+            renderList();
+        } catch (e) {
+            body.innerHTML = '<div class="kr-empty">❌ ' + esc(e.message) + '</div>';
+        }
+    }
+
     /* ═══ Dialog ═══ */
     function ensureDlg() {
         var d = document.getElementById('kr-dialog');
@@ -890,8 +1152,7 @@
             if (isNaN(a) || a <= 0) { toast('fa-times', 'رقم غير صحيح'); return false; }
             db.ref('bot_data/quiz/scores/' + user.uid).transaction(function (c) { return (c || 0) + a; })
                 .then(function () {
-                    var me = getMe();
-                    db.ref('audit_log').push({ type: 'give_points', byUid: me.uid, byName: me.name, targetUid: user.uid, targetName: user.name, amount: a, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+                    logAudit('give_points', { targetUid: user.uid, targetName: user.name, amount: a });
                     toast('fa-star', '✅ أُهدي ' + a + ' نقطة');
                 }).catch(function () { toast('fa-times', 'فشل'); });
         }, 'إهداء', 'kr-btn-gold');
@@ -917,8 +1178,7 @@
             var l = (typeof getRankLevel === 'function') ? getRankLevel(n) : 50;
             db.ref('users/' + user.uid).update({ rank: n, rankLevel: l, customPermissions: null })
                 .then(function () {
-                    var me2 = getMe();
-                    db.ref('audit_log').push({ type: 'promote', byUid: me2.uid, byName: me2.name, targetUid: user.uid, targetName: user.name, fromRank: user.rank, toRank: n, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+                    logAudit('promote', { targetUid: user.uid, targetName: user.name, fromRank: user.rank, toRank: n });
                     toast('fa-check', '✅'); renderTab();
                 }).catch(function () { toast('fa-times', 'فشل'); });
         });
@@ -930,8 +1190,7 @@
         openDlg('📉 تخفيض ' + (user.name || ''), 'سيُنزل إلى User.', '', function () {
             db.ref('users/' + user.uid).update({ rank: 'User', rankLevel: 50, queenOrder: null, customPermissions: null })
                 .then(function () {
-                    var me2 = getMe();
-                    db.ref('audit_log').push({ type: 'demote', byUid: me2.uid, byName: me2.name, targetUid: user.uid, targetName: user.name, fromRank: user.rank, toRank: 'User', at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+                    logAudit('demote', { targetUid: user.uid, targetName: user.name, fromRank: user.rank, toRank: 'User' });
                     toast('fa-check', '✅'); renderTab();
                 }).catch(function () { toast('fa-times', 'فشل'); });
         }, 'تخفيض', 'kr-btn-red');
@@ -945,7 +1204,7 @@
         openDlg('👑 إزالة رتبة ' + (user.name || ''), msg, '', function () {
             db.ref('users/' + user.uid).update({ rank: 'User', rankLevel: 50, queenOrder: null, customPermissions: null })
                 .then(function () {
-                    db.ref('audit_log').push({ type: 'strip_rank', byUid: me.uid, byName: me.name, targetUid: user.uid, targetName: user.name, fromRank: user.rank, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+                    logAudit('strip_rank', { targetUid: user.uid, targetName: user.name, fromRank: user.rank });
                     toast('fa-check', '✅'); renderTab();
                 }).catch(function () { toast('fa-times', 'فشل'); });
         }, 'إزالة الرتبة', 'kr-btn-red');
@@ -965,7 +1224,7 @@
                 name ? db.ref('user_names/' + name).remove() : Promise.resolve(),
                 code ? db.ref('user_codes/' + code).remove() : Promise.resolve()
             ]).then(function () {
-                db.ref('audit_log').push({ type: 'delete_account', byUid: me.uid, byName: me.name, targetUid: user.uid, targetName: name, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+                logAudit('delete_account', { targetUid: user.uid, targetName: name });
                 toast('fa-trash', '✅ حُذف الحساب');
                 renderTab();
             }).catch(function (e) { toast('fa-times', 'فشل: ' + e.message); });
@@ -973,14 +1232,13 @@
     }
 
     function doWarn(user) {
-        var me = getMe();
         var h = '<label style="display:block;color:#ffd700;font-size:12px;font-weight:900;margin-bottom:6px;">سبب التحذير (اختياري):</label>';
         h += '<input class="kr-input" id="kr-reason">';
         openDlg('⚠️ تحذير ' + (user.name || ''), '', h, function () {
             var reason = document.getElementById('kr-reason').value.trim();
             db.ref('users/' + user.uid + '/warnings').transaction(function (c) { return (c || 0) + 1; })
                 .then(function () {
-                    db.ref('audit_log').push({ type: 'warn', byUid: me.uid, byName: me.name, targetUid: user.uid, targetName: user.name, reason: reason, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+                    logAudit('warn', { targetUid: user.uid, targetName: user.name, reason: reason });
                     toast('fa-check', '✅');
                 }).catch(function () { toast('fa-times', 'فشل'); });
         }, 'تحذير', 'kr-btn-orange');
@@ -994,9 +1252,10 @@
         openDlg('⛓️ سجن ' + (user.name || ''), '', h, function () {
             var m = parseInt(document.getElementById('kr-jm').value);
             if (isNaN(m) || m < 1 || m > 120) { toast('fa-times', 'رقم غير صحيح'); return false; }
+            db.ref('users/' + user.uid + '/lastRoomBeforeJail').set(user.currentRoom || 'general').catch(function () {});
             db.ref('users/' + user.uid).update({ isJailed: true, jailUntil: Date.now() + m * 60000, jailReason: 'إجراء إداري' })
                 .then(function () {
-                    db.ref('audit_log').push({ type: 'jail', byUid: me.uid, byName: me.name, targetUid: user.uid, targetName: user.name, minutes: m, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+                    logAudit('jail', { targetUid: user.uid, targetName: user.name, minutes: m });
                     toast('fa-lock', '✅ ' + m + ' دقيقة');
                 }).catch(function () { toast('fa-times', 'فشل'); });
         }, 'سجن', 'kr-btn-red');
@@ -1009,7 +1268,7 @@
             var room = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
             db.ref('room_kicks/' + room + '/' + user.uid).set({ by: me.uid, at: Date.now() })
                 .then(function () {
-                    db.ref('audit_log').push({ type: 'kick', byUid: me.uid, byName: me.name, targetUid: user.uid, targetName: user.name, room: room, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+                    logAudit('kick', { targetUid: user.uid, targetName: user.name, room: room });
                     toast('fa-check', '✅');
                 }).catch(function () { toast('fa-times', 'فشل'); });
         }, 'طرد', 'kr-btn-orange');
@@ -1038,7 +1297,7 @@
         else bu = Date.now() + parseInt(dur) * 60000;
         db.ref('users/' + user.uid).update({ isBanned: true, bannedUntil: bu, banReason: reason || '' })
             .then(function () {
-                db.ref('audit_log').push({ type: 'ban', byUid: me.uid, byName: me.name, targetUid: user.uid, targetName: user.name, duration: dur, reason: reason || '', at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+                logAudit('ban', { targetUid: user.uid, targetName: user.name, duration: dur, reason: reason });
                 toast('fa-check', '✅'); renderTab();
             }).catch(function () { toast('fa-times', 'فشل'); });
     }
@@ -1125,6 +1384,7 @@
                                     }
                                 });
                             } catch (e) {}
+                            logAudit('restore_user', { targetUid: uid, targetName: u.name });
                             toast('fa-check', '✅ تمت الإعادة');
                             renderTab();
                         } catch (e) {
@@ -1216,6 +1476,7 @@
                                 delete arch._id;
                                 await db.ref('reports_archive/' + r._id).set(arch);
                                 await db.ref('reports/' + r._id).remove();
+                                logAudit('report_resolved', { reportId: r._id, targetUid: r.targetUid || '' });
                                 toast('fa-check', '✅');
                                 renderTab();
                             } catch (e) { toast('fa-times', '⚠️ ' + e.message); }
@@ -1331,13 +1592,13 @@
                 if (d.icon) QAMAR.ROOMS[rid].icon = d.icon;
             }
             if (typeof buildRoomsList === 'function') buildRoomsList();
-            db.ref('audit_log').push({ type: 'edit_room', byUid: me.uid, byName: me.name, roomId: rid, at: firebase.database.ServerValue.TIMESTAMP }).catch(function () {});
+            logAudit('edit_room', { roomId: rid });
             toast('fa-check', '✅');
             renderRooms(document.getElementById('kr-body'));
         } catch (e) { toast('fa-times', 'فشل: ' + e.message); }
     }
 
-    /* ═══ Bots (simplified) ═══ */
+    /* ═══ Bots ═══ */
     function renderBots(body) {
         var h = '<div class="kr-card"><div class="kr-card-title">🤖 إدارة البوتات</div>';
         h += '<div style="color:#888;font-size:11px;margin-bottom:14px;">حكواتي · مسابقات · إسلاميات · سفير</div>';
@@ -1383,9 +1644,7 @@
         };
     }
 
-    /* ══════════════════════════════════════════════ */
-    /* ⭐ v9: تبويب السجان (King only)                */
-    /* ══════════════════════════════════════════════ */
+    /* ═══ Guardian (King only) ═══ */
     function renderGuardian(body) {
         if (!isKing()) { body.innerHTML = '<div class="kr-empty">للملك فقط</div>'; return; }
 
@@ -1399,7 +1658,6 @@
         h += '</div>';
         h += '</div>';
 
-        /* تبويبات داخلية */
         h += '<div class="kr-filters" style="margin-bottom:12px;">';
         h += '<button class="kr-chip' + (KR._guardianTab === 'badwords' ? ' active' : '') + '" data-gt="badwords">⚠️ كلمات السجن</button>';
         h += '<button class="kr-chip' + (KR._guardianTab === 'kickwords' ? ' active' : '') + '" data-gt="kickwords">🚪 كلمات الطرد</button>';
@@ -1437,7 +1695,6 @@
             }).catch(function (e) { alert('❌ ' + e.message); });
         };
 
-        /* قائمة الكلمات */
         var path = KR._guardianTab === 'badwords' ? 'bot_memory/badWords' : 'bot_memory/kickWords';
         db.ref(path).once('value').then(function (s) {
             var data = s.val() || {};
@@ -1668,6 +1925,16 @@
         injectBtn();
     }
 
+    /* ⭐ v10: __krSetTab — للفتح المباشر من index.html */
+    window.__krSetTab = function (tabId) {
+        if (!tabId) return;
+        KR.currentTab = tabId;
+        if (KR.open) {
+            renderTabs();
+            renderTab();
+        }
+    };
+
     window.KingRoom = { open: openRoom, close: closeRoom, reload: function () { if (KR.open) renderTab(); } };
 
     function init() {
@@ -1681,5 +1948,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 
-    console.log('👑 king-room.js v9 (TEST) loaded — 4 Queens + Guardian + Lazy Load');
+    console.log('👑 king-room.js v10 (TEST) loaded — multi-account + bans + __krSetTab');
 })();
