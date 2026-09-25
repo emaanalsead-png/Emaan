@@ -1,11 +1,23 @@
 /* ==============================================
-   frames-engine.css v2 — كامل
+   frames-engine.css v3 — تثبيت GIF
+   ==============================================
+   ✅ v3 (فوق v2):
+     1. .qf-animated — يُلغِي transform/filter على الصور المتحركة
+     2. .opacity-pulse + .opacity-gentle — animations آمنة للـ GIF
+     3. will-change: auto للصور المتحركة (يمنع تجميد GIF على iOS)
+     4. image-rendering: auto — دقة GIF محفوظة
+   ✅ v2 (محفوظ):
+     - .qf الأساسي
+     - 4 animations قديمة (royal-glow، wing-flutter، flame-flicker، celestial-spin)
    ============================================== */
 
 :root {
     --frame-inset: -8%;
 }
 
+/* ═══════════════════════════════════════════════ */
+/* الإطار الأساسي                                  */
+/* ═══════════════════════════════════════════════ */
 .qf {
     position: absolute;
     inset: var(--frame-inset, -8%);
@@ -14,6 +26,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    /* ⭐ v3: نمنع GPU compositing الافتراضي على الآباء */
+    transform: translateZ(0);
 }
 
 .qf img {
@@ -21,9 +35,72 @@
     height: 100%;
     object-fit: contain;
     display: block;
+    /* ⭐ v3: دقة عالية للصور المتحركة */
+    image-rendering: auto;
+    /* ⭐ v3: منع تخفيف الشفافية الذي يفقد الألوان */
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
 }
 
-/* Royal Glow */
+/* ═══════════════════════════════════════════════ */
+/* ⭐ v3: الصور المتحركة — قواعد خاصة              */
+/* ═══════════════════════════════════════════════ */
+.qf.qf-animated {
+    /* نُلغي أي transform قد يؤثر على GIF */
+    transform: none !important;
+    will-change: auto !important;
+    /* ⭐ v3: نُلغي color/drop-shadow لأنه يوقف GIF على iOS */
+    filter: none !important;
+    -webkit-filter: none !important;
+}
+
+.qf.qf-animated img {
+    /* ⭐ v3: منع preserve-3d (يوقف GIF على Safari) */
+    transform: none !important;
+    will-change: auto !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    image-rendering: auto;
+}
+
+/* لو الـ animation القديم (royal-glow/flame/...) كان مطلوب، نُلغيه للصور المتحركة */
+.qf.qf-animated.royal-glow,
+.qf.qf-animated.wing-flutter,
+.qf.qf-animated.flame-flicker,
+.qf.qf-animated.celestial-spin {
+    animation: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    transform: none !important;
+}
+
+/* ═══════════════════════════════════════════════ */
+/* ⭐ v3: animations آمنة للصور المتحركة           */
+/* ═══════════════════════════════════════════════ */
+
+/* نبض خفيف — opacity فقط (لا يوقف GIF) */
+.qf.opacity-pulse {
+    animation: qfOpacityPulse 2s ease-in-out infinite;
+}
+@keyframes qfOpacityPulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.75; }
+}
+
+/* نبض ناعم — لا يكاد يُلاحظ */
+.qf.opacity-gentle {
+    animation: qfOpacityGentle 3.5s ease-in-out infinite;
+}
+@keyframes qfOpacityGentle {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.88; }
+}
+
+/* ═══════════════════════════════════════════════ */
+/* Animations للصور الثابتة فقط (v2 — محفوظة)     */
+/* ═══════════════════════════════════════════════ */
+
+/* Royal Glow — هالة ذهبية */
 .qf.royal-glow {
     animation: qfRoyalGlow 2.5s ease-in-out infinite;
 }
@@ -40,7 +117,7 @@
     }
 }
 
-/* Wing Flutter */
+/* Wing Flutter — رفرفة أجنحة */
 .qf.wing-flutter {
     animation: qfWingFlutter 3s ease-in-out infinite;
     filter: drop-shadow(0 0 6px rgba(255,215,0,0.6));
@@ -50,7 +127,7 @@
     50%      { transform: scale(1.05) rotate(1.5deg); }
 }
 
-/* Flame Flicker */
+/* Flame Flicker — اشتعال نار */
 .qf.flame-flicker {
     animation: qfFlameFlicker 0.5s steps(2) infinite;
 }
@@ -65,7 +142,7 @@
     }
 }
 
-/* Celestial Spin */
+/* Celestial Spin — دوران سماوي */
 .qf.celestial-spin {
     animation: qfCelestialSpin 12s linear infinite;
     filter: drop-shadow(0 0 10px rgba(255,80,80,0.8));
@@ -75,4 +152,27 @@
     to   { transform: rotate(360deg); }
 }
 
+/* ═══════════════════════════════════════════════ */
+/* حاوية الأفاتار                                  */
+/* ═══════════════════════════════════════════════ */
 .avatar-box { position: relative; }
+
+/* ═══════════════════════════════════════════════ */
+/* ⭐ v3: media query — إصلاح iOS Safari           */
+/* ═══════════════════════════════════════════════ */
+
+/* على iOS: GIF يتوقف عند استخدام transform/filter */
+@supports (-webkit-touch-callout: none) {
+    .qf.qf-animated,
+    .qf.qf-animated img {
+        transform: none !important;
+        filter: none !important;
+        -webkit-filter: none !important;
+        will-change: auto !important;
+        animation-timing-function: linear !important;
+    }
+    .qf.opacity-pulse,
+    .qf.opacity-gentle {
+        animation: inherit;
+    }
+}
