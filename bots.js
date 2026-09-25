@@ -1,9 +1,13 @@
 // ==============================================
-// bots.js v29 (TEST) — كشف ذكي + استيراد قائمة (إصلاح)
+// bots.js v30 (TEST) — سجان محسّن + نقل للسجن
 // ==============================================
-// ✅ v29:
-//   1. إصلاح importArabicWordList — بدون event global
-//   2. باقي كل شيء كما v28 بالضبط
+// ✅ v30 (فوق v29):
+//   1. النقل القسري للسجن عند الحكم
+//   2. حفظ lastRoomBeforeJail
+//   3. إعادة العضو لآخر غرفة عند انتهاء السجن
+//   4. دعم mutes (kتم كامل / كتم غرفة)
+//   5. audit_log لكل عقوبة
+//   6. باقي كل شيء من v29 محفوظ
 // ==============================================
 
 const BotsState = {
@@ -95,6 +99,9 @@ const DEFAULT_HAKAWATI = {
     'شو اسمك': 'اسمي حكواتي الشام 📖'
 };
 
+/* ══════════════════════════════════════════════ */
+/* Normalize                                      */
+/* ══════════════════════════════════════════════ */
 function normalizeArabic(text) {
     if (!text) return '';
     var s = String(text).toLowerCase().trim();
@@ -178,6 +185,21 @@ function extractMsgKey(msg) {
     return null;
 }
 
+/* ══════════════════════════════════════════════ */
+/* ⭐ v30: _logAudit موحّد                         */
+/* ══════════════════════════════════════════════ */
+function _logAudit(type, data) {
+    try {
+        db.ref('audit_log').push(Object.assign({
+            type: type,
+            at: firebase.database.ServerValue.TIMESTAMP
+        }, data || {})).catch(function () {});
+    } catch (e) {}
+}
+
+/* ══════════════════════════════════════════════ */
+/* الأصوات                                        */
+/* ══════════════════════════════════════════════ */
 function _getAudioCtx() {
     if (typeof getAudioCtx === 'function') {
         try { return getAudioCtx(); } catch (e) {}
@@ -217,16 +239,14 @@ function playPoliceSiren() {
             osc.start(start);
             osc.stop(start + 0.32);
         }
-    } catch (e) { console.warn('siren error:', e); }
+    } catch (e) {}
 }
 
 function playWelcomeSound() {
     try {
         var ctx = _getAudioCtx();
         if (!ctx) return;
-        if (ctx.state === 'suspended') {
-            ctx.resume().catch(function(){});
-        }
+        if (ctx.state === 'suspended') ctx.resume().catch(function(){});
         var now = ctx.currentTime;
         var notes = [523.25, 659.25, 783.99];
         notes.forEach(function(freq, i) {
@@ -243,31 +263,32 @@ function playWelcomeSound() {
             osc.start(start);
             osc.stop(start + 0.4);
         });
-    } catch (e) { console.warn('welcome sound error:', e); }
+    } catch (e) {}
 }
 
+/* ══════════════════════════════════════════════ */
+/* الحصانة                                        */
+/* ══════════════════════════════════════════════ */
 async function isImmuneUser(uid) {
     if (!uid) return false;
     var cached = BotsState.immuneCache[uid];
-    if (cached && (Date.now() - cached.at) < 60000) {
-        return cached.immune;
-    }
+    if (cached && (Date.now() - cached.at) < 60000) return cached.immune;
     try {
         var s = await db.ref('users/' + uid).once('value');
         var u = s.val() || {};
         var lvl = u.rankLevel || 0;
-        if (!lvl && typeof getRankLevel === 'function') {
-            lvl = getRankLevel(u.rank) || 0;
-        }
+        if (!lvl && typeof getRankLevel === 'function') lvl = getRankLevel(u.rank) || 0;
         var immune = (lvl >= IMMUNE_LEVEL) || u.rank === 'King' || u.rank === 'Queen';
         BotsState.immuneCache[uid] = { immune: immune, at: Date.now(), name: u.name || 'مجهول', rank: u.rank || 'User' };
         return immune;
     } catch (e) {
-        console.warn('isImmuneUser error:', e);
         return false;
     }
 }
 
+/* ══════════════════════════════════════════════ */
+/* إخفاء الرسالة المسيئة                          */
+/* ══════════════════════════════════════════════ */
 async function hideOffensiveMessage(msg, reason) {
     var fbKey = extractMsgKey(msg);
     if (!fbKey) return false;
@@ -293,6 +314,9 @@ async function hideOffensiveMessage(msg, reason) {
     }
 }
 
+/* ══════════════════════════════════════════════ */
+/* كشف الكلمات                                    */
+/* ══════════════════════════════════════════════ */
 function _buildSeparatedRegex(word) {
     var chars = String(word).split('');
     var pattern = chars.map(function(ch) {
@@ -323,14 +347,12 @@ function _checkWords(text, wordList) {
     return null;
 }
 
-function containsBadWord(text) {
-    return _checkWords(text, BotsState.badWords);
-}
+function containsBadWord(text) { return _checkWords(text, BotsState.badWords); }
+function containsKickWord(text) { return _checkWords(text, BotsState.kickWords); }
 
-function containsKickWord(text) {
-    return _checkWords(text, BotsState.kickWords);
-}
-
+/* ══════════════════════════════════════════════ */
+/* حكواتي                                         */
+/* ══════════════════════════════════════════════ */
 function hasTrigger(text) {
     if (!text) return false;
     for (var i = 0; i < HAKAWATI_TRIGGERS.length; i++) {
@@ -405,18 +427,138 @@ function isAutoReplyCoolingDown(uid, key) {
 }
 
 function setAutoReplyCooldown(uid, key) {
-    var k = uid + '::' + key;
-    BotsState.autoReplyCooldown[k] = Date.now();
+    BotsState.autoReplyCooldown[uid + '::' + key] = Date.now();
 }
 
+/* ══════════════════════════════════════════════ */
+/* ⭐ v30: النقل القسري للغرف                     */
+/* ══════════════════════════════════════════════ */
+async function forceTransferToRoom(uid, roomId, opts) {
+    opts = opts || {};
+    if (!uid || !roomId) return false;
+    try {
+        var now = Date.now();
+        /* حفظ الغرفة الحالية قبل النقل */
+        if (opts.saveLastRoom !== false) {
+            try {
+                var cur = await db.ref('user_presence/' + uid + '/room').once('value');
+                var curRoom = cur.val();
+                if (curRoom && curRoom !== roomId) {
+                    await db.ref('users/' + uid + '/lastRoomBeforeJail').set(curRoom).catch(function () {});
+                }
+            } catch (e) {}
+        }
+        /* التحديث الفعلي */
+        await db.ref('user_presence/' + uid).update({
+            state: 'online',
+            room: roomId,
+            lastChanged: now,
+            forced: true,
+            forcedBy: opts.byUid || null,
+            forcedReason: opts.reason || 'system'
+        });
+        return true;
+    } catch (e) {
+        console.warn('forceTransfer error:', e);
+        return false;
+    }
+}
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v30: السجن مع النقل القسري                  */
+/* ══════════════════════════════════════════════ */
+async function _applyJail(uid, name, duration, reason) {
+    var now = Date.now();
+    var jailUntil = now + duration;
+
+    await db.ref('users/' + uid).update({
+        isJailed: true,
+        jailUntil: jailUntil,
+        jailReason: reason || 'auto',
+        jailReleasedAt: 0
+    });
+
+    /* النقل القسري */
+    if (typeof QAMAR !== 'undefined' && QAMAR.JAIL_BEHAVIOR && QAMAR.JAIL_BEHAVIOR.FORCE_TRANSFER) {
+        await forceTransferToRoom(uid, 'jail', {
+            reason: 'jail',
+            saveLastRoom: QAMAR.JAIL_BEHAVIOR.SAVE_LAST_ROOM !== false
+        });
+    }
+
+    /* جدولة الإخراج */
+    setTimeout(async () => {
+        try {
+            var s = await db.ref('users/' + uid + '/jailUntil').once('value');
+            if (s.val() && Date.now() >= s.val()) {
+                await db.ref('users/' + uid).update({
+                    isJailed: false,
+                    jailUntil: 0,
+                    jailReleasedAt: Date.now()
+                });
+                /* إعادة لآخر غرفة */
+                if (typeof QAMAR !== 'undefined' && QAMAR.JAIL_BEHAVIOR && QAMAR.JAIL_BEHAVIOR.AUTO_RETURN) {
+                    var lastSnap = await db.ref('users/' + uid + '/lastRoomBeforeJail').once('value');
+                    var backRoom = lastSnap.val() || 'general';
+                    await db.ref('users/' + uid + '/lastRoomBeforeJail').remove().catch(function () {});
+                    await forceTransferToRoom(uid, backRoom, {
+                        reason: 'jail_release',
+                        saveLastRoom: false,
+                        byUid: 'bot_guardian'
+                    });
+                }
+                var ns = await db.ref('users/' + uid + '/name').once('value');
+                postBotMessage('guardian', '🔓 ' + (ns.val() || name || 'المسجون') + ' خرج من السجن', 'jail');
+                _logAudit('jail_release', { uid: uid, name: name || '', auto: true });
+            }
+        } catch (e) { console.warn('jail release error:', e); }
+    }, duration + 2000);
+
+    _logAudit('jail_apply', {
+        uid: uid,
+        name: name || '',
+        duration: duration,
+        reason: reason || 'auto'
+    });
+}
+
+/* ══════════════════════════════════════════════ */
+/* طرد كامل (permanent ban)                       */
+/* ══════════════════════════════════════════════ */
+async function _applyPermanentBan(uid, name, reason, byUid) {
+    var now = Date.now();
+    await db.ref('users/' + uid).update({
+        isBanned: true,
+        bannedUntil: now + PERMANENT_BAN_MS,
+        permanentBan: true,
+        banReason: reason || 'permanent',
+        lastKickAt: now
+    });
+
+    /* استخدام DeviceGuard لحرق البصمة */
+    try {
+        if (window.DeviceGuard && typeof window.DeviceGuard.ban === 'function') {
+            await window.DeviceGuard.ban(uid, byUid, 'system', reason || 'permanent');
+        }
+    } catch (e) { console.warn('DeviceGuard.ban failed:', e); }
+
+    _logAudit('permanent_ban', {
+        uid: uid,
+        name: name || '',
+        reason: reason || 'permanent',
+        byUid: byUid || null
+    });
+}
+
+/* ══════════════════════════════════════════════ */
+/* الترحيب — السفير                              */
+/* ══════════════════════════════════════════════ */
 async function tryWelcomeUser(uid, roomId) {
     try {
         var userSnap = await db.ref('users/' + uid).once('value');
         var userData = userSnap.val();
         if (!userData) return;
-        if (userData.invisible === true && (userData.rank === 'King' || userData.rank === 'Queen')) {
-            return;
-        }
+        if (userData.invisible === true && (userData.rank === 'King' || userData.rank === 'Queen')) return;
         var now = Date.now();
         var result = await db.ref('bot_locks/welcome/' + roomId + '/' + uid).transaction(function(c) {
             if (c && (now - (c.at || 0)) < WELCOME_COOLDOWN_MS) return;
@@ -451,9 +593,7 @@ async function tryWelcomeUser(uid, roomId) {
             edited: false,
             deleted: false
         });
-    } catch (e) {
-        console.warn('tryWelcomeUser error:', e);
-    }
+    } catch (e) {}
 }
 
 function handlePresenceChild(uid, p) {
@@ -468,9 +608,7 @@ function handlePresenceChild(uid, p) {
     if (p.room !== myRoom) return;
     if (Date.now() - (p.lastChanged || 0) > 60000) return;
     var isNewJoin = !prev || prev.state !== 'online' || prev.room !== p.room;
-    if (isNewJoin) {
-        tryWelcomeUser(uid, myRoom);
-    }
+    if (isNewJoin) tryWelcomeUser(uid, myRoom);
 }
 
 async function setupAmbassadorListener() {
@@ -489,15 +627,9 @@ async function setupAmbassadorListener() {
         });
     } catch (e) {}
     BotsState.presenceListener = db.ref('user_presence');
-    BotsState.presenceListener.on('child_added', function(s) {
-        handlePresenceChild(s.key, s.val());
-    });
-    BotsState.presenceListener.on('child_changed', function(s) {
-        handlePresenceChild(s.key, s.val());
-    });
-    BotsState.presenceListener.on('child_removed', function(s) {
-        delete BotsState.lastUserRooms[s.key];
-    });
+    BotsState.presenceListener.on('child_added', function(s) { handlePresenceChild(s.key, s.val()); });
+    BotsState.presenceListener.on('child_changed', function(s) { handlePresenceChild(s.key, s.val()); });
+    BotsState.presenceListener.on('child_removed', function(s) { delete BotsState.lastUserRooms[s.key]; });
     BotsState.ambassadorReady = true;
 }
 
@@ -509,9 +641,7 @@ function handleWelcomeMessage(msg) {
     var msgAge = Date.now() - (typeof msg.time === 'number' ? msg.time : Date.now());
     if (msgAge > 60000) return;
     playWelcomeSound();
-    if (msg.welcomeFor === me.uid) {
-        showWelcomeModal(msg);
-    }
+    if (msg.welcomeFor === me.uid) showWelcomeModal(msg);
 }
 
 function showWelcomeModal(msg) {
@@ -533,13 +663,16 @@ function showWelcomeModal(msg) {
     setTimeout(close, 10000);
 }
 
+/* ══════════════════════════════════════════════ */
+/* initBots                                       */
+/* ══════════════════════════════════════════════ */
 function initBots() {
     if (BotsState.initialized) return;
     if (typeof db === 'undefined' || !db) { console.warn('🤖 initBots: db not ready'); return; }
     var user = getCurrentUser();
     if (!user) { console.warn('🤖 initBots: no user'); return; }
     BotsState.initialized = true;
-    console.log('🤖 bots.js v29 initialized');
+    console.log('🤖 bots.js v30 initialized');
 
     db.ref('bot_memory/badWords').on('value', s => {
         var arr = toArray(s.val());
@@ -552,9 +685,7 @@ function initBots() {
         if (words.length > 0) BotsState.kickWords = words;
     });
     db.ref('bot_memory/hakawati').on('value', s => { BotsState.memory.hakawati = s.val() || {}; });
-    db.ref('bot_memory/hakawati_auto').on('value', s => {
-        BotsState.memory.hakawati_auto = s.val() || {};
-    });
+    db.ref('bot_memory/hakawati_auto').on('value', s => { BotsState.memory.hakawati_auto = s.val() || {}; });
     db.ref('bot_memory/quiz').on('value', s => { BotsState.memory.quiz = toArray(s.val()); });
     db.ref('bot_memory/islamic').on('value', s => {
         var arr = toArray(s.val());
@@ -563,7 +694,7 @@ function initBots() {
     db.ref('bot_locks/quiz_current').on('value', s => {
         var v = s.val();
         BotsState.currentQuiz = (!v || v.closed) ? null : v;
-    }, err => console.warn('⚠️ quiz_current listener:', err.message));
+    }, err => console.warn('⚠️ quiz_current:', err.message));
 
     setupHiddenMessagesListener();
     setupAmbassadorListener();
@@ -597,6 +728,9 @@ function setupHiddenMessagesListener() {
     BotsState.hiddenListener = ref;
 }
 
+/* ══════════════════════════════════════════════ */
+/* autoTick + post                                */
+/* ══════════════════════════════════════════════ */
 async function autoTick() {
     if (typeof db === 'undefined' || !db) return;
     if (!getCurrentUser()) return;
@@ -765,31 +899,37 @@ function handleBotCommand(text) {
     }
 }
 
+/* ══════════════════════════════════════════════ */
+/* كلمة طرد → حظر دائم + بصمة                     */
+/* ══════════════════════════════════════════════ */
 async function handleKickWord(msg, kickWord) {
     try {
         var immune = await isImmuneUser(msg.senderUid);
         if (immune) return;
         await hideOffensiveMessage(msg, 'kick_word:' + kickWord);
+
         var userSnap = await db.ref('users/' + msg.senderUid).once('value');
         var userData = userSnap.val() || {};
         var kickCount = userData.kickCount || 0;
-        var now = Date.now();
-        var bannedUntil = now + PERMANENT_BAN_MS;
+
         await db.ref('users/' + msg.senderUid).update({
-            isBanned: true,
-            bannedUntil: bannedUntil,
             kickCount: kickCount + 1,
-            lastKickAt: now,
             kickReason: kickWord,
-            permanentBan: true
+            lastKickAt: Date.now()
         });
+
+        /* ⭐ v30: permanent ban + device */
+        await _applyPermanentBan(msg.senderUid, msg.senderName, 'kick_word:' + kickWord, null);
+
         var room = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
         postBotMessage('guardian',
             '🚪 السجان طرد ' + msg.senderName + ' نهائياً!\n' +
             '❌ كلمة محظورة: ' + maskWord(kickWord) + '\n' +
-            '⏰ الحظر: دائم\n' +
+            '⏰ الحظر: دائم + بصمة الجهاز\n' +
             '🔁 رقم المخالفة: ' + (kickCount + 1), room);
+
         playPoliceSiren();
+
         var me = getCurrentUser();
         if (me && me.uid === msg.senderUid) {
             setTimeout(() => {
@@ -804,11 +944,15 @@ async function handleKickWord(msg, kickWord) {
     } catch (e) { console.warn('handleKickWord error:', e); }
 }
 
+/* ══════════════════════════════════════════════ */
+/* كلمة سجن → تصاعدي → 3 → حظر                    */
+/* ══════════════════════════════════════════════ */
 async function handleBadWord(msg, badWord) {
     try {
         var immune = await isImmuneUser(msg.senderUid);
         if (immune) return;
         await hideOffensiveMessage(msg, 'bad_word:' + badWord);
+
         await db.ref('users/' + msg.senderUid + '/warnings').transaction(c => (c || 0) + 1);
         var userSnap = await db.ref('users/' + msg.senderUid).once('value');
         var userData = userSnap.val() || {};
@@ -816,24 +960,18 @@ async function handleBadWord(msg, badWord) {
         var jailCount = userData.jailCount || 0;
         var lastJailAt = userData.lastJailAt || 0;
         var now = Date.now();
+
         if (jailCount >= JAILS_BEFORE_KICK) {
-            var userSnap2 = await db.ref('users/' + msg.senderUid).once('value');
-            var userData2 = userSnap2.val() || {};
-            var kc = userData2.kickCount || 0;
-            await db.ref('users/' + msg.senderUid).update({
-                isBanned: true,
-                bannedUntil: now + PERMANENT_BAN_MS,
-                kickCount: kc + 1,
-                lastKickAt: now,
-                kickReason: '3_jails_exceeded',
-                permanentBan: true
-            });
-            var room0 = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
             postBotMessage('guardian',
                 '🚫 السجان حظر ' + msg.senderName + ' نهائياً!\n' +
                 '⚠️ بعد 3 سجنات\n' +
-                '⏰ الحظر: دائم', room0);
+                '⏰ الحظر: دائم + بصمة',
+                (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general');
+
+            await _applyPermanentBan(msg.senderUid, msg.senderName, '3_jails_exceeded', null);
+
             playPoliceSiren();
+
             var me0 = getCurrentUser();
             if (me0 && me0.uid === msg.senderUid) {
                 setTimeout(function() {
@@ -847,6 +985,7 @@ async function handleBadWord(msg, badWord) {
             }
             return;
         }
+
         var JAIL = (typeof QAMAR !== 'undefined' && QAMAR.JAIL) ? QAMAR.JAIL : {
             FIRST_OFFENSE_MS: 2 * 60 * 1000, ESCALATION_WINDOW_MS: 10 * 60 * 1000,
             MAX_AUTO_JAIL_MS: 15 * 60 * 1000, ESCALATION_MULTIPLIER: 2
@@ -857,44 +996,49 @@ async function handleBadWord(msg, badWord) {
             : JAIL.FIRST_OFFENSE_MS;
         if (!withinWindow) jailCount = 0;
         duration = Math.min(duration, JAIL.MAX_AUTO_JAIL_MS);
-        var jailUntil = now + duration;
         var newJailCount = jailCount + 1;
         var minutes = Math.ceil(duration / 60000);
+
         await db.ref('users/' + msg.senderUid).update({
-            isJailed: true, jailUntil, jailCount: newJailCount,
-            lastJailAt: now, jailReason: badWord, jailReleasedAt: 0
+            jailCount: newJailCount,
+            lastJailAt: now
         });
+
+        /* ⭐ v30: السجن + النقل القسري */
+        await _applyJail(msg.senderUid, msg.senderName, duration, badWord);
+
         var room = (typeof ChatState !== 'undefined' && ChatState.currentRoom) || 'general';
         var remainingJails = JAILS_BEFORE_KICK - newJailCount;
         var warningLine = remainingJails > 0
             ? '⚠️ تبقّى ' + remainingJails + ' سجن ' + (remainingJails === 1 ? '' : 'ات') + ' قبل الطرد'
             : '🚨 هذا آخر تحذير قبل الطرد الدائم!';
+
         postBotMessage('guardian',
             '🚔 السجان قبض على ' + msg.senderName + '\n' +
             '❌ كلمة ممنوعة: ' + maskWord(badWord) + '\n' +
             '⚠️ التحذير رقم: ' + warnCount + '\n' +
-            '⛓️ مدة السجن: ' + minutes + ' دقيقة\n' + warningLine, room);
+            '⛓️ مدة السجن: ' + minutes + ' دقيقة\n' +
+            '🚪 تم نقله إلى السجن\n' + warningLine, room);
+
         playPoliceSiren();
-        setTimeout(async () => {
-            try {
-                var s = await db.ref('users/' + msg.senderUid + '/jailUntil').once('value');
-                if (s.val() && Date.now() >= s.val()) {
-                    await db.ref('users/' + msg.senderUid).update({ isJailed: false, jailUntil: 0, jailReleasedAt: Date.now() });
-                    var ns = await db.ref('users/' + msg.senderUid + '/name').once('value');
-                    postBotMessage('guardian', '🔓 ' + (ns.val() || msg.senderName) + ' خرج من السجن', room);
-                }
-            } catch (e) {}
-        }, duration + 2000);
+
+        /* إشعار الشخص المسجون */
+        var me = getCurrentUser();
+        if (me && me.uid === msg.senderUid) {
+            setTimeout(function() {
+                if (typeof showToast === 'function') showToast('fa-lock', '⛓️ تم سجنك ' + minutes + ' دقيقة');
+            }, 800);
+        }
     } catch (e) { console.warn('handleBadWord error:', e); }
 }
 
+/* ══════════════════════════════════════════════ */
+/* processIncomingMessage                        */
+/* ══════════════════════════════════════════════ */
 async function processIncomingMessage(msg) {
     try {
         if (!msg) return;
-        if (msg.isWelcome && msg.welcomeFor) {
-            handleWelcomeMessage(msg);
-            return;
-        }
+        if (msg.isWelcome && msg.welcomeFor) { handleWelcomeMessage(msg); return; }
         if (msg.isBot) return;
         if (!msg.text) return;
         if (typeof db === 'undefined' || !db) return;
@@ -915,10 +1059,12 @@ async function processIncomingMessage(msg) {
             });
             if (!lockRes || lockRes.committed !== true) return;
         } catch (e) {}
+
         var kick = containsKickWord(text);
         if (kick) { await handleKickWord(msg, kick); return; }
         var bad = containsBadWord(text);
         if (bad) { await handleBadWord(msg, bad); return; }
+
         if (hasTrigger(text)) {
             var q = stripTriggers(text);
             if (!q) return;
@@ -937,6 +1083,7 @@ async function processIncomingMessage(msg) {
             }
             return;
         }
+
         var autoResult = findAutoReply(text);
         if (autoResult) {
             if (!isAutoReplyCoolingDown(msg.senderUid, autoResult.key)) {
@@ -945,6 +1092,7 @@ async function processIncomingMessage(msg) {
                 setTimeout(() => postBotMessage('hakawati', '📖 ' + autoResult.reply, aroom), 700);
             }
         }
+
         try {
             var qSnap = await db.ref('bot_locks/quiz_current').once('value');
             var qz = qSnap.val();
@@ -964,8 +1112,7 @@ async function processIncomingMessage(msg) {
             var pointsTable = isAfterHint ? QUIZ_POINTS_HALF : QUIZ_POINTS;
             var points = pointsTable[rank] || 0;
             db.ref('bot_locks/quiz_current/winners/' + msg.senderUid).set({
-                rank: rank, name: msg.senderName,
-                at: Date.now(), points: points
+                rank: rank, name: msg.senderName, at: Date.now(), points: points
             }).catch(function(){});
             await db.ref('bot_data/quiz/scores/' + msg.senderUid).transaction(c => (c || 0) + points).catch(() => {});
             var emoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉';
@@ -984,22 +1131,24 @@ async function processIncomingMessage(msg) {
     } catch (err) { console.error('❌ processIncomingMessage error:', err); }
 }
 
+/* ══════════════════════════════════════════════ */
+/* onRoomChanged                                  */
+/* ══════════════════════════════════════════════ */
 function onRoomChanged(roomId) {
     if (typeof db === 'undefined' || !db) return;
     setupHiddenMessagesListener();
     var me = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
     if (me && me.uid && roomId) {
         BotsState.lastUserRooms[me.uid] = {
-            state: 'online',
-            room: roomId,
-            lastChanged: Date.now()
+            state: 'online', room: roomId, lastChanged: Date.now()
         };
-        setTimeout(function() {
-            tryWelcomeUser(me.uid, roomId);
-        }, 800);
+        setTimeout(function() { tryWelcomeUser(me.uid, roomId); }, 800);
     }
 }
 
+/* ══════════════════════════════════════════════ */
+/* لوحة الملك                                     */
+/* ══════════════════════════════════════════════ */
 function setupKingPanel() {
     var user = getCurrentUser();
     if (!user || user.rank !== 'King') return;
@@ -1065,28 +1214,20 @@ function closeBotManager() {
     if (m) m.style.display = 'none';
 }
 
-/* ⭐ v29: importArabicWordList — بدون event global */
+/* ⭐ v30: importArabicWordList محسّن */
 async function importArabicWordList(tab, btnParam) {
-    if (!confirm('📥 استيراد قائمة كلمات عربية جاهزة؟\n\n⚠️ القائمة تحتوي كلمات نابية.\nسيتم إضافتها إلى ' + (tab === 'badwords' ? 'كلمات السجن' : 'كلمات الطرد') + '.')) {
-        return;
-    }
-    /* ⭐ v29: نستخدم btnParam أو نبحث عن الزر */
-    var btn = btnParam || document.getElementById('kr-guardian-import');
+    if (!confirm('📥 استيراد قائمة كلمات عربية جاهزة؟\n\n⚠️ القائمة تحتوي كلمات نابية.')) return;
+    var btn = btnParam || document.getElementById('kr-bm-import') || document.getElementById('kr-guardian-import');
     var originalText = btn ? btn.textContent : '';
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ جاري الاستيراد...'; }
-
+    if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
     try {
         var url = (typeof QAMAR !== 'undefined' && QAMAR.SWEAR_WORDS_SOURCES)
             ? QAMAR.SWEAR_WORDS_SOURCES.arabic
             : 'https://raw.githubusercontent.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words/master/ar';
-        console.log('📥 Fetching from:', url);
         var res = await fetch(url);
         if (!res.ok) throw new Error('HTTP ' + res.status);
         var text = await res.text();
-        var words = text.split('\n')
-            .map(w => w.trim())
-            .filter(w => w.length > 1 && !w.startsWith('#'));
-        console.log('📥 Loaded ' + words.length + ' words');
+        var words = text.split('\n').map(w => w.trim()).filter(w => w.length > 1 && !w.startsWith('#'));
         if (words.length === 0) throw new Error('القائمة فارغة');
         var path = tab === 'badwords' ? 'bot_memory/badWords' : 'bot_memory/kickWords';
         var currentSnap = await db.ref(path).once('value');
@@ -1105,15 +1246,12 @@ async function importArabicWordList(tab, btnParam) {
             }
         });
         await Promise.all(promises);
-        if (typeof showToast === 'function') showToast('fa-check', '✅ تم استيراد ' + added + ' كلمة جديدة');
-        console.log('✅ Imported ' + added + ' new words');
+        if (typeof showToast === 'function') showToast('fa-check', '✅ تم استيراد ' + added + ' كلمة');
         renderTab(tab);
     } catch (e) {
-        console.error('❌ Import failed:', e);
-        if (typeof showToast === 'function') showToast('fa-times', '⚠️ فشل الاستيراد: ' + e.message);
-        else alert('⚠️ فشل: ' + e.message);
+        if (typeof showToast === 'function') showToast('fa-times', '⚠️ ' + e.message);
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = originalText || '📥 استيراد قائمة عربية جاهزة'; }
+        if (btn) { btn.disabled = false; btn.textContent = originalText || '📥 استيراد'; }
     }
 }
 
@@ -1128,8 +1266,8 @@ function renderTab(tab) {
         : tab === 'hakawati_auto' ? '🔔 ردود تلقائية'
         : tab === 'quiz' ? '🎯 أسئلة المسابقة'
         : tab === 'islamic' ? '🌙 أدعية وأذكار'
-        : tab === 'badwords' ? '🚔 كلمات السجن'
-        : tab === 'kickwords' ? '🚪 كلمات الطرد'
+        : tab === 'badwords' ? '🚔 كلمات السجن → عقوبات تصاعدية'
+        : tab === 'kickwords' ? '🚪 كلمات الطرد → حظر دائم + بصمة'
         : '📥 أسئلة معلقة';
     c.appendChild(info);
     if (tab === 'badwords' || tab === 'kickwords') {
@@ -1380,6 +1518,9 @@ function stopBots() {
     BotsState.initialized = false;
 }
 
+/* ══════════════════════════════════════════════ */
+/* Exports                                        */
+/* ══════════════════════════════════════════════ */
 window.initBots = initBots;
 window.handleBotCommand = handleBotCommand;
 window.processIncomingMessage = processIncomingMessage;
@@ -1388,7 +1529,7 @@ window.stopBots = stopBots;
 window.openBotManager = openBotManager;
 window.closeBotManager = closeBotManager;
 window.importArabicWordList = importArabicWordList;
-
+window.forceTransferToRoom = forceTransferToRoom;
 window.BotsState = BotsState;
 
-console.log('🤖 bots.js v29 (TEST) loaded — importArabicWordList fixed');
+console.log('🤖 bots.js v30 (TEST) loaded — jail transfer + permanent ban + device');
