@@ -1,19 +1,22 @@
 // ==============================================
-// stories.js v5 (TEST) — dropdown + modal للتفاعلات
+// stories.js v6 (TEST) — إصلاحات Pause + Live Stats + Profile Moments
 // ==============================================
-// ✅ v5:
-//   1. زر 📊 في العارض (لصاحب الحالة فقط)
-//   2. dropdown: 👁️ المشاهدون · ❤️ المعجبون · 💬 الردود
-//   3. modal وسط الشاشة لكل قائمة
-//   4. كليكات على الأسماء → بروفايل
-//   5. المشاهد العادي: لا يشوف أي عدّاد (نظيف)
-//   6. باقي كل شي كما v4 (mini mode + 20MB + delete)
+// ✅ v6 (فوق v5):
+//   1. pause() / resume() — يتوقف التقدم عند الكيبورد/الإيموجي
+//   2. شريط الإيموجي فوق الحالة (position fix)
+//   3. Live stats لصاحب الحالة (👁️ مشاهدين + ❤️ تفاعلات + 💬 ردود)
+//   4. getMe fallback — يقرأ من localStorage لو auth غير محمّل (للـ iframe)
+//   5. إصلاح عرض اللحظات في البروفايل
+// ✅ v5 (محفوظ):
+//   - زر 📊 dropdown + modal للتفاعلات
+//   - mini mode + 20MB + delete
+//   - dropdown: 👁️ المشاهدون · ❤️ المعجبون · 💬 الردود
 // ==============================================
 
 (function () {
     'use strict';
-    if (window.__storiesV5) return;
-    window.__storiesV5 = true;
+    if (window.__storiesV6) return;
+    window.__storiesV6 = true;
 
     var STORY_LIFETIME_MS = 24 * 60 * 60 * 1000;
     var TEXT_DURATION_MS = 5000;
@@ -51,10 +54,30 @@
         videoDurationMs: 0,
         videoEndedHandler: null,
         miniMode: false,
-        actionsOpen: false
+        actionsOpen: false,
+        /* ⭐ v6 */
+        liveListener: null,
+        currentLiveUid: null,
+        currentLiveSid: null
     };
 
-    function getMe() { return (typeof getCurrentUser === 'function') ? getCurrentUser() : null; }
+    /* ⭐ v6: getMe محسّن للعمل داخل iframe */
+    function getMe() {
+        try {
+            if (typeof getCurrentUser === 'function') {
+                var u = getCurrentUser();
+                if (u && u.uid) return u;
+            }
+        } catch (e) {}
+        try {
+            return JSON.parse(
+                localStorage.getItem('qamar_current_user') ||
+                localStorage.getItem('qamar_user') ||
+                'null'
+            );
+        } catch (e) { return null; }
+    }
+
     function esc(s) { if (s == null) return ''; return String(s).replace(/[&<>"']/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); }
     function timeAgo(ts) {
         if (!ts) return '';
@@ -94,9 +117,9 @@
     /* CSS                                            */
     /* ══════════════════════════════════════════════ */
     (function injectCSS() {
-        if (document.getElementById('stories-css-v5')) return;
+        if (document.getElementById('stories-css-v6')) return;
         var s = document.createElement('style');
-        s.id = 'stories-css-v5';
+        s.id = 'stories-css-v6';
         s.textContent = `
 #stories-section { padding: 8px 6px 10px; border-bottom: 1px solid rgba(255,215,0,0.18); margin-bottom: 6px; }
 #stories-section h4 { color: #ffd700; font-size: 11px; font-weight: 900; margin: 0 0 8px 2px; display: flex; align-items: center; gap: 5px; }
@@ -133,17 +156,51 @@
 .story-tap-zone { position: absolute; top: 0; bottom: 0; width: 30%; z-index: 5; }
 .story-tap-zone.left { left: 0; }
 .story-tap-zone.right { right: 0; }
-#story-viewer-footer { padding: 10px 12px 18px; background: linear-gradient(to top, rgba(0,0,0,0.85), transparent); display: flex; align-items: center; gap: 8px; z-index: 10; }
-#story-viewer-footer input { flex: 1; padding: 10px 16px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); color: #fff; font-family: inherit; font-size: 13px; outline: none; text-align: right; }
+#story-viewer-footer { padding: 10px 12px 18px; background: linear-gradient(to top, rgba(0,0,0,0.85), transparent); display: flex; align-items: center; gap: 8px; z-index: 10; position: relative; }
+#story-viewer-footer input { flex: 1; padding: 10px 16px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.3); background: rgba(0,0,0,0.5); color: #fff; font-family: inherit; font-size: 13px; outline: none; text-align: right; position: relative; z-index: 51; }
 #story-viewer-footer input::placeholder { color: #aaa; }
-.story-react-btn { width: 38px; height: 38px; border-radius: 50%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 18px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; }
+.story-react-btn { width: 38px; height: 38px; border-radius: 50%; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.25); color: #fff; font-size: 18px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; position: relative; z-index: 51; }
 .story-react-btn:active { transform: scale(0.9); }
-#story-reactions-popup { position: absolute; bottom: 70px; right: 12px; display: none; gap: 6px; padding: 8px 10px; background: rgba(0,0,0,0.85); border-radius: 30px; border: 1px solid rgba(255,215,0,0.3); z-index: 12; }
+
+/* ⭐ v6: شريط الإيموجي فوق الحالة */
+#story-reactions-popup { position: absolute; bottom: 90px; right: 12px; display: none; gap: 6px; padding: 8px 10px; background: rgba(0,0,0,0.9); border-radius: 30px; border: 1px solid rgba(255,215,0,0.4); z-index: 9999999; pointer-events: auto; box-shadow: 0 6px 24px rgba(0,0,0,0.8); }
 #story-reactions-popup.active { display: flex; }
-#story-reactions-popup span { font-size: 22px; cursor: pointer; transition: transform 0.15s; }
+#story-reactions-popup span { font-size: 22px; cursor: pointer; transition: transform 0.15s; pointer-events: auto; }
 #story-reactions-popup span:active { transform: scale(1.3); }
 
-/* ⭐ v5: dropdown للتفاعلات */
+/* ⭐ v6: Live Stats لصاحب الحالة */
+#story-owner-live-stats {
+    position: absolute;
+    top: 75px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    gap: 8px;
+    z-index: 100;
+    pointer-events: auto;
+    justify-content: center;
+}
+#story-owner-live-stats .stat-chip {
+    background: rgba(0,0,0,0.78);
+    border: 1px solid rgba(255,215,0,0.55);
+    border-radius: 20px;
+    padding: 6px 12px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+#story-owner-live-stats .stat-chip .num {
+    color: #ffd700;
+    font-weight: 900;
+    font-size: 13px;
+}
+
+/* ⭐ v6: dropdown التفاعلات */
 #story-actions-menu {
     position: fixed;
     top: 70px;
@@ -152,7 +209,7 @@
     border: 1px solid rgba(168,85,247,0.6);
     border-radius: 12px;
     padding: 6px;
-    z-index: 999999;
+    z-index: 9999999;
     min-width: 180px;
     display: none;
     flex-direction: column;
@@ -175,7 +232,7 @@
 .story-action-item:active { background: rgba(168,85,247,0.25); color: #c084fc; }
 .story-action-item .cnt { margin-right: auto; color: #c084fc; font-weight: 900; }
 
-/* ⭐ v5: modal القوائم */
+/* ⭐ v6: modal القوائم */
 #story-list-modal {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.88);
@@ -236,10 +293,7 @@
     scrollbar-color: rgba(168,85,247,0.4) transparent;
 }
 #story-list-body::-webkit-scrollbar { width: 5px; }
-#story-list-body::-webkit-scrollbar-thumb {
-    background: rgba(168,85,247,0.4);
-    border-radius: 5px;
-}
+#story-list-body::-webkit-scrollbar-thumb { background: rgba(168,85,247,0.4); border-radius: 5px; }
 .story-list-row {
     display: flex;
     align-items: center;
@@ -260,10 +314,7 @@
     cursor: pointer;
     background: #333;
 }
-.story-list-row .info {
-    flex: 1;
-    min-width: 0;
-}
+.story-list-row .info { flex: 1; min-width: 0; }
 .story-list-row .name {
     color: #fff;
     font-weight: 900;
@@ -274,51 +325,14 @@
     text-overflow: ellipsis;
 }
 .story-list-row .name:hover { color: #c084fc; }
-.story-list-row .time {
-    color: #888;
-    font-size: 10px;
-    margin-top: 2px;
-}
-.story-list-row .emoji {
-    color: #ffd700;
-    font-size: 18px;
-    flex-shrink: 0;
-}
-.story-list-row .reply-text {
-    color: #ccc;
-    font-size: 11px;
-    margin-top: 4px;
-    word-break: break-word;
-    line-height: 1.4;
-}
-.story-list-empty {
-    text-align: center;
-    color: #666;
-    padding: 30px;
-    font-size: 12px;
-}
+.story-list-row .time { color: #888; font-size: 10px; margin-top: 2px; }
+.story-list-row .emoji { color: #ffd700; font-size: 18px; flex-shrink: 0; }
+.story-list-row .reply-text { color: #ccc; font-size: 11px; margin-top: 4px; word-break: break-word; line-height: 1.4; }
+.story-list-empty { text-align: center; color: #666; padding: 30px; font-size: 12px; }
 
-/* ⭐ v5: الوضع المصغّر */
-#story-viewer.mini {
-    background: rgba(0,0,0,0.85);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    padding: 20px;
-    justify-content: center;
-    align-items: center;
-}
-#story-viewer.mini #story-viewer-body {
-    position: relative;
-    max-width: 320px;
-    max-height: 480px;
-    width: 85vw;
-    height: 70vh;
-    border: 2px solid #ffd700;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(255,215,0,0.3);
-    flex: none;
-}
+/* ⭐ v6: الوضع المصغّر */
+#story-viewer.mini { background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); padding: 20px; justify-content: center; align-items: center; }
+#story-viewer.mini #story-viewer-body { position: relative; max-width: 320px; max-height: 480px; width: 85vw; height: 70vh; border: 2px solid #ffd700; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(255,215,0,0.3); flex: none; }
 #story-viewer.mini #story-progress-bar { top: -40px; left: 0; right: 0; }
 #story-viewer.mini #story-viewer-header { top: -75px; left: 0; right: 0; padding: 0; background: none; }
 #story-viewer.mini #story-viewer-header img { width: 36px; height: 36px; }
@@ -326,7 +340,8 @@
 #story-viewer.mini #story-viewer-footer { position: static; background: none; padding: 12px 0 0; max-width: 320px; width: 85vw; }
 #story-viewer.mini #story-viewer-footer input { font-size: 12px; padding: 8px 12px; }
 #story-viewer.mini .story-react-btn { width: 34px; height: 34px; font-size: 15px; }
-#story-viewer.mini #story-reactions-popup { bottom: 60px; right: 5px; }
+#story-viewer.mini #story-reactions-popup { bottom: 70px; right: 5px; }
+#story-viewer.mini #story-owner-live-stats { top: -110px; }
 
 /* ═══ Publish Modal ═══ */
 #story-publish-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 999999; padding: 16px; direction: rtl; font-family: Cairo, sans-serif; }
@@ -549,22 +564,45 @@
         };
         v.querySelector('#story-prev-zone').onclick = goPrev;
         v.querySelector('#story-next-zone').onclick = goNext;
-        v.querySelector('#story-react-trigger').onclick = function () {
+        v.querySelector('#story-react-trigger').onclick = function (e) {
+            e.stopPropagation();
             var p = document.getElementById('story-reactions-popup');
-            p.classList.toggle('active');
+            if (p.classList.contains('active')) {
+                p.classList.remove('active');
+                St.isPaused = false;
+            } else {
+                p.classList.add('active');
+                St.isPaused = true;   /* ⭐ v6: pause التقدم */
+            }
         };
         v.querySelectorAll('#story-reactions-popup span').forEach(function (sp) {
-            sp.onclick = function () {
+            sp.onclick = function (e) {
+                e.stopPropagation();
                 var emoji = this.getAttribute('data-r');
                 addReaction(emoji);
                 document.getElementById('story-reactions-popup').classList.remove('active');
+                St.isPaused = false;   /* ⭐ v6: resume */
             };
         });
         v.querySelector('#story-send-reply').onclick = sendReply;
         var replyInp = v.querySelector('#story-reply-input');
-        if (replyInp) replyInp.onkeydown = function (e) {
-            if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
-        };
+        if (replyInp) {
+            replyInp.onkeydown = function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); sendReply(); }
+            };
+            /* ⭐ v6: pause على focus */
+            replyInp.onfocus = function () {
+                St.isPaused = true;
+            };
+            /* ⭐ v6: resume على blur */
+            replyInp.onblur = function () {
+                setTimeout(function () {
+                    if (document.activeElement !== replyInp) {
+                        St.isPaused = false;
+                    }
+                }, 200);
+            };
+        }
 
         var av = v.querySelector('#story-viewer-avatar');
         var nm = v.querySelector('#story-viewer-name');
@@ -583,7 +621,7 @@
         openUserProfileSafe(uid, name);
     }
 
-    /* ⭐ v5: dropdown التفاعلات */
+    /* dropdown التفاعلات */
     function toggleActionsMenu() {
         var menu = document.getElementById('story-actions-menu');
         if (!menu) {
@@ -654,7 +692,7 @@
         St.actionsOpen = false;
     }
 
-    /* ⭐ v5: modal القوائم */
+    /* modal القوائم */
     function ensureListModal() {
         var m = document.getElementById('story-list-modal');
         if (m) return m;
@@ -949,6 +987,74 @@
 
         var footer = document.getElementById('story-viewer-footer');
         footer.style.display = St.currentViewer.isMine ? 'none' : 'flex';
+
+        /* ⭐ v6: Live stats لصاحب الحالة */
+        if (St.currentViewer.isMine) {
+            _startLiveStats(story.uid, story._id);
+        } else {
+            _stopLiveStats();
+        }
+    }
+
+    /* ⭐ v6: Live stats */
+    function _startLiveStats(uid, sid) {
+        _stopLiveStats();
+        if (!db || !uid || !sid) return;
+        St.currentLiveUid = uid;
+        St.currentLiveSid = sid;
+        var ref = db.ref('stories/' + uid + '/' + sid);
+        St.liveListener = ref;
+
+        ref.on('value', function (s) {
+            var st = s.val();
+            if (!st) return;
+            _updateLiveStats(st);
+        });
+    }
+
+    function _stopLiveStats() {
+        if (St.liveListener) {
+            try { St.liveListener.off(); } catch (e) {}
+            St.liveListener = null;
+        }
+        St.currentLiveUid = null;
+        St.currentLiveSid = null;
+        _removeLiveStats();
+    }
+
+    function _updateLiveStats(story) {
+        var me = getMe();
+        if (!me || !story) return;
+
+        var viewer = document.getElementById('story-viewer');
+        if (!viewer || !viewer.classList.contains('active')) return;
+
+        var views = story.views ? Object.keys(story.views).length : 0;
+        var reactions = 0;
+        if (story.reactions) {
+            Object.keys(story.reactions).forEach(function (k) {
+                var arr = story.reactions[k];
+                reactions += Array.isArray(arr) ? arr.length : Object.keys(arr || {}).length;
+            });
+        }
+        var replies = story.replies ? Object.keys(story.replies).length : 0;
+
+        var statsEl = document.getElementById('story-owner-live-stats');
+        if (!statsEl) {
+            statsEl = document.createElement('div');
+            statsEl.id = 'story-owner-live-stats';
+            viewer.appendChild(statsEl);
+        }
+
+        statsEl.innerHTML =
+            '<div class="stat-chip">👁️ <span class="num">' + views + '</span></div>' +
+            '<div class="stat-chip">❤️ <span class="num">' + reactions + '</span></div>' +
+            '<div class="stat-chip">💬 <span class="num">' + replies + '</span></div>';
+    }
+
+    function _removeLiveStats() {
+        var el = document.getElementById('story-owner-live-stats');
+        if (el) el.remove();
     }
 
     function startProgress() {
@@ -960,6 +1066,7 @@
             : (story.type === 'image' ? IMAGE_DURATION_MS : TEXT_DURATION_MS);
         St.progressStart = Date.now();
         St.progressElapsed = 0;
+        St.isPaused = false;
         var fill = document.getElementById('story-fill-' + St.currentIndex);
         if (!fill) return;
         fill.style.width = '0%';
@@ -1012,6 +1119,7 @@
     function closeViewer() {
         stopProgress();
         _cleanupVideo();
+        _stopLiveStats();
         closeActionsMenu();
         closeListModal();
         var v = document.getElementById('story-viewer');
@@ -1023,6 +1131,7 @@
         St.currentList = [];
         St.currentIndex = 0;
         St.miniMode = false;
+        St.isPaused = false;
     }
 
     function addReaction(emoji) {
@@ -1053,6 +1162,7 @@
         }).then(function () {
             if (typeof showToast === 'function') showToast('fa-check', '✅ تم إرسال الرد');
             inp.value = '';
+            inp.blur();
         }).catch(function () {
             if (typeof showToast === 'function') showToast('fa-times', '⚠️ فشل');
         });
@@ -1439,7 +1549,7 @@
                         });
                     };
                 });
-                /* ⭐ v5: أزرار القوائم */
+                /* أزرار القوائم */
                 listEl.querySelectorAll('[data-mact]').forEach(function (b) {
                     b.onclick = function () {
                         var act = this.getAttribute('data-mact');
@@ -1484,7 +1594,7 @@
         if (!me) { setTimeout(setupStoriesListener, 1500); return; }
         cleanupExpiredStories();
         setInterval(function () { cleanupExpiredStories(); }, 30 * 60 * 1000);
-        console.log('📸 stories.js v5: ready');
+        console.log('📸 stories.js v6: ready');
     }
 
     function patchUsersSidebar() {
@@ -1496,7 +1606,7 @@
             await _orig.apply(this, arguments);
             setTimeout(function () { renderStoriesSection(); }, 100);
         };
-        console.log('📸 stories.js v5: users-sidebar patched');
+        console.log('📸 stories.js v6: users-sidebar patched');
     }
 
     function init() {
@@ -1507,21 +1617,34 @@
                 patchUsersSidebar();
             }
         }, 800);
+        /* fallback: لو getCurrentUser ما اشتغل (iframe) — نكمل بعد 3 ثواني */
+        setTimeout(function () {
+            var me = getMe();
+            if (me && me.uid && typeof db !== 'undefined' && db) {
+                try { setupStoriesListener(); } catch (e) {}
+            }
+        }, 3000);
     }
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else { init(); }
 
+    /* ⭐ v6: Pause/Resume exports */
     window.Stories = {
         publish: openPublishModal,
         renderMyTab: renderMyStoryTab,
         refreshSidebar: renderStoriesSection,
-        openViewer: openStoryViewer
+        openViewer: openStoryViewer,
+        /* ⭐ v6 */
+        pause: function () { St.isPaused = true; },
+        resume: function () { St.isPaused = false; },
+        isPaused: function () { return St.isPaused; },
+        close: closeViewer
     };
     window.renderStoriesSection = renderStoriesSection;
     window.openStoryPublish = openPublishModal;
     window.openStoryViewer = openStoryViewer;
 
-    console.log('📸 stories.js v5 (TEST) loaded — dropdown + modal + no public counters');
+    console.log('📸 stories.js v6 (TEST) loaded — pause/resume + live stats + profile moments fix');
 })();
