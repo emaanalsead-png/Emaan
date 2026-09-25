@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🏆 بطاقة الترقية — قمر الشام</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background:
+      radial-gradient(ellipse at top, rgba(212, 175, 55, 0.08) 0%, transparent 55%),
+      radial-gradient(ellipse at bottom, rgba(100, 50, 150, 0.12) 0%, transparent 55%),
+      linear-gradient(to bottom, #050508, #0a0a15);
+    min-height: 100vh;
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Cairo', system-ui, sans-serif;
+    direction: rtl;
+  }
+
+  /* ═══════════════════════════════════════════════ */
+  /* بطاقة الترقية                                    */
+  /* ═══════════════════════════════════════════════ */
+  .qamar-card {
+    position: relative;
+    background:
+      linear-gradient(145deg, #0d1527 0%, #172a45 100%),
+      linear-gradient(145deg, #0d1527 0%, #172a45 100%);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 16px;
+    padding: 14px 16px 12px;
+    width: 100%;
+    max-width: 340px;
+    box-shadow:
+      0 12px 30px rgba(0, 0, 0, 0.7),
+      0 0 20px rgba(212, 175, 55, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    color: #fff;
+    overflow: hidden;
+    animation: qamarCardIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* شريط ذهبي متحرك أعلى البطاقة */
+  .qamar-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #d4af37, #ffd700, #d4af37, transparent);
+    background-size: 200% 100%;
+    animation: qamarShimmer 3s linear infinite;
+  }
+
+  @keyframes qamarCardIn {
+    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes qamarShimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ═══ Header ═══ */
+  .qamar-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+  }
+
+  .qamar-logo {
+    font-size: 1.1rem;
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.5));
+  }
+
+  .qamar-title {
+    color: #f1c40f;
+    font-weight: 900;
+    font-size: 0.85rem;
+    letter-spacing: 0.3px;
+    text-shadow: 0 0 8px rgba(212, 175, 55, 0.35);
+  }
+
+  .qamar-badge {
+    margin-right: auto;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.22), rgba(212, 175, 55, 0.08));
+    border: 1px solid rgba(212, 175, 55, 0.55);
+    color: #ffd700;
+    font-size: 0.62rem;
+    font-weight: 900;
+    padding: 2px 9px;
+    border-radius: 20px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  /* ═══ جسم البطاقة ═══ */
+  .qamar-body {
+    font-size: 0.82rem;
+    line-height: 1.75;
+    color: #d8e0ee;
+    text-align: center;
+    padding: 4px 0 8px;
+  }
+
+  .qamar-body .line {
+    margin-bottom: 4px;
+  }
+
+  /* خطاب التهنئة */
+  .qamar-congrats {
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: #ffffff;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .qamar-congrats .emoji {
+    font-size: 1rem;
+    filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.5));
+    animation: qamarEmoji 1.6s ease-in-out infinite;
+  }
+
+  @keyframes qamarEmoji {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    50%      { transform: scale(1.15) rotate(-6deg); }
+  }
+
+  /* ═══ Chip الاسم/الرتبة ═══ */
+  .qamar-name {
+    display: inline-block;
+    color: #2ecc71;
+    font-weight: 900;
+    padding: 1px 8px;
+    background: rgba(46, 204, 113, 0.1);
+    border: 1px solid rgba(46, 204, 113, 0.35);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    text-shadow: 0 0 8px rgba(46, 204, 113, 0.4);
+  }
+
+  .qamar-rank {
+    display: inline-block;
+    color: #f39c12;
+    font-weight: 900;
+    padding: 1px 8px;
+    background: rgba(243, 156, 18, 0.1);
+    border: 1px solid rgba(243, 156, 18, 0.4);
+    border-radius: 8px;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    text-shadow: 0 0 8px rgba(243, 156, 18, 0.5);
+  }
+
+  .qamar-admin {
+    color: #f1c40f;
+    font-weight: 900;
+    padding: 1px 6px;
+    background: rgba(212, 175, 55, 0.12);
+    border-radius: 6px;
+    font-size: 0.78rem;
+  }
+
+  /* ═══ نص تشجيعي ═══ */
+  .qamar-promo {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), rgba(212, 175, 55, 0.02));
+    border: 1px dashed rgba(212, 175, 55, 0.35);
+    border-radius: 10px;
+    font-size: 0.72rem;
+    color: #e8d68a;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .qamar-promo .star {
+    font-size: 0.85rem;
+    filter: drop-shadow(0 0 4px rgba(255, 215, 0, 0.7));
+  }
+
+  /* ═══ مساحة تجربة — عرض عدة حالات ═══ */
+  .demo-section {
+    width: 100%;
+    max-width: 340px;
+    margin-top: 24px;
+  }
+
+  .demo-label {
+    color: #888;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ═══ Responsive ═══ */
+  @media (max-width: 380px) {
+    .qamar-card {
+      padding: 12px 14px 10px;
+      border-radius: 14px;
+    }
+    .qamar-body { font-size: 0.78rem; }
+    .qamar-congrats { font-size: 0.88rem; }
+    .qamar-name, .qamar-rank { font-size: 0.78rem; padding: 1px 6px; }
+    .qamar-promo { font-size: 0.68rem; padding: 7px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- بطاقة الترقية — نسخة محسّنة                      -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="qamar-card">
+
+  <!-- Header -->
+  <div class="qamar-header">
+    <span class="qamar-logo">👑</span>
+    <span class="qamar-title">قمر الشام</span>
+    <span class="qamar-badge">🏆 ترقية</span>
+  </div>
+
+  <!-- Body -->
+  <div class="qamar-body">
+    <div class="qamar-congrats">
+      <span class="emoji">🎉</span>
+      <span>مبروك!</span>
+      <span class="emoji">🎉</span>
+    </div>
+
+    <div class="line">
+      تمت ترقية <span class="qamar-name">✧ Mira ✧</span>
+    </div>
+
+    <div class="line">
+      إلى رتبة <span class="qamar-rank">🌟 Super Admin</span>
+    </div>
+
+    <div class="line" style="margin-top:6px;color:#aab2c5;font-size:0.75rem;">
+      بواسطة <span class="qamar-admin">👑 Emad qamar alsham</span>
+    </div>
+  </div>
+
+  <!-- Encouraging message -->
+  <div class="qamar-promo">
+    <span class="star">✨</span>
+    <span>يمكنك الوصول لرتب أعلى من خلال تفاعلك</span>
+    <span class="star">✨</span>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- قسم المعاينة — اختبار حالات مختلفة              -->
+<!-- ═══════════════════════════════════════════════ -->
+<div class="demo-section">
+  <div class="demo-label">— نسخة تجريبية —</div>
+</div>
+
+</body>
+</html>
