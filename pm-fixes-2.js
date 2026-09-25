@@ -1,62 +1,58 @@
 // ==============================================
 // pm-fixes-2.js v1 — إصلاح PM list + إشعار بصري
 // ==============================================
-// ✅ v1:
-//   1. ضغط الاسم في قائمة PM → يفتح الخاص (كان يفتح بروفايل)
-//   2. ضغط الصورة → بروفايل (كما هو)
-//   3. إشعار بصري (toast) للرسائل الخاصة
-// ==============================================
 
 (function () {
     'use strict';
     if (window.__pmFixes2V1) return;
     window.__pmFixes2V1 = true;
 
-    /* ══════════════════════════════════════════════ */
-    /* 1. Fix PM list name click                      */
-    /* ══════════════════════════════════════════════ */
+    /* 1. ضغط الاسم في قائمة PM → يفتح الخاص (مو البروفايل) */
     function _fixPmListNames() {
         var items = document.querySelectorAll('#pm-sidebar .sidebar-item');
         items.forEach(function (item) {
             if (item.__pmFixes2Fixed) return;
 
-            // جب النص الأبيض (الاسم) بدون img
+            /* نجد اسم المرسل — div بالنص الأبيض بدون img */
             var nameDiv = null;
-            item.querySelectorAll('div').forEach(function (div) {
+            var allDivs = item.querySelectorAll('div');
+            allDivs.forEach(function (div) {
+                if (nameDiv) return;
                 if (div.querySelector('img')) return;
+                if (div.querySelector('div')) return;
                 var style = div.getAttribute('style') || '';
-                var hasWhite = style.indexOf('#fff') !== -1 ||
-                              style.indexOf('#FFF') !== -1 ||
-                              style.indexOf('rgb(255, 255, 255)') !== -1;
-                if (hasWhite && (div.textContent || '').trim().length > 0 && !div.querySelector('div')) {
-                    nameDiv = div;
-                }
+                if (style.indexOf('#fff') === -1 &&
+                    style.indexOf('#FFF') === -1 &&
+                    style.indexOf('rgb(255, 255, 255)') === -1) return;
+                var txt = (div.textContent || '').trim();
+                if (!txt || txt.length < 1) return;
+                nameDiv = div;
             });
 
             if (!nameDiv) return;
             item.__pmFixes2Fixed = true;
 
-            // Override: اضغط الاسم → افتح الخاص
+            /* إعادة ربط: اضغط الاسم → افتح الخاص */
+            nameDiv.style.cursor = 'pointer';
             nameDiv.onclick = function (e) {
                 e.stopPropagation();
-                var evt = new MouseEvent('click', { bubbles: true, cancelable: true });
+                e.preventDefault();
+                var evt = new MouseEvent('click', { bubbles: false, cancelable: true });
                 item.dispatchEvent(evt);
             };
         });
     }
 
-    /* كل 2 ثانية نفحص (لو القائمة رُسمت بعد فتحها) */
-    setInterval(_fixPmListNames, 2000);
+    setInterval(_fixPmListNames, 1500);
 
-    /* ══════════════════════════════════════════════ */
-    /* 2. إشعار بصري للرسائل الخاصة                    */
-    /* ══════════════════════════════════════════════ */
-    var _installNotifToast = function () {
+    /* 2. إشعار بصري للرسائل الخاصة */
+    function _installNotifToast() {
         var orig = window.startNotificationsListener;
         if (typeof orig !== 'function' || orig.__pmFixes2Toast) return false;
 
         window.startNotificationsListener = function () {
-            var user = getCurrentUser();
+            var user = null;
+            try { if (typeof getCurrentUser === 'function') user = getCurrentUser(); } catch (e) {}
             if (!user || !user.uid) return;
 
             if (window.ChatState && ChatState.notificationsListener) {
@@ -96,9 +92,10 @@
                         if (typeof updateNotifBadge === 'function') updateNotifBadge();
                     } else if (n.type === 'private') {
                         if (typeof playPrivateMsgSound === 'function') playPrivateMsgSound();
-                        /* ⭐ إشعار بصري — كان ناقص */
-                        var preview = n.preview || 'رسالة';
+                        /* ⭐ إشعار بصري */
                         if (typeof showToast === 'function') {
+                            var preview = n.preview || 'رسالة';
+                            if (preview.length > 40) preview = preview.substring(0, 40) + '...';
                             showToast('fa-comment', '💬 ' + (n.fromName || 'مستخدم') + ': ' + preview);
                         }
                     } else if (n.type === 'friend_request') {
@@ -115,7 +112,7 @@
         };
         window.startNotificationsListener.__pmFixes2Toast = true;
         return true;
-    };
+    }
 
     var tries = 0;
     var t = setInterval(function () {
@@ -123,17 +120,15 @@
         if (_installNotifToast() || tries >= 40) clearInterval(t);
     }, 250);
 
-    /* ══════════════════════════════════════════════ */
-    /* Init                                           */
-    /* ══════════════════════════════════════════════ */
     function init() {
         setTimeout(_fixPmListNames, 500);
         setTimeout(_fixPmListNames, 1500);
+        setTimeout(_fixPmListNames, 3000);
     }
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else { init(); }
 
-    console.log('📦 pm-fixes-2.js v1 loaded — PM list fix + notif toast');
+    console.log('📦 pm-fixes-2.js v1 loaded');
 })();
