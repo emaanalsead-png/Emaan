@@ -1,12 +1,17 @@
 /* ==============================================
-   chat-ui.css v1 — إصلاحات الواجهة
+   chat-ui.css v2 — إصلاحات الواجهة + z-index + أبعاد القوائم
    ============================================== */
-/* ✅ v1:
-   1. شريط الكتابة شفاف (يأخذ خلفية الشات)
+/* ✅ v2 (فوق v1):
+   1. إصلاح z-index sidebar (400 → 550) — فوق overlay
+   2. القوائم لا تغطي header ولا bottom-nav
+   3. pointer-events: none لما القائمة مغلقة
+   4. responsive heights
+   ✅ v1 (محفوظ):
+   1. شريط الكتابة شفاف
    2. القوائم الجانبية تغطي الشريط السفلي + العلوي
-   3. الشريط السفلي يختفي فقط مع الكيبورد + يرجع تلقائياً
+   3. الشريط السفلي يختفي فقط مع الكيبورد
    4. الشريط العائم يرافق الكيبورد في العام + الخاص
-   5. رسائل الشات شفافة (تأخذ خلفية الشات)
+   5. رسائل الشات شفافة
 ============================================== */
 
 /* ═══ 1. شريط الكتابة — بدون خلفية ═══ */
@@ -33,13 +38,37 @@
     border-top: 1px solid rgba(255, 215, 0, 0.35) !important;
 }
 
-/* ═══ 2. القوائم الجانبية — تغطي الشريطين العلوي والسفلي ═══ */
+/* ═══════════════════════════════════════════════════════════ */
+/* ⭐ v2: 2. القوائم الجانبية — z-index صحيح + أبعاد متناسقة  */
+/* ═══════════════════════════════════════════════════════════ */
 .sidebar {
-    z-index: 500 !important;
-    height: 100vh !important;
-    height: 100dvh !important;
-    top: 0 !important;
-    bottom: 0 !important;
+    /* ⭐ z-index: فوق overlay (450) */
+    z-index: 550 !important;
+
+    /* ⭐ v2: بدل 100vh → بين header و bottom-nav */
+    top: 42px !important;              /* ← بعد الـ header */
+    bottom: 46px !important;           /* ← قبل الـ bottom-nav */
+    height: auto !important;           /* ← نُلغي 100vh */
+    max-height: calc(100vh - 88px) !important;
+
+    /* ⭐ v2: حواف سفلية فقط */
+    border-radius: 0 0 16px 16px !important;
+}
+
+/* ⭐ v2: على الشاشات الصغيرة (bottom-nav = 55px) */
+@media (max-width: 360px) {
+    .sidebar {
+        bottom: 55px !important;
+        max-height: calc(100vh - 97px) !important;
+    }
+}
+
+/* ⭐ v2: حماية — القائمة المغلقة ما تستقبل لمس */
+.sidebar:not(.open) {
+    pointer-events: none !important;
+}
+.sidebar.open {
+    pointer-events: auto !important;
 }
 
 .sidebar.right-sidebar {
@@ -52,8 +81,16 @@
     right: auto !important;
 }
 
+/* ⭐ overlay تحت الـ sidebar */
 .overlay {
     z-index: 450 !important;
+}
+
+/* ⭐ scroll داخل القائمة */
+.sidebar-content {
+    max-height: 100%;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
 }
 
 body.pm-open .private-chat-modal {
@@ -117,7 +154,6 @@ body.keyboard-open .floating-toolbar.open {
     display: flex !important;
 }
 
-/* نفس الشي في الخاص */
 body.pm-open .floating-toolbar.open {
     bottom: 50vh !important;
     left: 12px !important;
