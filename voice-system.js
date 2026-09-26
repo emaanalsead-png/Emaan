@@ -1,20 +1,25 @@
 // ==============================================
-// voice-system.js v2.1 — إصلاح signaling + unmute
+// voice-system.js v2.1a — broadcast + music + hooks
 // ==============================================
-// ✅ v2.1 (فوق v2):
-//   1. Speaker دائماً البادئ (listener لا يبدأ أبداً)
-//   2. ICE queue (لا يضيع candidate قبل remote description)
-//   3. logging واضح لتشخيص WebRTC
-//   4. زر unmute يظهر إذا منع المتصفح الصوت
-//   5. إصلاح ترتيب peer initialization
-//   6. مقاومة للانقطاع وإعادة الاتصال
+// ✅ v2.1a (فوق v2.1):
+//   1. exposed API for voice-monitor
+//   2. speakers callback
+// ✅ v2.1:
+//   1. Speaker دائماً البادئ
+//   2. ICE queue
+//   3. زر unmute
+//   4. logging كامل
+// ✅ v2:
+//   1. listener يسمع تلقائياً
+//   2. speakers يبثّون للكل
+//   3. موسيقى + كتم + طرد
 // ==============================================
 
 (function () {
     'use strict';
     if (window.__voiceSystemV21) return;
-    window.__voiceSystemV1 = true;
     window.__voiceSystemV21 = true;
+    window.__voiceSystemV1 = true;
 
     const ICE_SERVERS = [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -67,10 +72,10 @@
         _hbTimer: null,
         _iceQueue: {},
         _unlockBtn: null,
-        _autoplayBlocked: false
+        _autoplayBlocked: false,
+        _onSpeakersChange: null
     };
 
-    /* ═══ Helpers ═══ */
     function getMe() {
         try { if (typeof getCurrentUser === 'function') { var u = getCurrentUser(); if (u && u.uid) return u; } } catch (e) {}
         try { return JSON.parse(localStorage.getItem('qamar_current_user') || 'null'); } catch (e) { return null; }
@@ -103,199 +108,58 @@
     function pSpeakers(roomId) { return db.ref(BASE_PATH + '/' + roomId + '/speakers'); }
     function pSignals(roomId, toUid) { return db.ref(BASE_PATH + '/' + roomId + '/signals/' + toUid); }
 
-    /* ═══ CSS ═══ */
     (function injectCSS() {
         if (document.getElementById('voice-system-css-v2')) return;
         var s = document.createElement('style');
         s.id = 'voice-system-css-v2';
         s.textContent = `
 .vs-remote-audio { display: none !important; }
-
-.vs-slot {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 42px; height: 42px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.05);
-    border: 2px solid rgba(255,215,0,0.35);
-    color: #fff;
-    cursor: pointer;
-    overflow: visible;
-    transition: all 0.2s ease;
-    padding: 0;
-    font-size: 16px;
-    margin: 0 2px;
-    flex-shrink: 0;
-}
+.vs-slot { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,215,0,0.35); color: #fff; cursor: pointer; overflow: visible; transition: all 0.2s ease; padding: 0; font-size: 16px; margin: 0 2px; flex-shrink: 0; }
 .vs-slot:hover { border-color: rgba(255,215,0,0.8); transform: scale(1.05); }
 .vs-slot.empty { background: rgba(255,255,255,0.03); border-style: dashed; color: #666; }
 .vs-slot.empty:hover { color: #ffd700; }
 .vs-slot.mine { border-color: #84cc16; box-shadow: 0 0 10px rgba(132,204,22,0.5); }
-.vs-slot.speaking {
-    border-color: #00e676;
-    box-shadow: 0 0 14px rgba(0,230,118,0.9), 0 0 28px rgba(0,230,118,0.4);
-    animation: vsSpeakPulse 0.9s ease-in-out infinite;
-}
-.vs-slot.music {
-    border-color: #a855f7 !important;
-    box-shadow: 0 0 14px rgba(168,85,247,0.9) !important;
-    animation: vsMusicPulse 1.2s ease-in-out infinite;
-}
+.vs-slot.speaking { border-color: #00e676; box-shadow: 0 0 14px rgba(0,230,118,0.9), 0 0 28px rgba(0,230,118,0.4); animation: vsSpeakPulse 0.9s ease-in-out infinite; }
+.vs-slot.music { border-color: #a855f7 !important; box-shadow: 0 0 14px rgba(168,85,247,0.9) !important; animation: vsMusicPulse 1.2s ease-in-out infinite; }
 @keyframes vsSpeakPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
 @keyframes vsMusicPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
 .vs-slot img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
-.vs-slot .vs-badge {
-    position: absolute; bottom: -2px; left: -2px;
-    width: 16px; height: 16px;
-    border-radius: 50%; border: 2px solid #050508;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 8px; color: #fff; z-index: 3;
-}
+.vs-slot .vs-badge { position: absolute; bottom: -2px; left: -2px; width: 16px; height: 16px; border-radius: 50%; border: 2px solid #050508; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #fff; z-index: 3; }
 .vs-slot .vs-badge.mute { background: #ff4444; }
 .vs-slot .vs-badge.music { background: #a855f7; left: auto; right: -2px; bottom: -2px; }
-.vs-slot .vs-kick {
-    position: absolute; top: -6px; right: -6px;
-    width: 20px; height: 20px; border-radius: 50%;
-    background: #dc2626; border: 2px solid #050508;
-    color: #fff; font-size: 10px; font-weight: 900;
-    cursor: pointer; padding: 0; display: none;
-    align-items: center; justify-content: center; z-index: 5;
-}
+.vs-slot .vs-kick { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: #dc2626; border: 2px solid #050508; color: #fff; font-size: 10px; font-weight: 900; cursor: pointer; padding: 0; display: none; align-items: center; justify-content: center; z-index: 5; }
 .vs-slot:hover .vs-kick.can { display: flex; }
-.vs-slot .vs-tip {
-    position: absolute; bottom: -26px; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0,0,0,0.9); color: #fff;
-    font-size: 9px; font-weight: 900;
-    padding: 3px 8px; border-radius: 8px;
-    white-space: nowrap; pointer-events: none;
-    opacity: 0; transition: opacity 0.15s; z-index: 10;
-}
+.vs-slot .vs-tip { position: absolute; bottom: -26px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); color: #fff; font-size: 9px; font-weight: 900; padding: 3px 8px; border-radius: 8px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 10; }
 .vs-slot:hover .vs-tip { opacity: 1; }
-
-.vs-controls {
-    display: inline-flex; gap: 4px; align-items: center;
-    margin: 0 6px; padding: 4px 8px;
-    background: rgba(132,204,22,0.12);
-    border: 1px solid rgba(132,204,22,0.35);
-    border-radius: 20px;
-}
-.vs-controls.music-active {
-    background: rgba(168,85,247,0.15);
-    border-color: rgba(168,85,247,0.5);
-}
-.vs-ctrl {
-    width: 32px; height: 32px; border-radius: 50%;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,215,0,0.4);
-    color: #fff; font-size: 14px; cursor: pointer; padding: 0;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s;
-}
+.vs-controls { display: inline-flex; gap: 4px; align-items: center; margin: 0 6px; padding: 4px 8px; background: rgba(132,204,22,0.12); border: 1px solid rgba(132,204,22,0.35); border-radius: 20px; }
+.vs-controls.music-active { background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.5); }
+.vs-ctrl { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,215,0,0.4); color: #fff; font-size: 14px; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
 .vs-ctrl:hover { background: rgba(255,215,0,0.2); }
 .vs-ctrl.muted { background: rgba(255,68,68,0.25); border-color: #ff4444; color: #ff8888; }
 .vs-ctrl.music { background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.5); color: #c084fc; }
-.vs-ctrl.music.active {
-    background: rgba(168,85,247,0.4); border-color: #c084fc; color: #fff;
-    box-shadow: 0 0 8px rgba(168,85,247,0.6);
-}
+.vs-ctrl.music.active { background: rgba(168,85,247,0.4); border-color: #c084fc; color: #fff; box-shadow: 0 0 8px rgba(168,85,247,0.6); }
 .vs-ctrl.leave { background: rgba(255,68,68,0.15); border-color: rgba(255,68,68,0.5); color: #ff6666; }
 .vs-ctrl.leave:hover { background: rgba(255,68,68,0.3); }
-
-.vs-music-mini {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 3px 8px;
-    background: rgba(168,85,247,0.15);
-    border: 1px solid rgba(168,85,247,0.5);
-    border-radius: 14px;
-    color: #c084fc; font-size: 10px; font-weight: 900;
-    margin: 0 4px;
-}
-.vs-music-mini .vs-music-title {
-    max-width: 100px; overflow: hidden;
-    text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* زر unmute إذا الصوت محجوب */
-.vs-unmute-btn {
-    position: fixed;
-    bottom: 100px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: linear-gradient(135deg, #ffd700, #d4af37);
-    color: #000;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 30px;
-    font-family: Cairo, sans-serif;
-    font-size: 14px;
-    font-weight: 900;
-    cursor: pointer;
-    z-index: 9999998;
-    box-shadow: 0 4px 20px rgba(255,215,0,0.6);
-    animation: vsUnmutePulse 1.5s ease-in-out infinite;
-    display: none;
-}
+.vs-music-mini { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.5); border-radius: 14px; color: #c084fc; font-size: 10px; font-weight: 900; margin: 0 4px; }
+.vs-music-mini .vs-music-title { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-unmute-btn { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #ffd700, #d4af37); color: #000; padding: 12px 24px; border: none; border-radius: 30px; font-family: Cairo, sans-serif; font-size: 14px; font-weight: 900; cursor: pointer; z-index: 9999998; box-shadow: 0 4px 20px rgba(255,215,0,0.6); animation: vsUnmutePulse 1.5s ease-in-out infinite; display: none; }
 .vs-unmute-btn.show { display: flex; align-items: center; gap: 8px; }
-@keyframes vsUnmutePulse {
-    0%, 100% { box-shadow: 0 4px 20px rgba(255,215,0,0.6); }
-    50% { box-shadow: 0 4px 30px rgba(255,215,0,1), 0 0 40px rgba(255,215,0,0.6); }
-}
-
-/* Music Modal */
-.vs-music-modal {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.92);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
-    z-index: 1000050;
-    display: none; justify-content: center; align-items: center;
-    padding: 20px; direction: rtl; font-family: Cairo, sans-serif;
-}
+@keyframes vsUnmutePulse { 0%, 100% { box-shadow: 0 4px 20px rgba(255,215,0,0.6); } 50% { box-shadow: 0 4px 30px rgba(255,215,0,1), 0 0 40px rgba(255,215,0,0.6); } }
+.vs-music-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 1000050; display: none; justify-content: center; align-items: center; padding: 20px; direction: rtl; font-family: Cairo, sans-serif; }
 .vs-music-modal.active { display: flex; }
-.vs-music-box {
-    background: #0a0616;
-    border: 2px solid #a855f7;
-    border-radius: 18px;
-    padding: 22px;
-    width: 100%; max-width: 400px;
-    display: flex; flex-direction: column; gap: 14px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(168,85,247,0.4);
-}
-.vs-music-title-head {
-    color: #c084fc; font-size: 16px; font-weight: 900;
-    text-align: center; display: flex; align-items: center;
-    justify-content: center; gap: 8px;
-    padding-bottom: 10px; border-bottom: 1px solid rgba(168,85,247,0.3);
-}
-.vs-music-hint {
-    color: #888; font-size: 11px; text-align: center;
-    line-height: 1.5; padding: 6px;
-    background: rgba(168,85,247,0.06); border-radius: 8px;
-}
+.vs-music-box { background: #0a0616; border: 2px solid #a855f7; border-radius: 18px; padding: 22px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 40px rgba(168,85,247,0.4); }
+.vs-music-title-head { color: #c084fc; font-size: 16px; font-weight: 900; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid rgba(168,85,247,0.3); }
+.vs-music-hint { color: #888; font-size: 11px; text-align: center; line-height: 1.5; padding: 6px; background: rgba(168,85,247,0.06); border-radius: 8px; }
 .vs-music-field { display: flex; flex-direction: column; gap: 6px; }
 .vs-music-field label { color: #c084fc; font-size: 12px; font-weight: 900; }
-.vs-music-field input {
-    padding: 11px 14px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(168,85,247,0.4);
-    border-radius: 10px; color: #fff;
-    font-family: inherit; font-size: 13px;
-    outline: none; text-align: right; box-sizing: border-box;
-}
+.vs-music-field input { padding: 11px 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(168,85,247,0.4); border-radius: 10px; color: #fff; font-family: inherit; font-size: 13px; outline: none; text-align: right; box-sizing: border-box; }
 .vs-music-field input:focus { border-color: #c084fc; }
 .vs-music-actions { display: flex; gap: 8px; margin-top: 6px; }
-.vs-music-actions button {
-    flex: 1; padding: 12px; border-radius: 10px; border: none;
-    font-family: inherit; font-size: 13px; font-weight: 900; cursor: pointer;
-}
+.vs-music-actions button { flex: 1; padding: 12px; border-radius: 10px; border: none; font-family: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
 .vs-music-upload { background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; }
 .vs-music-url { background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(168,85,247,0.4) !important; }
 .vs-music-cancel { background: rgba(255,68,68,0.15); color: #ff8888; border: 1px solid rgba(255,68,68,0.4) !important; }
 .vs-music-actions button:active { transform: scale(0.97); }
-
 @media (max-width: 480px) {
     .vs-slot { width: 36px; height: 36px; font-size: 14px; }
     .vs-ctrl { width: 28px; height: 28px; font-size: 12px; }
@@ -305,7 +169,6 @@
         document.head.appendChild(s);
     })();
 
-    /* ═══ UserMedia ═══ */
     async function acquireMic() {
         try {
             return await navigator.mediaDevices.getUserMedia({
@@ -320,7 +183,6 @@
         }
     }
 
-    /* ═══ Music Stream ═══ */
     async function buildMusicStream(url, title) {
         try {
             destroyMusicStream();
@@ -329,20 +191,17 @@
             el.crossOrigin = 'anonymous';
             el.loop = false;
             el.preload = 'auto';
-
             await new Promise(function (res, rej) {
                 el.addEventListener('canplaythrough', res, { once: true });
                 el.addEventListener('error', function () { rej(new Error('فشل التحميل')); }, { once: true });
                 setTimeout(function () { rej(new Error('timeout')); }, 15000);
             });
-
             var Ctx = window.AudioContext || window.webkitAudioContext;
             var ctx = new Ctx();
             var src = ctx.createMediaElementSource(el);
             var dest = ctx.createMediaStreamDestination();
             src.connect(dest);
             src.connect(ctx.destination);
-
             VS.musicEl = el;
             VS.musicCtx = ctx;
             VS.musicStream = dest.stream;
@@ -363,7 +222,6 @@
         VS.musicInfo = null;
     }
 
-    /* ═══ Speaking ═══ */
     function startSpeakDetect(stream) {
         try {
             var Ctx = window.AudioContext || window.webkitAudioContext;
@@ -408,7 +266,6 @@
             .set(isSpeaking).catch(function () {});
     }
 
-    /* ═══ Audio unlock ═══ */
     function showUnmuteButton() {
         if (VS._unlockBtn) {
             VS._unlockBtn.classList.add('show');
@@ -418,18 +275,14 @@
         btn.className = 'vs-unmute-btn';
         btn.type = 'button';
         btn.innerHTML = '🔊 اضغط لتفعيل الصوت';
-        btn.onclick = function () {
-            unlockAllAudio();
-        };
+        btn.onclick = function () { unlockAllAudio(); };
         document.body.appendChild(btn);
         VS._unlockBtn = btn;
         btn.classList.add('show');
     }
 
     function hideUnmuteButton() {
-        if (VS._unlockBtn) {
-            VS._unlockBtn.classList.remove('show');
-        }
+        if (VS._unlockBtn) VS._unlockBtn.classList.remove('show');
     }
 
     function unlockAllAudio() {
@@ -442,46 +295,32 @@
             a.volume = 1.0;
             var p = a.play();
             if (p && p.then) {
-                p.then(function () {
-                    log('✅ audio playing for', uid.substring(0, 6));
-                }).catch(function (e) {
-                    allPlaying = false;
-                    console.warn('play fail:', e);
-                });
+                p.then(function () { log('✅ audio playing for', uid.substring(0, 6)); })
+                 .catch(function (e) { allPlaying = false; console.warn('play fail:', e); });
             }
         });
         try { localStorage.setItem(AUDIO_UNLOCKED_KEY, '1'); } catch (e) {}
-        setTimeout(function () {
-            if (allPlaying) hideUnmuteButton();
-        }, 500);
+        setTimeout(function () { if (allPlaying) hideUnmuteButton(); }, 500);
     }
-    // حاول مرة أخرى عند أي نقرة
+
     document.addEventListener('click', function () {
-        if (VS._unlockBtn && VS._unlockBtn.classList.contains('show')) {
-            unlockAllAudio();
-        }
+        if (VS._unlockBtn && VS._unlockBtn.classList.contains('show')) unlockAllAudio();
     }, { passive: true });
     document.addEventListener('touchstart', function () {
-        if (VS._unlockBtn && VS._unlockBtn.classList.contains('show')) {
-            unlockAllAudio();
-        }
+        if (VS._unlockBtn && VS._unlockBtn.classList.contains('show')) unlockAllAudio();
     }, { passive: true });
 
-    /* ═══ WebRTC ═══ */
     function getActiveStream() {
         return VS.musicMode ? VS.musicStream : VS.micStream;
     }
 
     function createPeer(remoteUid, isInitiator) {
         if (VS.peers[remoteUid]) return VS.peers[remoteUid];
-
         log('creating peer to ' + remoteUid.substring(0, 6) + ' | initiator=' + isInitiator + ' | role=' + VS.role);
-
         var pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
         VS.peers[remoteUid] = pc;
         VS._iceQueue[remoteUid] = [];
 
-        // إضافة tracks حسب الدور
         if (VS.role === 'speaker') {
             var stream = getActiveStream();
             if (stream) {
@@ -490,12 +329,8 @@
                 });
             }
         } else {
-            // listener — استقبال فقط
-            try {
-                pc.addTransceiver('audio', { direction: 'recvonly' });
-            } catch (e) {
-                console.warn('addTransceiver failed:', e);
-            }
+            try { pc.addTransceiver('audio', { direction: 'recvonly' }); }
+            catch (e) { console.warn('addTransceiver failed:', e); }
         }
 
         pc.onicecandidate = function (e) {
@@ -506,33 +341,25 @@
                 log('ICE complete for', remoteUid.substring(0, 6));
             }
         };
-
         pc.oniceconnectionstatechange = function () {
             log('ICE state ' + remoteUid.substring(0, 6) + ': ' + pc.iceConnectionState);
         };
-
         pc.ontrack = function (e) {
             log('✅ remote track from', remoteUid.substring(0, 6));
-            if (e.streams && e.streams[0]) {
-                attachRemoteAudio(remoteUid, e.streams[0]);
-            }
+            if (e.streams && e.streams[0]) attachRemoteAudio(remoteUid, e.streams[0]);
         };
-
         pc.onconnectionstatechange = function () {
             log('peer ' + remoteUid.substring(0, 6) + ' → ' + pc.connectionState);
             if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
                 setTimeout(function () {
                     if (!VS.peers[remoteUid]) return;
-                    if (VS.peers[remoteUid].connectionState === 'failed' ||
-                        VS.peers[remoteUid].connectionState === 'closed') {
+                    if (VS.peers[remoteUid].connectionState === 'failed' || VS.peers[remoteUid].connectionState === 'closed') {
                         closePeer(remoteUid);
-                        // أعد الإنشاء إذا لا زال مطلوباً
                         syncPeerConnections();
                     }
                 }, 3000);
             }
         };
-
         if (isInitiator) {
             pc.onnegotiationneeded = function () {
                 pc.createOffer()
@@ -544,7 +371,6 @@
                     .catch(function (e) { console.warn('offer fail:', e); });
             };
         }
-
         return pc;
     }
 
@@ -583,10 +409,8 @@
         a.srcObject = stream;
         a.muted = false;
         a.volume = 1.0;
-
         a.play().then(function () {
             log('✅ audio playing', remoteUid.substring(0, 6));
-            // تحقق إن كل الأصوات تشتغل
             setTimeout(function () {
                 var anyBlocked = false;
                 Object.keys(VS.remoteAudios).forEach(function (uid) {
@@ -602,7 +426,6 @@
         });
     }
 
-    /* ═══ Signaling ═══ */
     function sendSignal(toUid, type, payload) {
         if (!VS.room || !VS.me) return;
         pSignals(VS.room, toUid).push({
@@ -632,24 +455,15 @@
     }
 
     function stopSignalListener() {
-        if (VS.signalRef) {
-            try { VS.signalRef.off(); } catch (e) {}
-            VS.signalRef = null;
-        }
+        if (VS.signalRef) { try { VS.signalRef.off(); } catch (e) {} VS.signalRef = null; }
     }
 
     async function handleSignal(sig) {
         try {
             var from = sig.fromUid;
-
             if (sig.type === 'offer') {
-                var pc = VS.peers[from];
-                if (!pc) {
-                    pc = createPeer(from, false);
-                }
-                // لو في SDP قيد الانتظار
+                var pc = VS.peers[from] || createPeer(from, false);
                 await pc.setRemoteDescription(new RTCSessionDescription(sig.payload.sdp));
-                // flush ICE queue
                 var queued = VS._iceQueue[from] || [];
                 for (var i = 0; i < queued.length; i++) {
                     try { await pc.addIceCandidate(new RTCIceCandidate(queued[i])); } catch (e) {}
@@ -659,7 +473,6 @@
                 await pc.setLocalDescription(ans);
                 sendSignal(from, 'answer', { sdp: pc.localDescription });
                 log('→ answer sent to', from.substring(0, 6));
-
             } else if (sig.type === 'answer') {
                 var pc2 = VS.peers[from];
                 if (pc2 && pc2.signalingState !== 'stable') {
@@ -670,33 +483,24 @@
                     }
                     VS._iceQueue[from] = [];
                 }
-
             } else if (sig.type === 'ice') {
                 var pc3 = VS.peers[from];
                 if (!pc3) {
-                    // ليس لدينا peer بعد — ضع في queue
                     if (!VS._iceQueue[from]) VS._iceQueue[from] = [];
                     VS._iceQueue[from].push(sig.payload.candidate);
                     return;
                 }
-                // لو لم يكن remote description موجوداً، ضع في queue
                 if (!pc3.remoteDescription) {
                     if (!VS._iceQueue[from]) VS._iceQueue[from] = [];
                     VS._iceQueue[from].push(sig.payload.candidate);
                     return;
                 }
-                try {
-                    await pc3.addIceCandidate(new RTCIceCandidate(sig.payload.candidate));
-                } catch (e) {
-                    console.warn('addIceCandidate:', e);
-                }
+                try { await pc3.addIceCandidate(new RTCIceCandidate(sig.payload.candidate)); }
+                catch (e) { console.warn('addIceCandidate:', e); }
             }
-        } catch (e) {
-            console.warn('handleSignal:', e);
-        }
+        } catch (e) { console.warn('handleSignal:', e); }
     }
 
-    /* ═══ Participants listener ═══ */
     function startParticipantsListener() {
         if (!VS.room) return;
         stopParticipantsListener();
@@ -710,14 +514,10 @@
     }
 
     function stopParticipantsListener() {
-        if (VS.participantsRef) {
-            try { VS.participantsRef.off(); } catch (e) {}
-            VS.participantsRef = null;
-        }
+        if (VS.participantsRef) { try { VS.participantsRef.off(); } catch (e) {} VS.participantsRef = null; }
         VS.participantsData = {};
     }
 
-    /* ═══ Speakers listener ═══ */
     function startSpeakersListener() {
         if (!VS.room) return;
         stopSpeakersListener();
@@ -731,23 +531,23 @@
     }
 
     function stopSpeakersListener() {
-        if (VS.speakersRef) {
-            try { VS.speakersRef.off(); } catch (e) {}
-            VS.speakersRef = null;
-        }
+        if (VS.speakersRef) { try { VS.speakersRef.off(); } catch (e) {} VS.speakersRef = null; }
         VS.speakersData = {};
     }
 
     function onSpeakersChange(data) {
         renderSlots(data);
 
-        // التحقق من الطرد
+        // ⭐ hook for voice-monitor
+        if (typeof VS._onSpeakersChange === 'function') {
+            try { VS._onSpeakersChange(data); } catch (e) { console.warn('monitor callback:', e); }
+        }
+
         if (VS.role === 'speaker' && VS.mySlot !== null) {
             var my = data[VS.mySlot];
             if (!my || my.uid !== VS.me.uid) {
                 log('kicked from mic');
                 toast('fa-user-slash', '🚪 تم إنزالك من المايك');
-                // تنظيف
                 stopSpeakDetect();
                 destroyMusicStream();
                 if (VS.micStream) {
@@ -765,24 +565,17 @@
                 return;
             }
         }
-
         syncPeerConnections();
     }
 
-    /* ═══ Sync peers — القاعدة الجديدة: speaker دائماً البادئ ═══ */
     function syncPeerConnections() {
         if (!VS.me || !VS.room || VS.role === 'none') return;
-
         var meUid = VS.me.uid;
         var speakers = VS.speakersData || {};
         var participants = VS.participantsData || {};
-
         var shouldConnect = {};
 
         if (VS.role === 'speaker') {
-            // Speaker يتصل بـ:
-            //  - كل speakers آخرين
-            //  - كل participants (listeners)
             Object.keys(speakers).forEach(function (k) {
                 var s = speakers[k];
                 if (s && s.uid && s.uid !== meUid) shouldConnect[s.uid] = { asInitiator: true };
@@ -791,32 +584,25 @@
                 if (uid !== meUid) shouldConnect[uid] = { asInitiator: true };
             });
         } else {
-            // Listener — يستقبل فقط، لا يبدأ أبداً
             Object.keys(speakers).forEach(function (k) {
                 var s = speakers[k];
                 if (s && s.uid && s.uid !== meUid) shouldConnect[s.uid] = { asInitiator: false };
             });
         }
 
-        // أنشئ peers جديدة
         Object.keys(shouldConnect).forEach(function (uid) {
             if (!VS.peers[uid]) {
                 var isInitiator = VS.role === 'speaker';
-                // speakers الآخرون: الأصغر يبدأ
                 if (VS.role === 'speaker' && speakers) {
-                    // هل هذا speaker آخر؟
                     var isSpeaker = Object.keys(speakers).some(function (k) {
                         return speakers[k] && speakers[k].uid === uid;
                     });
-                    if (isSpeaker) {
-                        isInitiator = meUid < uid;
-                    }
+                    if (isSpeaker) isInitiator = meUid < uid;
                 }
                 createPeer(uid, isInitiator);
             }
         });
 
-        // أغلق peers لمن خرج
         Object.keys(VS.peers).forEach(function (uid) {
             if (!shouldConnect[uid]) {
                 log('closing peer', uid.substring(0, 6));
@@ -830,17 +616,14 @@
         syncPeerConnections();
     }
 
-    /* ═══ Join listener ═══ */
     async function joinAsListener() {
         if (VS.joining) return;
         if (VS.role !== 'none' && VS.room === getRoom()) return;
         VS.joining = true;
-
         try {
             var me = getMe();
             if (!me || !me.uid) { VS.joining = false; return; }
             var room = getRoom();
-
             if (VS.room && VS.room !== room) await leaveAll();
 
             VS.me = me;
@@ -867,7 +650,6 @@
 
             startSpeakersListener();
             startSignalListener();
-
             log('✅ joined as listener in', room);
         } catch (e) {
             console.error('joinAsListener:', e);
@@ -876,17 +658,14 @@
         }
     }
 
-    /* ═══ Join speaker ═══ */
     async function joinAsSpeaker() {
         if (VS.joining || VS.role === 'speaker') return;
         VS.joining = true;
-
         try {
             var me = getMe();
             if (!me || !me.uid) { toast('fa-user', '⚠️ سجّل دخول أولاً'); return; }
             var room = getRoom();
             var config = getRoomConfig();
-
             if (!config.allowMic) { toast('fa-lock', '🔒 المايك غير متاح هنا'); return; }
             if (!config.micCount || config.micCount < 1) { toast('fa-info', 'ℹ️ لا يوجد مايكات'); return; }
 
@@ -908,7 +687,6 @@
                 var s = data[i];
                 if (!s || !s.uid || s.uid === me.uid) { slot = i; break; }
             }
-
             if (slot === -1) {
                 toast('fa-microphone-slash', '📢 كل المايكات ممتلئة');
                 stream.getTracks().forEach(function (t) { t.stop(); });
@@ -937,11 +715,9 @@
             VS.speakerDisc.remove();
 
             startSpeakDetect(stream);
-            // إعادة الاتصالات كـ speaker
             reconnectAllPeers();
             VS.lastHash = '';
             renderSlots(VS.speakersData);
-
             toast('fa-microphone', '🎤 أنت على المايك ' + (slot + 1) + ' — الكل يسمعك');
             log('✅ speaker in slot', slot);
         } catch (e) {
@@ -952,7 +728,6 @@
         }
     }
 
-    /* ═══ Leave speaker ═══ */
     async function leaveSpeaker() {
         if (VS.role !== 'speaker') return;
         try {
@@ -982,7 +757,6 @@
         toast('fa-microphone-slash', '👋 نزلت من المايك');
     }
 
-    /* ═══ Leave all ═══ */
     async function leaveAll() {
         try { if (VS.role === 'speaker') await leaveSpeaker(); } catch (e) {}
         try {
@@ -1009,7 +783,6 @@
         renderSlots({});
     }
 
-    /* ═══ Toggle mute ═══ */
     function toggleMute() {
         if (VS.role !== 'speaker' || !VS.micStream) return;
         if (VS.musicMode) { toast('fa-info-circle', '🎵 أنهِ الموسيقى أولاً'); return; }
@@ -1025,7 +798,6 @@
         renderControls();
     }
 
-    /* ═══ Music mode ═══ */
     async function enterMusicMode(url, title) {
         if (VS.role !== 'speaker') return;
         if (VS.musicMode) { toast('fa-info-circle', '🎵 شغالة بالفعل'); return; }
@@ -1036,7 +808,6 @@
         if (VS.micStream) {
             VS.micStream.getAudioTracks().forEach(function (t) { t.enabled = false; });
         }
-        // استبدل tracks على كل peers
         var newTrack = stream.getAudioTracks()[0];
         if (newTrack) {
             Object.keys(VS.peers).forEach(function (uid) {
@@ -1097,7 +868,6 @@
         renderControls();
     }
 
-    /* ═══ Kick ═══ */
     async function kickFromMic(uid) {
         if (!VS.room) return;
         var me = getMe();
@@ -1121,12 +891,10 @@
         toast('fa-check', '✅ تم إنزاله');
     }
 
-    /* ═══ Render ═══ */
     function renderSlots(data) {
         var config = getRoomConfig();
         var container = document.querySelector('#mics-bar .mics');
         if (!container) return;
-
         if (!config.micCount || config.micCount < 1) {
             var bar = document.getElementById('mics-bar');
             if (bar) bar.classList.add('hidden');
@@ -1263,7 +1031,6 @@
         }
     }
 
-    /* ═══ Music modal ═══ */
     function ensureMusicModal() {
         var m = document.getElementById('vs-music-modal');
         if (m) return m;
@@ -1338,7 +1105,6 @@
         input.click();
     }
 
-    /* ═══ UI Observer ═══ */
     function startUIObserver() {
         var bar = document.getElementById('mics-bar');
         if (!bar) return;
@@ -1353,7 +1119,6 @@
         VS.uiObserver.observe(bar, { childList: true, subtree: true });
     }
 
-    /* ═══ Room watcher ═══ */
     function startRoomWatcher() {
         if (VS._roomWatcherTimer) clearInterval(VS._roomWatcherTimer);
         VS._roomWatcherTimer = setInterval(function () {
@@ -1367,14 +1132,12 @@
         }, ROOM_WATCH_MS);
     }
 
-    /* ═══ Cleanup ═══ */
     function cleanup() {
         if (VS.role && VS.role !== 'none') leaveAll();
     }
     window.addEventListener('beforeunload', cleanup);
     window.addEventListener('pagehide', cleanup);
 
-    /* ═══ Public API ═══ */
     window.VoiceSystem = {
         joinSpeaker: joinAsSpeaker,
         leaveSpeaker: leaveSpeaker,
@@ -1389,7 +1152,12 @@
         isMusicMode: function () { return VS.musicMode; },
         getMySlot: function () { return VS.mySlot; },
         getRole: function () { return VS.role; },
-        // تشخيص
+        // ⭐ مكشوفة للـ voice-monitor
+        _getRemoteAudios: function () { return VS.remoteAudios; },
+        _getMicStream: function () { return VS.micStream; },
+        _getSpeakersData: function () { return VS.speakersData; },
+        _getParticipantsData: function () { return VS.participantsData; },
+        _registerSpeakersCallback: function (cb) { VS._onSpeakersChange = cb; },
         diagnose: function () {
             return {
                 role: VS.role,
@@ -1404,10 +1172,9 @@
                 speakers: Object.keys(VS.speakersData)
             };
         },
-        version: 2.1
+        version: '2.1a'
     };
 
-    /* ═══ Init ═══ */
     function init() {
         var tries = 0;
         var t = setInterval(function () {
@@ -1425,8 +1192,7 @@
                     startUIObserver();
                     renderSlots({});
                     startRoomWatcher();
-                    log('✅ v2.1 ready | role:', VS.role, '| room:', VS.room);
-                    // اختبر الصوت إن مُنع سابقاً
+                    log('✅ v2.1a ready | role:', VS.role, '| room:', VS.room);
                     try {
                         if (localStorage.getItem(AUDIO_UNLOCKED_KEY) === '1') {
                             log('audio previously unlocked');
@@ -1445,5 +1211,5 @@
         init();
     }
 
-    console.log('🎤 voice-system.js v2.1 loaded — fixed signaling + unmute');
+    console.log('🎤 voice-system.js v2.1a loaded — broadcast + music + hooks');
 })();
