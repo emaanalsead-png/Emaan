@@ -539,6 +539,7 @@ window._updateHeaderButtons = _updateHeaderButtons;
 <script defer src="pm-ui-fixes.js?v=70"></script>
 <script defer src="voice-system.js?v=1"></script>
 <script defer src="voice-extras.js?v=1"></script>
+<script defer src="voice-share-fix.js?v=1"></script>
 <script defer src="qamar-fixes-v2.js?v=1"></script>
 
 <script>
@@ -785,6 +786,7 @@ function checkScripts(){
         ['pm-ui-fixes.js', window.__pmUiFixesV1 === true],
         ['voice-system.js', window.__voiceSystemV21 === true],
         ['voice-extras.js', window.__voiceExtrasV1 === true],
+        ['voice-share-fix.js', window.__voiceShareFixV1 === true],
         ['qamar-fixes-v2.js', window.__qamarFixesV2 === true]
     ];
     return checks.map(function(c){ return {name: c[0], ok: !!c[1]}; });
