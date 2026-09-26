@@ -1,38 +1,28 @@
 // ==============================================
-// frames-engine.js v13 — تثبيت GIF + WeakSet + Profile-Ready
+// frames-engine.js v14 — jsDelivr + cache
 // ==============================================
-// ✅ v13 (فوق v12):
-//   1. كشف تلقائي للصور المتحركة (GIF/WebP/APNG)
-//   2. للصور المتحركة: loading=eager + decoding=sync
-//   3. للصور المتحركة: animations آمنة (.qf-animated — بدون transform/filter)
-//   4. لا نعيد تعيين src لو نفسه (يفقد الحركة)
-//   5. forceGifRestart helper
-//   6. preload للصور المتحركة
-// ✅ v12 (محفوظ):
-//   1. renderFramesGrid Signature موسّع (Object)
-//   2. WeakSet بدل global lock
-//   3. applyAvatarFrameFromUser
-//   4. تكامل مع NameEffects
+// ✅ v14:
+//   1. jsDelivr API بدل GitHub API (لا rate limit!)
+//   2. قائمة إطارات fallback كاملة
+//   3. cache محسّن 48 ساعة
 // ==============================================
 
 const FRAMES_REPO = 'qamaralsham/qamaralsham';
-const FRAMES_FOLDER = 'frames/';
+const FRAMES_BRANCH = 'main';
+const FRAMES_FOLDER = 'frames';
 const FRAMES_EXTS = ['png', 'gif', 'webp', 'jpg', 'jpeg', 'apng'];
 const ANIMATED_EXTS = ['gif', 'webp', 'apng'];
-const FRAMES_CACHE_TTL = 24 * 60 * 60 * 1000;
-const FRAMES_CACHE_KEY = 'qamar_frames_cache_v1';
+const FRAMES_CACHE_TTL = 48 * 60 * 60 * 1000;
+const FRAMES_CACHE_KEY = 'qamar_frames_cache_v2';
 
-// ⭐ v13: دورة عادية للصور الثابتة
 const ANIM_CYCLE = ['royal-glow', 'wing-flutter', 'flame-flicker', 'celestial-spin', 'none'];
-// ⭐ v13: دورة آمنة للصور المتحركة (بدون transform/filter — يوقف GIF)
 const ANIM_CYCLE_ANIMATED = ['opacity-pulse', 'opacity-gentle', 'none'];
 
 var _framesProcessed = new WeakSet();
 
-const FRAMES_OVERRIDES = {
-    // "frame1.png": { name: "الفضي الملكي", animation: "royal-glow" },
-};
+const FRAMES_OVERRIDES = {};
 
+/* ═══ Fallback موسّع (في حال فشل كل APIs) ═══ */
 const FALLBACK_FRAMES = [
     { id: "f1", file: "frame1.png", name: "إطار 1", animation: "royal-glow", isAnimated: false, rank: "User" },
     { id: "f2", file: "frame2.png", name: "إطار 2", animation: "wing-flutter", isAnimated: false, rank: "User" },
@@ -41,50 +31,38 @@ const FALLBACK_FRAMES = [
     { id: "f5", file: "frame5.png", name: "إطار 5", animation: "none", isAnimated: false, rank: "User" },
     { id: "f6", file: "frame6.png", name: "إطار 6", animation: "royal-glow", isAnimated: false, rank: "User" },
     { id: "f7", file: "frame7.png", name: "إطار 7", animation: "wing-flutter", isAnimated: false, rank: "User" },
-    { id: "f8", file: "frame8.png", name: "إطار 8", animation: "none", isAnimated: false, rank: "User" }
+    { id: "f8", file: "frame8.png", name: "إطار 8", animation: "none", isAnimated: false, rank: "User" },
+    { id: "f9", file: "frame9.png", name: "إطار 9", animation: "royal-glow", isAnimated: false, rank: "User" },
+    { id: "f10", file: "frame10.png", name: "إطار 10", animation: "flame-flicker", isAnimated: false, rank: "User" },
+    { id: "f11", file: "frame11.gif", name: "إطار 11", animation: "opacity-pulse", isAnimated: true, rank: "User" },
+    { id: "f12", file: "frame12.gif", name: "إطار 12", animation: "opacity-gentle", isAnimated: true, rank: "User" }
 ];
 
 let ALL_FRAMES = FALLBACK_FRAMES.slice();
 let _refreshing = false;
 
-/* ══════════════════════════════════════════════ */
-/* ⭐ v13: أدوات كشف الصور المتحركة               */
-/* ══════════════════════════════════════════════ */
-
+/* ═══ Helpers ═══ */
 function _getExt(filename) {
     if (!filename) return '';
-    // نتجاهل query string
     var clean = String(filename).split('?')[0].split('#')[0];
     return (clean.split('.').pop() || '').toLowerCase();
 }
-
 function _isAnimatedFile(filename) {
     return ANIMATED_EXTS.indexOf(_getExt(filename)) !== -1;
 }
-
-/**
- * ⭐ v13: إعادة تشغيل GIF (لو احتاجنا)
- * iOS Safari أحياناً يوقف GIF بعد إخفاء/إظهار
- * نبعت cache-buster صغير عشان يُعاد التحميل
- */
 function _forceGifRestart(imgEl) {
     if (!imgEl || !imgEl.src) return;
     if (!_isAnimatedFile(imgEl.src)) return;
     try {
         var src = imgEl.src.split('?')[0].split('#')[0];
-        var sep = imgEl.src.indexOf('?') === -1 ? '?' : '&';
-        // نبعت cache-buster
         imgEl.src = src + '?__gifr=' + Date.now();
     } catch (e) {}
 }
 
-/* ══════════════════════════════════════════════ */
-/* أدوات مساعدة                                    */
-/* ══════════════════════════════════════════════ */
-
 function buildFrameSrc(file) {
     if (/^(https?:|\/)/i.test(file)) return file;
-    return FRAMES_FOLDER + file;
+    /* ⭐ jsDelivr CDN — أسرع */
+    return 'https://cdn.jsdelivr.net/gh/' + FRAMES_REPO + '@' + FRAMES_BRANCH + '/' + FRAMES_FOLDER + '/' + file;
 }
 
 function naturalSort(a, b) {
@@ -105,20 +83,18 @@ function extractNum(filename) {
     return m ? parseInt(m[0]) : 0;
 }
 
-function buildFrameFromFile(fileObj, index) {
-    var name = fileObj.name;
+function buildFrameFromFile(fileName, index) {
+    var name = fileName;
     var ext = _getExt(name);
     var isAnimated = ANIMATED_EXTS.indexOf(ext) !== -1;
     var num = extractNum(name);
     var id = 'f' + (num || (index + 1));
     var override = FRAMES_OVERRIDES[name] || {};
 
-    // ⭐ v13: نختار animation حسب نوع الملف
     var anim;
     if (override.animation) {
         anim = override.animation;
     } else if (isAnimated) {
-        // للصور المتحركة: animations آمنة فقط (بدون transform/filter)
         anim = ANIM_CYCLE_ANIMATED[index % ANIM_CYCLE_ANIMATED.length];
     } else {
         anim = ANIM_CYCLE[index % ANIM_CYCLE.length];
@@ -134,46 +110,57 @@ function buildFrameFromFile(fileObj, index) {
     };
 }
 
-/* ══════════════════════════════════════════════ */
-/* جلب الإطارات من GitHub                         */
-/* ══════════════════════════════════════════════ */
+/* ═══ جلب الإطارات من jsDelivr (لا rate limit!) ═══ */
+async function fetchFramesFromJsDelivr() {
+    var url = 'https://data.jsdelivr.com/v1/package/gh/' + FRAMES_REPO + '@' + FRAMES_BRANCH + '/flat';
 
-async function fetchFramesFromGitHub() {
-    var url = 'https://api.github.com/repos/' + FRAMES_REPO + '/contents/' + FRAMES_FOLDER;
     try {
         var res = await fetch(url + '?t=' + Date.now());
-        if (res.status === 403 || res.status === 429) {
-            console.warn('⚠️ GitHub API rate-limited');
-            return null;
-        }
-        if (!res.ok) {
-            console.warn('⚠️ GitHub API error:', res.status);
-            return null;
-        }
-        var data = await res.json();
-        if (!Array.isArray(data)) return null;
 
-        var files = data.filter(function (f) {
-            if (f.type !== 'file') return false;
-            if (f.name.charAt(0) === '.') return false;
-            var ext = _getExt(f.name);
+        if (!res.ok) {
+            console.warn('⚠️ jsDelivr API error:', res.status);
+            return null;
+        }
+
+        var data = await res.json();
+        if (!data || !Array.isArray(data.files)) return null;
+
+        /* jsDelivr flat: files = [{name: '/frames/frame1.png', ...}] */
+        var prefix = '/' + FRAMES_FOLDER + '/';
+        var files = data.files.filter(function (f) {
+            if (!f || !f.name) return false;
+            if (f.name.indexOf(prefix) !== 0) return false;
+            var base = f.name.substring(prefix.length);
+            if (base.indexOf('/') !== -1) return false; /* subfolder */
+            if (base.charAt(0) === '.') return false;
+            var ext = _getExt(base);
             if (FRAMES_EXTS.indexOf(ext) === -1) return false;
-            if (!/^frame/i.test(f.name)) return false;
+            if (!/^frame/i.test(base)) return false;
             return true;
         });
 
-        files.sort(function (a, b) { return naturalSort(a.name, b.name); });
-        return files.map(buildFrameFromFile);
+        /* استخرج الأسماء فقط */
+        var names = files.map(function (f) { return f.name.substring(prefix.length); });
+
+        if (names.length === 0) {
+            console.warn('⚠️ jsDelivr: no frames found');
+            return null;
+        }
+
+        names.sort(naturalSort);
+
+        var frames = names.map(buildFrameFromFile);
+
+        console.log('✅ jsDelivr: fetched', frames.length, 'frames');
+        return frames;
+
     } catch (e) {
-        console.warn('⚠️ fetch failed:', e.message);
+        console.warn('❌ jsDelivr fetch failed:', e.message);
         return null;
     }
 }
 
-/* ══════════════════════════════════════════════ */
-/* Cache (localStorage — خاص بالإطارات فقط)      */
-/* ══════════════════════════════════════════════ */
-
+/* ═══ Cache ═══ */
 function loadFromCache() {
     try {
         var cached = JSON.parse(localStorage.getItem(FRAMES_CACHE_KEY) || 'null');
@@ -193,32 +180,31 @@ function saveToCache(frames) {
     } catch (e) {}
 }
 
+/* ═══ Init ═══ */
 async function initFrames() {
+    /* 1. Cache أولاً */
     var cached = loadFromCache();
-    if (cached) {
+    if (cached && cached.length > 0) {
         ALL_FRAMES = cached;
         console.log('📦 إطارات من الذاكرة: ' + cached.length);
         _preloadAnimatedFrames();
     }
 
-    var fresh = await fetchFramesFromGitHub();
+    /* 2. jsDelivr */
+    var fresh = await fetchFramesFromJsDelivr();
     if (fresh && fresh.length > 0) {
         ALL_FRAMES = fresh;
         saveToCache(fresh);
-        console.log('🔄 إطارات محدّثة من GitHub: ' + fresh.length);
+        console.log('🔄 إطارات محدّثة من jsDelivr: ' + fresh.length);
         _preloadAnimatedFrames();
         var c = document.getElementById('frames-container');
         if (c && c.children.length > 0) renderFramesGrid(c);
     } else if (!cached) {
         ALL_FRAMES = FALLBACK_FRAMES.slice();
-        console.log('📌 استخدام القائمة الاحتياطية');
+        console.log('📌 استخدام القائمة الاحتياطية (' + ALL_FRAMES.length + ')');
     }
 }
 
-/**
- * ⭐ v13: preload للصور المتحركة فقط
- * لضمان أنها تظهر متحركة من أول مرة
- */
 function _preloadAnimatedFrames() {
     var animated = ALL_FRAMES.filter(function (f) {
         return f.isAnimated === true || _isAnimatedFile(f.file);
@@ -233,10 +219,7 @@ function _preloadAnimatedFrames() {
     });
 }
 
-/* ══════════════════════════════════════════════ */
-/* تصدير: إعادة التحميل يدوياً                    */
-/* ══════════════════════════════════════════════ */
-
+/* ═══ Reload يدوي ═══ */
 window.reloadFrames = async function () {
     if (_refreshing) return;
     _refreshing = true;
@@ -246,7 +229,7 @@ window.reloadFrames = async function () {
 
     try {
         localStorage.removeItem(FRAMES_CACHE_KEY);
-        var fresh = await fetchFramesFromGitHub();
+        var fresh = await fetchFramesFromJsDelivr();
         if (fresh && fresh.length > 0) {
             ALL_FRAMES = fresh;
             saveToCache(fresh);
@@ -265,28 +248,13 @@ window.reloadFrames = async function () {
     if (btn) btn.textContent = '🔄';
 };
 
-/* ══════════════════════════════════════════════ */
-/* ⭐ v13: بناء عنصر الإطار (كامل)                */
-/* ══════════════════════════════════════════════ */
-
-/**
- * نبني عنصر الإطار مع كل الاعتبارات:
- *   - للصور الثابتة: loading=lazy + animations عادية
- *   - للصور المتحركة: loading=eager + animations آمنة + .qf-animated
- *   - ضبط classes بشكل نظيف
- *
- * @param {Object} frame — كائن الإطار من ALL_FRAMES
- * @param {boolean} forMessage — هل للرسالة؟ (يضيف inline styles)
- * @returns {HTMLElement}
- */
+/* ═══ بناء عنصر الإطار ═══ */
 function _buildFrameElement(frame, forMessage) {
     var isAnim = frame.isAnimated === true || _isAnimatedFile(frame.file);
 
     var el = document.createElement('div');
     var classes = ['qf'];
-    // ⭐ v13: class خاص بالصور المتحركة
     if (isAnim) classes.push('qf-animated');
-    // animation — نتجنب none
     if (frame.animation && frame.animation !== 'none') {
         classes.push(frame.animation);
     }
@@ -294,7 +262,6 @@ function _buildFrameElement(frame, forMessage) {
     el.setAttribute('data-frame-id', frame.id);
     if (isAnim) el.setAttribute('data-animated', '1');
 
-    // ⭐ v13: inline styles للرسائل
     if (forMessage) {
         el.style.cssText = 'position:absolute;inset:var(--frame-inset,-8%);pointer-events:none;z-index:20;display:flex;align-items:center;justify-content:center;';
     }
@@ -303,7 +270,6 @@ function _buildFrameElement(frame, forMessage) {
     img.src = buildFrameSrc(frame.file);
     img.alt = frame.name;
 
-    // ⭐ v13: تحميل مختلف حسب النوع
     if (isAnim) {
         img.loading = 'eager';
         img.decoding = 'sync';
@@ -312,7 +278,6 @@ function _buildFrameElement(frame, forMessage) {
         img.decoding = 'async';
     }
 
-    // ⭐ v13: styles الصورة في الرسائل
     if (forMessage) {
         img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block;';
     }
@@ -323,19 +288,9 @@ function _buildFrameElement(frame, forMessage) {
     return el;
 }
 
-/* ══════════════════════════════════════════════ */
-/* التطبيق الأساسي                                */
-/* ══════════════════════════════════════════════ */
-
-/**
- * تطبيق إطار على صندوق أفاتار (بدون localStorage).
- * @param {HTMLElement} box
- * @param {string} frameId
- */
 function applyFrameTo(box, frameId) {
     if (!box) return;
     box.querySelectorAll('.qf').forEach(function (e) { e.remove(); });
-
     if (!frameId || frameId === 'none') return;
 
     var frame = ALL_FRAMES.find(function (f) { return f.id === frameId; });
@@ -345,9 +300,6 @@ function applyFrameTo(box, frameId) {
     box.appendChild(el);
 }
 
-/**
- * تطبيق إطار على رسالة (wrapper).
- */
 function applyFrameToMessage(wrapper, frameId) {
     if (!wrapper) return;
     wrapper.querySelectorAll('.qf').forEach(function (e) { e.remove(); });
@@ -360,34 +312,23 @@ function applyFrameToMessage(wrapper, frameId) {
     wrapper.appendChild(el);
 }
 
-/* ══════════════════════════════════════════════ */
-/* API موحّد للبروفايل                            */
-/* ══════════════════════════════════════════════ */
-
 function applyAvatarFrameFromUser(box, user) {
     if (!box) return;
-
     box.querySelectorAll('.qf').forEach(function (e) { e.remove(); });
     if (window.NameEffects && typeof window.NameEffects.clearDefaultAvatarFrame === 'function') {
         window.NameEffects.clearDefaultAvatarFrame(box);
     }
-
     if (!user) return;
-
     if (user.avatarFrame && user.avatarFrame !== 'none') {
         applyFrameTo(box, user.avatarFrame);
         return;
     }
-
     if (window.NameEffects && typeof window.NameEffects.applyDefaultAvatarFrame === 'function') {
         window.NameEffects.applyDefaultAvatarFrame(box, user.rank, user.rankLevel);
     }
 }
 
-/* ══════════════════════════════════════════════ */
-/* عرض شبكة الإطارات                              */
-/* ══════════════════════════════════════════════ */
-
+/* ═══ عرض شبكة الإطارات ═══ */
 function ensureRefreshButton() {
     var modal = document.getElementById('frames-modal');
     if (!modal) return;
@@ -412,13 +353,6 @@ function ensureRefreshButton() {
     box.appendChild(btn);
 }
 
-/**
- * تعرض شبكة الإطارات (3×N).
- * ✅ تدعم Signature القديم: renderFramesGrid(container, avatarSrc, currentFrameId)
- * ✅ تدعم Signature الجديد: renderFramesGrid(container, {avatarSrc, currentFrameId, onSelect})
- *
- * ⭐ v13: الصور المتحركة تُعرض بـ loading=eager
- */
 function renderFramesGrid(container, arg2, arg3) {
     if (!container) return;
     container.innerHTML = '';
@@ -448,17 +382,14 @@ function renderFramesGrid(container, arg2, arg3) {
 
     function _selectFrame(id) {
         if (onSelect) {
-            try {
-                onSelect(id);
-            } catch (e) {
-                console.error('onSelect threw:', e);
-            }
+            try { onSelect(id); }
+            catch (e) { console.error('onSelect threw:', e); }
         } else if (typeof window.applyAvatarFrame === 'function') {
             window.applyAvatarFrame(id);
         }
     }
 
-    // ─── بطاقة "بدون إطار" ───
+    /* بطاقة "بدون إطار" */
     const noneCard = document.createElement('div');
     noneCard.className = 'frame-tile';
     if (!currentId || currentId === 'none') noneCard.classList.add('selected');
@@ -483,7 +414,7 @@ function renderFramesGrid(container, arg2, arg3) {
     };
     container.appendChild(noneCard);
 
-    // ─── بطاقات الإطارات ───
+    /* بطاقات الإطارات */
     ALL_FRAMES.forEach(function(f) {
         const tile = document.createElement('div');
         tile.className = 'frame-tile';
@@ -500,7 +431,6 @@ function renderFramesGrid(container, arg2, arg3) {
         fimg.src = buildFrameSrc(f.file);
         fimg.className = 'frame-img';
 
-        // ⭐ v13: eager + sync للصور المتحركة
         const isAnim = f.isAnimated === true || _isAnimatedFile(f.file);
         if (isAnim) {
             fimg.loading = 'eager';
@@ -525,10 +455,7 @@ function renderFramesGrid(container, arg2, arg3) {
     });
 }
 
-/* ══════════════════════════════════════════════ */
-/* تطبيق الإطارات على الرسائل الموجودة            */
-/* ══════════════════════════════════════════════ */
-
+/* ═══ تطبيق الإطارات على الرسائل ═══ */
 function applyFramesToExistingMessages() {
     const messagesContainer = document.getElementById('messages');
     if (!messagesContainer) return;
@@ -555,10 +482,7 @@ function applyFramesToExistingMessages() {
     }).catch(function(e) { console.warn('Frame apply error:', e); });
 }
 
-/* ══════════════════════════════════════════════ */
-/* Observer: تطبيق الإطارات على الرسائل الجديدة   */
-/* ══════════════════════════════════════════════ */
-
+/* ═══ Observer ═══ */
 document.addEventListener('DOMContentLoaded', function () {
     var observer = new MutationObserver(function (mutations) {
         mutations.forEach(function (m) {
@@ -569,17 +493,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 var wrapper = node.querySelector('.message-avatar-wrapper');
                 if (!wrapper) return;
-
                 if (_framesProcessed.has(wrapper)) return;
                 _framesProcessed.add(wrapper);
-
                 if (wrapper.querySelector('.qf')) return;
 
                 var senderUid = node.getAttribute('data-sender-uid');
                 if (!senderUid) return;
                 if (senderUid.indexOf('bot_') === 0) return;
-
                 if (typeof db === 'undefined' || !db) return;
+
                 db.ref('users/' + senderUid + '/avatarFrame').once('value').then(function (s) {
                     var frame = s.val();
                     if (frame && frame !== 'none' && !wrapper.querySelector('.qf')) {
@@ -596,25 +518,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-/* ══════════════════════════════════════════════ */
-/* Init + Exports                                 */
-/* ══════════════════════════════════════════════ */
-
+/* ═══ Init + Exports ═══ */
 window.addEventListener('load', function () {
     initFrames();
     setTimeout(applyFramesToExistingMessages, 2000);
 });
-
-/* ══════════════════════════════════════════════ */
-/* التصدير العام                                  */
-/* ══════════════════════════════════════════════ */
 
 window.applyFrameTo = applyFrameTo;
 window.applyFrameToMessage = applyFrameToMessage;
 window.applyAvatarFrameFromUser = applyAvatarFrameFromUser;
 window.renderFramesGrid = renderFramesGrid;
 window.getFrames = function () { return ALL_FRAMES; };
-/* ⭐ v13 */
 window.forceGifRestart = _forceGifRestart;
 window.isAnimatedFile = _isAnimatedFile;
 
@@ -635,4 +549,4 @@ window.renderFrames = function () {
     if (c) renderFramesGrid(c);
 };
 
-console.log('✅ frames-engine.js v13 loaded — GIF stabilized + WeakSet + profile-ready API');
+console.log('✅ frames-engine.js v14 loaded — jsDelivr (no rate limit) + fallback');

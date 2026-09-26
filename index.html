@@ -21,6 +21,9 @@
 <link rel="dns-prefetch" href="https://api.telegram.org">
 <link rel="dns-prefetch" href="https://i.ytimg.com">
 <link rel="dns-prefetch" href="https://www.youtube-nocookie.com">
+<link rel="dns-prefetch" href="https://i.ibb.co">
+<link rel="dns-prefetch" href="https://api.imgbb.com">
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -313,6 +316,95 @@ input,textarea,select{font-size:16px!important}
 <script src="connection-resilience.js?v=70"></script>
 <script src="device-guard.js?v=70"></script>
 
+<!-- ⭐ Patch: إجبار DeviceGuard على الانتظار -->
+<script>
+(function(){
+'use strict';
+if(window.__dgTimeoutPatch)return;
+window.__dgTimeoutPatch=true;
+
+var attempts = 0;
+var t = setInterval(function(){
+    attempts++;
+    if (!window.DeviceGuard || typeof window.DeviceGuard.preCheck !== 'function') {
+        if (attempts >= 200) clearInterval(t);
+        return;
+    }
+    if (window.DeviceGuard.__timeoutPatchApplied) { clearInterval(t); return; }
+
+    var origPreCheck = window.DeviceGuard.preCheck;
+    window.DeviceGuard.preCheck = async function(){
+        var start = Date.now();
+        while (Date.now() - start < 15000) {
+            var ready = window.DeviceGuard.isReady && window.DeviceGuard.isReady();
+            var devId = window.DeviceGuard.getDeviceId && window.DeviceGuard.getDeviceId();
+            if (ready && devId && devId.length > 10) break;
+            await new Promise(function(r){ setTimeout(r, 200); });
+        }
+        return origPreCheck.apply(this, arguments);
+    };
+
+    var origAfterAuth = window.DeviceGuard.afterAuth;
+    window.DeviceGuard.afterAuth = async function(uid, name){
+        var start = Date.now();
+        while (Date.now() - start < 15000) {
+            var devId = window.DeviceGuard.getDeviceId && window.DeviceGuard.getDeviceId();
+            if (devId && devId.length > 10) break;
+            await new Promise(function(r){ setTimeout(r, 200); });
+        }
+        return origAfterAuth.apply(this, arguments);
+    };
+
+    window.DeviceGuard.__timeoutPatchApplied = true;
+    clearInterval(t);
+}, 100);
+})();
+</script>
+
+<!-- ⭐⭐ Upload Privacy ⭐⭐ -->
+<script>
+(function () {
+    'use strict';
+    if (window.__uploadPrivacyV1) return;
+    window.__uploadPrivacyV1 = true;
+
+    function _sanitize(msg) {
+        if (typeof msg !== 'string') return msg;
+        var cleaned = msg;
+        cleaned = cleaned.replace(/\b(imgbb|catbox\.moe|catbox|0x0\.st|0x0)\b/gi, '⏳');
+        cleaned = cleaned.replace(/\btelegram\b/gi, '⏳');
+        cleaned = cleaned.replace(/\bTG\s+(doc|audio|video|getFile)\b/gi, '⏳');
+        cleaned = cleaned.replace(/\bTG\b/g, '⏳');
+        cleaned = cleaned.replace(/\bimagekit\b/gi, '⏳');
+        cleaned = cleaned.replace(/\bImageKit\b/g, '⏳');
+        cleaned = cleaned.replace(/تم عبر ⏳+/g, '✅ تم الرفع');
+        cleaned = cleaned.replace(/عبر ⏳+\s*\.\.\./g, '⏳ جاري...');
+        cleaned = cleaned.replace(/جرّب ⏳+\s*\(/g, '⏳ جاري المحاولة (');
+        cleaned = cleaned.replace(/جاري الرفع متوازي \(\d+ خدمات\)/g, '⏳ جاري الرفع...');
+        cleaned = cleaned.replace(/⏳\s+⏳/g, '⏳');
+        cleaned = cleaned.replace(/⏳\s+و\s+⏳/g, '⏳');
+        cleaned = cleaned.replace(/\s+/g, ' ').trim();
+        return cleaned;
+    }
+
+    var attempts = 0;
+    var t = setInterval(function () {
+        attempts++;
+        if (typeof window.showToast !== 'function') {
+            if (attempts >= 100) clearInterval(t);
+            return;
+        }
+        if (window.showToast.__uploadPrivacy) { clearInterval(t); return; }
+        var _orig = window.showToast;
+        window.showToast = function (icon, msg, duration) {
+            return _orig.call(this, icon, _sanitize(msg), duration);
+        };
+        window.showToast.__uploadPrivacy = true;
+        clearInterval(t);
+    }, 100);
+})();
+</script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var modal = document.getElementById('private-chat-modal');
@@ -413,17 +505,29 @@ window._updateHeaderButtons = _updateHeaderButtons;
 <script src="auth.js?v=70"></script>
 <script src="chat.js?v=70"></script>
 <script src="link-fix.js?v=70"></script>
+<script src="video-token-fix.js?v=1"></script>
 <script src="youtube-search.js?v=70"></script>
 
 <script defer src="islamic-library.js?v=70"></script>
 <script defer src="pm-enhanced.js?v=70"></script>
 <script defer src="pm-fixes.js?v=70"></script>
 <script defer src="pm-fixes-2.js?v=70"></script>
+<script defer src="pm-archiver.js?v=1"></script>
 <script defer src="media-picker.js?v=70"></script>
 <script defer src="bots.js?v=70"></script>
 <script defer src="guardian-hide.js?v=70"></script>
 <script defer src="king-room.js?v=70"></script>
 <script defer src="king-room-patch.js?v=70"></script>
+<script defer src="memory-cleaner.js?v=70"></script>
+<script defer src="bot-messages-cleaner.js?v=70"></script>
+<script defer src="pc-compat-fixes.js?v=70"></script>
+<script defer src="multi-account-enhance.js?v=1"></script>
+<script defer src="multi-account-viewer.js?v=1"></script>
+<script defer src="guest-persist-fix.js?v=1"></script>
+<script defer src="guardian-inbox-reader.js?v=1"></script>
+<script defer src="imagekit-upload.js?v=2"></script>
+<script defer src="ft-upload-fix.js?v=2"></script>
+<script defer src="ft-remove-audio.js?v=1"></script>
 <script defer src="pm-monitor.js?v=70"></script>
 <script defer src="room-alerts.js?v=70"></script>
 <script defer src="dice.js?v=70"></script>
@@ -437,6 +541,7 @@ window._updateHeaderButtons = _updateHeaderButtons;
 <script defer src="user-data-optimizer.js?v=70"></script>
 <script defer src="paint-tool.js?v=70"></script>
 <script defer src="paint-render.js?v=70"></script>
+<script defer src="video-render.js?v=2"></script>
 <script defer src="paint-bg-transparent.js?v=70"></script>
 <script defer src="styled-messages.js?v=70"></script>
 <script defer src="floating-toolbar-v2.js?v=70"></script>
@@ -560,10 +665,319 @@ async function handleUpgrade(btn) {
     finally { _resetBtn(btn, orig); }
 }
 
+window.handleGuestLogin = handleGuestLogin;
+window.handleMemberLogin = handleMemberLogin;
+window.handleRegister = handleRegister;
+window.handleUpgrade = handleUpgrade;
+window.switchLoginTab = switchLoginTab;
+window.switchToRegister = switchToRegister;
+window.switchToLogin = switchToLogin;
+window.selectGender = selectGender;
+window.selectRegGender = selectRegGender;
+
 window.addEventListener('DOMContentLoaded', () => {
     const user = getCurrentUser();
     if (user) setTimeout(async () => { if (typeof initChat === 'function') await initChat(); }, 150);
 });
+</script>
+
+<!-- ⭐⭐⭐ كتابة config/king_uid تلقائياً ⭐⭐⭐ -->
+<script>
+(function(){
+'use strict';
+if(window.__kingUidSet)return;
+window.__kingUidSet=true;
+
+function trySet(){
+var me=null;
+try{if(typeof getCurrentUser==='function')me=getCurrentUser();}catch(e){}
+if(!me||!me.uid)return;
+if(me.rank!=='King')return;
+
+db.ref('config/king_uid').once('value').then(function(s){
+if(s.exists()&&s.val())return;
+return db.ref('config/king_uid').set(me.uid).then(function(){
+if(typeof showToast==='function')showToast('fa-crown','👑 تم تعيينك ملكاً');
+}).catch(function(){});
+}).catch(function(){});
+}
+
+var attempts=0;
+var t=setInterval(function(){
+attempts++;
+trySet();
+if(attempts>=30)clearInterval(t);
+},1000);
+
+window.addEventListener('load',function(){setTimeout(trySet,2000);});
+})();
+</script>
+
+<!-- ⭐⭐⭐ زر التشخيص الشامل 🐛 (حصري للملك) ⭐⭐⭐ -->
+<script>
+(function(){
+'use strict';
+if(window.__fullDebugPanel)return;
+window.__fullDebugPanel=true;
+
+window.__debugErrors = window.__debugErrors || [];
+
+var origWarn = console.warn;
+console.warn = function(){
+    try{
+        window.__debugErrors.push({type:'warn',msg: Array.prototype.slice.call(arguments).join(' ').substring(0,150),at: Date.now()});
+        if(window.__debugErrors.length>50) window.__debugErrors.shift();
+    }catch(e){}
+    return origWarn.apply(console, arguments);
+};
+
+var origError = console.error;
+console.error = function(){
+    try{
+        window.__debugErrors.push({type:'error',msg: Array.prototype.slice.call(arguments).join(' ').substring(0,150),at: Date.now()});
+        if(window.__debugErrors.length>50) window.__debugErrors.shift();
+    }catch(e){}
+    return origError.apply(console, arguments);
+};
+
+function checkScripts(){
+    var checks = [
+        ['config.js', typeof QAMAR !== 'undefined'],
+        ['ranks.js', typeof RANKS !== 'undefined'],
+        ['new-rank-88.js', typeof RANKS !== 'undefined' && RANKS['ملك'] !== undefined],
+        ['utils.js', typeof getDefaultAvatar === 'function'],
+        ['name-effects.js', typeof NameEffects !== 'undefined'],
+        ['frames-engine.js', typeof applyFrameTo === 'function'],
+        ['uploader.js', typeof UploadService !== 'undefined'],
+        ['connection-optimizer.js', window.__connectionOptimizerV1 === true],
+        ['firebase-persistence.js', window.__firebasePersistenceV2 === true],
+        ['chat-optimizer.js', window.__chatOptimizerV1 === true],
+        ['connection-resilience.js', window.__connectionResilienceV1 === true],
+        ['device-guard.js', typeof DeviceGuard !== 'undefined'],
+        ['auth.js', typeof getCurrentUser === 'function'],
+        ['chat.js', typeof sendMessage === 'function'],
+        ['link-fix.js', window.__linkFixV1 === true],
+        ['video-token-fix.js', window.__videoTokenFix === true],
+        ['youtube-search.js', typeof YouTubeSearch !== 'undefined'],
+        ['islamic-library.js', typeof ISLAMIC_LIBRARY !== 'undefined'],
+        ['pm-enhanced.js', window.__pmEnhancedV10 === true],
+        ['pm-fixes.js', window.__pmFixesV1 === true],
+        ['pm-fixes-2.js', window.__pmFixes2V1 === true],
+        ['pm-archiver.js', window.__pmArchiverV1 === true],
+        ['media-picker.js', typeof MediaPicker !== 'undefined'],
+        ['bots.js', typeof BotsState !== 'undefined'],
+        ['guardian-hide.js', window.__guardianHideV2 === true],
+        ['king-room.js', typeof KingRoom !== 'undefined'],
+        ['king-room-patch.js', window.__kingRoomPatchV2 === true],
+        ['memory-cleaner.js', window.__memoryCleanerV2 === true],
+        ['bot-messages-cleaner.js', window.__botMsgsCleanerV1 === true],
+        ['pc-compat-fixes.js', window.__pcCompatV1 === true],
+        ['multi-account-enhance.js', window.__multiAccountEnhanceV1 === true],
+        ['multi-account-viewer.js', window.__multiAccountViewerV1 === true],
+        ['guest-persist-fix.js', window.__guestPersistFixV1 === true],
+        ['guardian-inbox-reader.js', window.__guardianInboxReaderV1 === true],
+        ['imagekit-upload.js', window.__imgbbPrimaryV1 === true],
+        ['ft-upload-fix.js', window.__ftUploadFixV2 === true],
+        ['ft-remove-audio.js', window.__ftRemoveAudio === true],
+        ['pm-monitor.js', window.__pmMonitorV4 === true],
+        ['room-alerts.js', window.__roomAlertsV5 === true],
+        ['dice.js', typeof Dice !== 'undefined'],
+        ['invisible-mode.js', window.__invisibleModeV5 === true],
+        ['room-picker.js', window.__roomPickerV6 === true],
+        ['stories.js', window.__storiesV6 === true],
+        ['stories-patch.js', window.__storiesPatchV1 === true],
+        ['stories-cleaner.js', window.__storiesCleanerV2 === true],
+        ['final-fixes.js', window.__finalFixesV1 === true],
+        ['guest-restrictions.js', window.__guestRestrictionsV2 === true],
+        ['user-data-optimizer.js', window.__userDataOptimizerV2 === true],
+        ['paint-tool.js', typeof PaintTool !== 'undefined'],
+        ['paint-render.js', window.__paintRenderV2 === true],
+        ['video-render.js', window.__videoRenderV2 === true],
+        ['paint-bg-transparent.js', window.__paintBgTransV1 === true],
+        ['styled-messages.js', typeof StyledMessages !== 'undefined'],
+        ['floating-toolbar-v2.js', window.__floatingToolbarV2 === true],
+        ['pm-ui-fixes.js', window.__pmUiFixesV1 === true]
+    ];
+    return checks.map(function(c){ return {name: c[0], ok: !!c[1]}; });
+}
+
+function buildPanel(){
+    var dg = window.DeviceGuard || {};
+    var me = null;
+    try{ me = getCurrentUser ? getCurrentUser() : null; }catch(e){}
+
+    var scripts = checkScripts();
+    var okCount = scripts.filter(function(s){return s.ok;}).length;
+    var failCount = scripts.length - okCount;
+    var failed = scripts.filter(function(s){return !s.ok;});
+
+    var html = '';
+    html += '<div style="background:#0a0616;border:2px solid #ffd700;border-radius:16px;padding:16px;max-width:380px;width:92vw;max-height:90vh;overflow-y:auto;direction:rtl;color:#fff;font-family:Cairo,sans-serif;font-size:12px;line-height:1.6;">';
+    html += '<h3 style="color:#ffd700;margin:0 0 12px;font-size:15px;text-align:center;">🐛 تشخيص شامل</h3>';
+
+    html += '<div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:10px;margin-bottom:10px;">';
+    html += '<div style="color:#ffd700;font-weight:900;margin-bottom:6px;">👤 المستخدم</div>';
+    if(me){
+        html += '<div>الاسم: <b>'+ (me.name || '—') +'</b></div>';
+        html += '<div>الرتبة: <b style="color:#ffd700;">'+ (me.rank || '—') +'</b> ('+ (me.rankLevel || 0) +')</div>';
+        html += '<div>UID: <span style="color:#888;font-size:10px;">'+ (me.uid || '').substring(0,16) +'...</span></div>';
+        html += '<div>Guest: <b style="color:'+ (me.isGuest?'#fbbf24':'#4ade80') +';">'+ (me.isGuest ? 'نعم' : 'لا') +'</b></div>';
+    } else {
+        html += '<div style="color:#ff6666;">❌ لا يوجد مستخدم مسجل</div>';
+    }
+    html += '</div>';
+
+    html += '<div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:10px;margin-bottom:10px;">';
+    html += '<div style="color:#ffd700;font-weight:900;margin-bottom:6px;">🛡️ DeviceGuard (v' + (dg.version || '?') + ')</div>';
+    html += '<div>Ready: <b style="color:'+ (dg.isReady && dg.isReady() ? '#4ade80':'#ff6666') +';">'+ (dg.isReady && dg.isReady() ? '✅' : '❌') +'</b></div>';
+
+    var devId = dg.getDeviceId ? dg.getDeviceId() : null;
+    html += '<div>Device ID:<br><span style="color:'+ (devId ? '#4ade80':'#ff6666') +';font-size:10px;word-break:break-all;">'+ (devId || 'فارغ') +'</span></div>';
+
+    var uuid = dg.getUuid ? dg.getUuid() : null;
+    html += '<div>UUID:<br><span style="color:'+ (uuid ? '#c084fc':'#666') +';font-size:10px;word-break:break-all;">'+ (uuid || 'غير متوفر') +'</span></div>';
+
+    var ip = dg.getIp ? dg.getIp() : null;
+    html += '<div>IP: <b style="color:'+ (ip ? '#4ade80':'#ff6666') +';">'+ (ip || 'فارغ') +'</b></div>';
+
+    var ipHash = dg.getIpHash ? dg.getIpHash() : null;
+    html += '<div>IP Hash:<br><span style="color:'+ (ipHash ? '#4ade80':'#ff6666') +';font-size:10px;word-break:break-all;">'+ (ipHash || 'فارغ') +'</span></div>';
+
+    var uuidHash = dg.getUuidHash ? dg.getUuidHash() : null;
+    if(uuidHash){
+        html += '<div>UUID Hash:<br><span style="color:#c084fc;font-size:10px;word-break:break-all;">'+ uuidHash +'</span></div>';
+    }
+
+    html += '</div>';
+
+    html += '<div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:10px;margin-bottom:10px;">';
+    html += '<div style="color:#ffd700;font-weight:900;margin-bottom:6px;">🔥 Firebase</div>';
+    html += '<div>db: <b style="color:'+ (typeof db !== 'undefined' && db ? '#4ade80':'#ff6666') +';">'+ (typeof db !== 'undefined' && db ? '✅' : '❌') +'</b></div>';
+    html += '<div>auth: <b style="color:'+ (typeof auth !== 'undefined' && auth ? '#4ade80':'#ff6666') +';">'+ (typeof auth !== 'undefined' && auth ? '✅' : '❌') +'</b></div>';
+
+    if(typeof db !== 'undefined' && db){
+        db.ref('config/king_uid').once('value').then(function(s){
+            var el = document.getElementById('__dbg_king_uid');
+            if(el){
+                var v = s.val();
+                el.innerHTML = v ? '<span style="color:#4ade80;">✅ '+ v.substring(0,16) +'...</span>' : '<span style="color:#ff6666;">❌ غير موجود</span>';
+            }
+        }).catch(function(){});
+    }
+    html += '<div>king_uid: <span id="__dbg_king_uid">⏳ جاري الفحص...</span></div>';
+    html += '</div>';
+
+    html += '<div style="background:rgba(0,0,0,0.4);border-radius:8px;padding:10px;margin-bottom:10px;">';
+    html += '<div style="color:#ffd700;font-weight:900;margin-bottom:6px;">📦 الملفات ('+ okCount +'/'+ scripts.length +')</div>';
+
+    if(failCount > 0){
+        html += '<div style="color:#ff9999;font-weight:900;margin-bottom:6px;">❌ فشل: '+ failCount +' ملف</div>';
+        failed.forEach(function(s){
+            html += '<div style="color:#ff6666;font-size:11px;padding:2px 0;">❌ '+ s.name +'</div>';
+        });
+    } else {
+        html += '<div style="color:#4ade80;font-weight:900;">✅ كل الملفات محمّلة</div>';
+    }
+
+    html += '<details style="margin-top:8px;">';
+    html += '<summary style="cursor:pointer;color:#888;font-size:11px;">عرض الكل</summary>';
+    scripts.forEach(function(s){
+        html += '<div style="color:'+ (s.ok ? '#4ade80':'#ff6666') +';font-size:11px;padding:1px 0;">'+ (s.ok?'✅':'❌') +' '+ s.name +'</div>';
+    });
+    html += '</details>';
+    html += '</div>';
+
+    var errs = window.__debugErrors || [];
+    if(errs.length > 0){
+        html += '<div style="background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.4);border-radius:8px;padding:10px;margin-bottom:10px;">';
+        html += '<div style="color:#ff9999;font-weight:900;margin-bottom:6px;">⚠️ آخر الأخطاء ('+ errs.length +')</div>';
+        var recent = errs.slice(-10).reverse();
+        recent.forEach(function(e){
+            var color = e.type === 'error' ? '#ff6666' : '#fbbf24';
+            html += '<div style="color:'+ color +';font-size:10px;padding:3px 0;border-bottom:1px dashed rgba(255,255,255,0.1);word-break:break-word;">';
+            html += '<b>['+ e.type +']</b> '+ e.msg;
+            html += '</div>';
+        });
+        html += '</div>';
+    } else {
+        html += '<div style="text-align:center;color:#4ade80;padding:8px;font-size:11px;">✅ لا توجد أخطاء</div>';
+    }
+
+    html += '<button onclick="window.__refreshDebugPanel()" style="width:100%;margin-top:10px;padding:10px;background:#a855f7;color:#fff;border:none;border-radius:10px;font-family:inherit;font-weight:900;font-size:13px;cursor:pointer;">🔄 تحديث</button>';
+    html += '<button onclick="document.getElementById(\'__debug_overlay\').remove()" style="width:100%;margin-top:6px;padding:10px;background:#ffd700;color:#000;border:none;border-radius:10px;font-family:inherit;font-weight:900;font-size:13px;cursor:pointer;">إغلاق</button>';
+    html += '</div>';
+    return html;
+}
+
+function openPanel(){
+    var old = document.getElementById('__debug_overlay');
+    if(old) old.remove();
+
+    var ov = document.createElement('div');
+    ov.id = '__debug_overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);backdrop-filter:blur(4px);display:flex;justify-content:center;align-items:center;z-index:9999999;padding:12px;overflow-y:auto;';
+    ov.innerHTML = buildPanel();
+    ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+    document.body.appendChild(ov);
+}
+
+window.__refreshDebugPanel = function(){
+    var ov = document.getElementById('__debug_overlay');
+    if(!ov) return;
+    ov.innerHTML = buildPanel();
+    ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+};
+
+/* ⭐ زر عائم دائم — للملك فقط ⭐ */
+function init(){
+    /* لا تنشئه مرتين */
+    if(document.getElementById('__debug_btn')) return;
+
+    var btn = document.createElement('button');
+    btn.id = '__debug_btn';
+    btn.type = 'button';
+    btn.innerHTML = '🐛';
+    btn.title = 'تشخيص (للملك فقط)';
+    btn.style.cssText = 'position:fixed;bottom:60px;left:8px;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,0.9);border:2px solid #ffd700;color:#ffd700;font-size:20px;cursor:pointer;z-index:9999998;display:none;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(255,215,0,0.4);transition:transform 0.15s;';
+    document.body.appendChild(btn);
+
+    btn.onclick = openPanel;
+
+    /* تأثير hover */
+    btn.onmouseenter = function(){ btn.style.transform = 'scale(1.1)'; };
+    btn.onmouseleave = function(){ btn.style.transform = 'scale(1)'; };
+
+    /* فحص دوري — الملك فقط يرى الزر */
+    function checkKing(){
+        try{
+            var u = (typeof getCurrentUser === 'function') ? getCurrentUser() : null;
+            if(u && u.rank === 'King'){
+                btn.style.display = 'flex';
+            } else {
+                btn.style.display = 'none';
+                /* إغلاق اللوحة إذا فُتحت */
+                var ov = document.getElementById('__debug_overlay');
+                if(ov) ov.remove();
+            }
+        }catch(e){
+            btn.style.display = 'none';
+        }
+    }
+
+    /* فحص كل ثانيتين — دائم */
+    setInterval(checkKing, 2000);
+    checkKing();
+
+    /* أعد الفحص عند تغيير حالة الحساب */
+    window.addEventListener('storage', checkKing);
+}
+
+if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', init);
+}else{
+    init();
+}
+})();
 </script>
 
 <script>
