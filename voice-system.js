@@ -13,6 +13,7 @@
 (function () {
     'use strict';
     if (window.__voiceSystemV21) return;
+    window.__voiceSystemV1 = true;
     window.__voiceSystemV21 = true;
 
     const ICE_SERVERS = [
