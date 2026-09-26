@@ -1,9 +1,17 @@
 // ==============================================
-// chat.js v3.16 — Cinema Styles in Chat
+// chat.js v3.18 — listener للنقل/كتم/سجن
 // ==============================================
-// ✅ v3.16:
-//   _applyNameEffectsToUsername: يستدعي applyCinemaStyle + apply
-//   sendMessage: يُرسل cinemaTextStyle/cinemaBgStyle
+// ✅ v3.18 (فوق v3.17):
+//   1. startForcedTransferListener — نقل قسري لغرفة أخرى
+//   2. startJailListener — نقل فوري للسجن + إعادة
+//   3. startMutesListener — كتم كامل + كتم غرفة
+//   4. sendMessage: فحص isJailed + mutes قبل الإرسال
+// ✅ v3.17 (محفوظ):
+//   1. المنشن: @ مخفي تماماً (شات + قوائم + إشعارات)
+//   2. صوت المنشن: مرة واحدة كل 2 ثانية (throttle)
+//   3. إشعاراتي على رسائلي: مستحيل تجي
+//   4. إشعار واحد لكل اسم (بدون تكرار)
+//   5. cinema styles محفوظة
 // ==============================================
 
 const ChatState = {
@@ -20,7 +28,13 @@ const ChatState = {
     presenceInterval: null,
     _lastCodeLookup: 0,
     _punishmentCheckInterval: null,
-    _friendRequestsCache: {}
+    _friendRequestsCache: {},
+    /* ⭐ v3.18: جديدة */
+    forcedTransferListener: null,
+    jailListener: null,
+    mutesListener: null,
+    mutesCache: { global: null, rooms: {} },
+    _jailReturnPending: false
 };
 
 function safeColor(c) {
@@ -75,6 +89,16 @@ function playBirdSound() {
         });
     } catch (e) {}
 }
+
+/* ⭐ v3.17: throttle صوت المنشن — مرة كل 2 ثانية */
+var _lastBirdSoundAt = 0;
+function playBirdSoundThrottled() {
+    var now = Date.now();
+    if (now - _lastBirdSoundAt < 2000) return;
+    _lastBirdSoundAt = now;
+    playBirdSound();
+}
+
 function playPrivateMsgSound() {
     try {
         const ctx = getAudioCtx();
@@ -107,6 +131,10 @@ function cleanupAllListeners() {
         if (ChatState.notificationsListener) { try { ChatState.notificationsListener.off(); } catch(e){} ChatState.notificationsListener = null; }
         if (ChatState.privateChatsListener) { try { ChatState.privateChatsListener.off(); } catch(e){} ChatState.privateChatsListener = null; }
         if (ChatState.presenceListener) { try { ChatState.presenceListener.off(); } catch(e){} ChatState.presenceListener = null; }
+        /* ⭐ v3.18 */
+        if (ChatState.forcedTransferListener) { try { ChatState.forcedTransferListener.off(); } catch(e){} ChatState.forcedTransferListener = null; }
+        if (ChatState.jailListener) { try { ChatState.jailListener.off(); } catch(e){} ChatState.jailListener = null; }
+        if (ChatState.mutesListener) { try { ChatState.mutesListener.off(); } catch(e){} ChatState.mutesListener = null; }
         if (ChatState.presenceInterval) {
             clearInterval(ChatState.presenceInterval);
             ChatState.presenceInterval = null;
@@ -362,6 +390,194 @@ function startPunishmentWatcher() {
     ChatState._punishmentCheckInterval = setInterval(check, 60000);
 }
 
+/* ══════════════════════════════════════════════ */
+/* ⭐ v3.18: Listener للنقل القسري                */
+/* ══════════════════════════════════════════════ */
+function startForcedTransferListener() {
+    const user = getCurrentUser();
+    if (!user || !user.uid || !db) return;
+    if (ChatState.forcedTransferListener) { try { ChatState.forcedTransferListener.off(); } catch(e){} }
+
+    const ref = db.ref('user_presence/' + user.uid);
+    ChatState.forcedTransferListener = ref;
+
+    ref.on('value', function (s) {
+        var p = s.val() || {};
+        if (p.forced !== true) return;
+        if (!p.room) return;
+
+        var myCurrentRoom = ChatState.currentRoom;
+        if (p.room === myCurrentRoom) {
+            /* نُنظف flag "forced" بعد الاستلام */
+            db.ref('user_presence/' + user.uid + '/forced').remove().catch(function(){});
+            return;
+        }
+
+        var room = (typeof QAMAR !== 'undefined' && QAMAR.ROOMS && QAMAR.ROOMS[p.room]) || null;
+        var roomName = room ? (room.name + ' ' + room.icon) : p.room;
+        var reason = p.forcedReason || 'system';
+
+        /* رسالة حسب السبب */
+        var msg = '📢 تم نقلك إلى ' + roomName;
+        if (reason === 'jail') msg = '⛓️ تم نقلك إلى السجن';
+        else if (reason === 'jail_release') msg = '🔓 تم إخراجك من السجن — مرحباً بعودتك';
+        else if (p.forcedBy) msg += ' من قبل الإدارة';
+
+        /* النقل */
+        _doSwitchRoom(p.room, roomName, user);
+
+        if (typeof showToast === 'function') showToast('fa-exchange-alt', msg);
+
+        /* تنظيف flag */
+        db.ref('user_presence/' + user.uid).update({
+            forced: null,
+            forcedBy: null,
+            forcedReason: null
+        }).catch(function(){});
+    });
+}
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v3.18: Listener للسجن                       */
+/* ══════════════════════════════════════════════ */
+function startJailListener() {
+    const user = getCurrentUser();
+    if (!user || !user.uid || !db) return;
+    if (ChatState.jailListener) { try { ChatState.jailListener.off(); } catch(e){} }
+
+    var prevJailed = false;
+    var lastSeenJailUntil = 0;
+
+    const ref = db.ref('users/' + user.uid + '/isJailed');
+    ChatState.jailListener = ref;
+
+    ref.on('value', function (s) {
+        var isJailed = s.val() === true;
+
+        if (isJailed && !prevJailed) {
+            /* ⭐ انتقل الآن للسجن */
+            prevJailed = true;
+            db.ref('users/' + user.uid + '/jailUntil').once('value').then(function(s2) {
+                lastSeenJailUntil = s2.val() || 0;
+            });
+
+            /* نتحقق إن كان في غرفة غير السجن */
+            if (ChatState.currentRoom !== 'jail') {
+                /* حفظ الغرفة قبل السجن */
+                try {
+                    db.ref('users/' + user.uid + '/lastRoomBeforeJail').set(ChatState.currentRoom).catch(function(){});
+                } catch(e){}
+
+                /* النقل الفوري للسجن */
+                var jailRoom = (QAMAR.ROOMS && QAMAR.ROOMS['jail']) || { name: 'السجن', icon: '🚔' };
+                _doSwitchRoom('jail', jailRoom.name + ' ' + jailRoom.icon, user);
+                if (typeof showToast === 'function') showToast('fa-lock', '⛓️ تم سجنك');
+            }
+            return;
+        }
+
+        if (!isJailed && prevJailed) {
+            /* ⭐ خرج من السجن */
+            prevJailed = false;
+            if (ChatState._jailReturnPending) return;
+            ChatState._jailReturnPending = true;
+
+            /* انتظر 1.5 ثانية — يمكن forced listener سينقله */
+            setTimeout(function() {
+                /* لو ما زال بالسجن → نرجعه */
+                if (ChatState.currentRoom === 'jail') {
+                    db.ref('users/' + user.uid + '/lastRoomBeforeJail').once('value').then(function(s2) {
+                        var backRoom = s2.val() || 'general';
+                        var room = (QAMAR.ROOMS && QAMAR.ROOMS[backRoom]) || { name: backRoom, icon: '🚪' };
+                        _doSwitchRoom(backRoom, room.name + ' ' + room.icon, user);
+                        if (typeof showToast === 'function') showToast('fa-unlock', '🔓 خرجت من السجن');
+                    }).catch(function() {
+                        var room = (QAMAR.ROOMS && QAMAR.ROOMS['general']) || { name: 'العام', icon: '🌍' };
+                        _doSwitchRoom('general', room.name + ' ' + room.icon, user);
+                    });
+                }
+                ChatState._jailReturnPending = false;
+            }, 1500);
+        }
+    });
+}
+
+/* ══════════════════════════════════════════════ */
+/* ⭐ v3.18: Listener للكتم                       */
+/* ══════════════════════════════════════════════ */
+function startMutesListener() {
+    const user = getCurrentUser();
+    if (!user || !user.uid || !db) return;
+    if (ChatState.mutesListener) { try { ChatState.mutesListener.off(); } catch(e){} }
+
+    /* نستمع للنود كامل — يشمل global + الغرف */
+    const ref = db.ref('users/' + user.uid + '/mutes');
+    ChatState.mutesListener = ref;
+
+    ref.on('value', function (s) {
+        var mutes = s.val() || {};
+        var prevGlobal = ChatState.mutesCache.global;
+        var prevRooms = ChatState.mutesCache.rooms || {};
+
+        ChatState.mutesCache.global = mutes.global || null;
+
+        /* الغرف — كلها عدا global */
+        var newRooms = {};
+        Object.keys(mutes).forEach(function(k) {
+            if (k === 'global') return;
+            newRooms[k] = mutes[k];
+        });
+        ChatState.mutesCache.rooms = newRooms;
+
+        /* إشعار عند الكتم الكامل */
+        if (mutes.global && !prevGlobal) {
+            if (typeof showToast === 'function') showToast('fa-microphone-slash', '🔇 تم كتمك — لا يمكنك الكتابة في أي غرفة');
+            _updateInputPlaceholder();
+        }
+        /* إشعار عند فك الكتم الكامل */
+        if (!mutes.global && prevGlobal) {
+            if (typeof showToast === 'function') showToast('fa-microphone', '🎤 تم فك الكتم — يمكنك الكتابة الآن');
+            _updateInputPlaceholder();
+        }
+        /* إشعار عند كتم غرفة */
+        Object.keys(newRooms).forEach(function(rid) {
+            if (!prevRooms[rid] && rid === ChatState.currentRoom) {
+                var room = (QAMAR.ROOMS && QAMAR.ROOMS[rid]) || { name: rid };
+                if (typeof showToast === 'function') showToast('fa-microphone-slash', '🔇 تم كتمك في ' + room.name);
+                _updateInputPlaceholder();
+            }
+        });
+        /* إشعار عند فك كتم غرفة */
+        Object.keys(prevRooms).forEach(function(rid) {
+            if (!newRooms[rid] && rid === ChatState.currentRoom) {
+                var room = (QAMAR.ROOMS && QAMAR.ROOMS[rid]) || { name: rid };
+                if (typeof showToast === 'function') showToast('fa-microphone', '🎤 تم فك الكتم في ' + room.name);
+                _updateInputPlaceholder();
+            }
+        });
+    });
+}
+
+/* ⭐ v3.18: تحديث placeholder حسب حالة الكتم */
+function _updateInputPlaceholder() {
+    var inp = document.getElementById('message-input');
+    if (!inp) return;
+    var user = getCurrentUser();
+    if (!user) return;
+
+    var mutes = ChatState.mutesCache || {};
+    var globalMuted = !!mutes.global;
+    var roomMuted = !!(mutes.rooms && mutes.rooms[ChatState.currentRoom]);
+
+    if (globalMuted) {
+        inp.placeholder = '🔇 أنت مكتوم من كل الغرف';
+    } else if (roomMuted) {
+        inp.placeholder = '🔇 أنت مكتوم في هذه الغرفة';
+    } else {
+        inp.placeholder = 'اكتب رسالتك هنا...';
+    }
+}
+
 function initChat() {
     if (ChatState.isInitialized) return;
     const user = getCurrentUser();
@@ -406,6 +622,10 @@ function initChat() {
     startInvisibleListener();
     startUserDataListener();
     startPunishmentWatcher();
+    /* ⭐ v3.18: listeners جديدة */
+    startForcedTransferListener();
+    startJailListener();
+    startMutesListener();
 
     watchRoomSettings();
     applyRoomBackground(ChatState.currentRoom);
@@ -415,6 +635,7 @@ function initChat() {
         if (ChatState.currentRoom && ChatState.currentRoom !== _lastRoom) {
             _lastRoom = ChatState.currentRoom;
             setTimeout(function () { applyRoomBackground(ChatState.currentRoom); }, 150);
+            _updateInputPlaceholder();
         }
     }, 500);
 
@@ -429,6 +650,9 @@ function initChat() {
     setTimeout(function() {
         if (typeof generateStars === 'function') generateStars();
     }, 900);
+
+    /* placeholder أولي */
+    setTimeout(_updateInputPlaceholder, 800);
 
     console.log('✅ Chat initialized | Room:', ChatState.currentRoom);
 }
@@ -497,6 +721,12 @@ function switchRoom(roomId, roomTitle) {
     const user = getCurrentUser();
     if (!QAMAR.isRoomVisible(roomId, user)) { showToast('fa-lock', '🔒 غير متاحة'); return; }
 
+    /* ⭐ v3.18: منع تغيير الغرفة لو مسجون */
+    if (user && user.isJailed) {
+        if (typeof showToast === 'function') showToast('fa-lock', '⛓️ أنت مسجون — لا يمكنك تغيير الغرفة');
+        return;
+    }
+
     if (user && user.uid && typeof db !== 'undefined' && db) {
         db.ref('room_kicks/' + roomId + '/' + user.uid).once('value').then(function(kickSnap) {
             if (kickSnap.exists()) {
@@ -526,6 +756,8 @@ function _doSwitchRoom(roomId, roomTitle, user) {
     updateMicsUI();
     startMessagesListener();
     applyRoomBackground(roomId);
+    /* ⭐ v3.18: تحديث placeholder */
+    _updateInputPlaceholder();
 
     if (user && user.uid && typeof db !== 'undefined' && db) {
         db.ref('user_presence/' + user.uid).set({
@@ -557,7 +789,10 @@ function startMessagesListener() {
         if (!ChatState.seenMessages.has(key)) {
             ChatState.seenMessages.add(key);
             displayMessage(msg, s.key);
-            if (msg.mentions && msg.mentions.includes(user.name)) playBirdSound();
+            /* ⭐ v3.17: صوت مرة واحدة (throttled) */
+            if (msg.mentions && Array.isArray(msg.mentions) && msg.mentions.indexOf(user.name) !== -1) {
+                playBirdSoundThrottled();
+            }
         }
         if (typeof processIncomingMessage === 'function') {
             try { processIncomingMessage(Object.assign({}, msg, { _key: key, _fbKey: s.key })).catch(e => console.warn(e)); } catch(e) {}
@@ -668,7 +903,6 @@ function _buildHiddenMessageEl(msg, msgId) {
     container.scrollTop = container.scrollHeight;
 }
 
-/* ⭐ v3.16: يستدعي applyCinemaStyle + apply */
 function _applyNameEffectsToUsername(usernameEl, msg) {
     if (!usernameEl) return;
 
@@ -677,13 +911,11 @@ function _applyNameEffectsToUsername(usernameEl, msg) {
         return;
     }
 
-    // 1. طبّق الأنماط السينمائية (إن وُجدت)
     if (typeof window.NameEffects.applyCinemaStyle === 'function') {
         window.NameEffects.applyCinemaStyle(usernameEl, msg.senderCinemaText || '', 'text');
         window.NameEffects.applyCinemaStyle(usernameEl, msg.senderCinemaBg || '', 'bg');
     }
 
-    // 2. طبّق الأنماط التقليدية
     if (typeof window.NameEffects.apply === 'function') {
         window.NameEffects.apply(usernameEl, {
             nameColor: msg.senderNameColor || null,
@@ -724,7 +956,16 @@ function displayMessage(msg, msgId) {
     ai.src = url || getDefaultAvatar(msg.senderName);
     ai.alt = msg.senderName; ai.loading = 'lazy'; ai.decoding = 'async';
     ai.onerror = () => { ai.src = getDefaultAvatar(msg.senderName); };
-    ai.onclick = () => { if (msg.isBot) return; if (msg.senderUid) openUserProfile(msg.senderUid, msg.senderName); };
+    ai.onclick = () => {
+        if (msg.isBot) return;
+        if (msg.senderUid) {
+            if (typeof window.openUserProfile === 'function') {
+                window.openUserProfile(msg.senderUid, msg.senderName);
+            } else if (typeof openUserProfile === 'function') {
+                openUserProfile(msg.senderUid, msg.senderName);
+            }
+        }
+    };
     aw.appendChild(ai);
     if (msg.senderFrame && msg.senderFrame !== 'none') applyFrameToWrapper(aw, msg.senderFrame);
 
@@ -738,7 +979,18 @@ function displayMessage(msg, msgId) {
     username.setAttribute('data-name', msg.senderName || '');
     _applyNameEffectsToUsername(username, msg);
 
-    if (!isBot) username.onclick = () => insertMention(msg.senderName);
+    if (!isBot) {
+        username.style.cursor = 'pointer';
+        username.onclick = () => {
+            if (msg.senderUid) {
+                if (typeof window.openUserProfile === 'function') {
+                    window.openUserProfile(msg.senderUid, msg.senderName);
+                } else if (typeof openUserProfile === 'function') {
+                    openUserProfile(msg.senderUid, msg.senderName);
+                }
+            }
+        };
+    }
 
     const timeEl = document.createElement('span'); timeEl.className = 'message-time'; timeEl.textContent = formatTime(msg.time);
     const optBtn = document.createElement('button'); optBtn.className = 'message-options-btn'; optBtn.textContent = '⋮';
@@ -750,7 +1002,15 @@ function displayMessage(msg, msgId) {
         msgText.innerText = '🚫 رسالة محذوفة';
         msgEl.classList.add('deleted');
     } else if (msg.mentions && msg.mentions.length > 0) {
-        msgText.appendChild(buildMentionHTML(msg.text, msg.mentions, insertMention));
+        msgText.appendChild(buildMentionHTML(msg.text, msg.mentions, function(name) {
+            db.ref('user_names/' + name).once('value').then(function(s) {
+                var uid = s.val();
+                if (uid) {
+                    if (typeof window.openUserProfile === 'function') window.openUserProfile(uid, name);
+                    else if (typeof openUserProfile === 'function') openUserProfile(uid, name);
+                }
+            }).catch(function(){});
+        }));
     } else {
         const codeInText = extractCodeFromText(msg.text || '');
         if (codeInText && !isBot) {
@@ -875,12 +1135,22 @@ function buildAttachmentElement(att) {
     return w;
 }
 
-/* ⭐ v3.16: sendMessage — يُرسل cinema */
 async function sendMessage() {
     const input = document.getElementById('message-input'); if (!input) return;
     const text = input.value.trim();
     let user = getCurrentUser();
     if (!text || !user) return;
+
+    /* ⭐ v3.18: فحص الكتم */
+    var mutes = ChatState.mutesCache || {};
+    if (mutes.global) {
+        showToast('fa-microphone-slash', '🔇 أنت مكتوم من كل الغرف');
+        return;
+    }
+    if (mutes.rooms && mutes.rooms[ChatState.currentRoom]) {
+        showToast('fa-microphone-slash', '🔇 أنت مكتوم في هذه الغرفة');
+        return;
+    }
 
     if (user.isBanned && user.bannedUntil && Date.now() < user.bannedUntil) {
         var mins = Math.ceil((user.bannedUntil - Date.now()) / 60000);
@@ -960,16 +1230,26 @@ async function sendMessage() {
 
 function notifyMentions(mentions, text) {
     const user = getCurrentUser(); if (!user) return;
-    mentions.forEach(async name => {
-        if (name === user.name) return;
+    const uniqueNames = [];
+    mentions.forEach(function(n) {
+        if (n !== user.name && uniqueNames.indexOf(n) === -1) uniqueNames.push(n);
+    });
+    uniqueNames.forEach(async name => {
         try {
             const s = await db.ref('user_names/' + name).once('value');
             const uid = s.val();
-            if (uid) db.ref('user_notifications/' + uid).push({
-                fromUid: user.uid, fromName: user.name, fromAvatar: user.avatar || '',
-                type: 'mention', roomId: ChatState.currentRoom,
-                preview: truncate(text, 80), time: Date.now(), read: false
-            });
+            if (uid && uid !== user.uid) {
+                db.ref('user_notifications/' + uid).push({
+                    fromUid: user.uid,
+                    fromName: user.name,
+                    fromAvatar: user.avatar || '',
+                    type: 'mention',
+                    roomId: ChatState.currentRoom,
+                    preview: truncate(text, 80),
+                    time: Date.now(),
+                    read: false
+                });
+            }
         } catch (e) {}
     });
 }
@@ -1000,6 +1280,58 @@ function insertMention(name) {
     i.value = v + sp + '@' + name + ' ';
     i.focus();
     closeAllMenus();
+}
+
+function buildMentionHTML(text, mentions, onClickMention) {
+    const container = document.createDocumentFragment();
+    if (!text) return container;
+
+    if (!mentions || mentions.length === 0) {
+        container.appendChild(document.createTextNode(text));
+        return container;
+    }
+
+    const escapedNames = mentions.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const regex = new RegExp(`@?(${escapedNames.join('|')})`, 'g');
+
+    let lastIndex = 0;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            container.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+        }
+
+        const name = match[1];
+        const span = document.createElement('span');
+        span.className = 'mention-inline';
+        span.setAttribute('data-mention', name);
+
+        const img = document.createElement('img');
+        img.src = getDefaultAvatar(name);
+        img.alt = name;
+        img.loading = 'lazy';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = name;
+
+        span.appendChild(img);
+        span.appendChild(nameSpan);
+
+        if (onClickMention) {
+            span.style.cursor = 'pointer';
+            span.addEventListener('click', () => onClickMention(name));
+        }
+
+        container.appendChild(span);
+        lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+        container.appendChild(document.createTextNode(text.substring(lastIndex)));
+    }
+
+    return container;
 }
 
 function showMessageMenu(msgEl, sender, text, msgId) {
@@ -1170,8 +1502,22 @@ function openPrivateChatWith(uid, name, av) {
     };
 
     const a = document.getElementById('pc-avatar'), n = document.getElementById('pc-name'), st = document.getElementById('pc-status'), m = document.getElementById('private-chat-modal');
-    if (a) a.src = ChatState.currentPrivateChat.otherAvatar;
-    if (n) n.textContent = ChatState.currentPrivateChat.otherName;
+    if (a) {
+        a.src = ChatState.currentPrivateChat.otherAvatar;
+        a.style.cursor = 'pointer';
+        a.onclick = function() {
+            if (typeof window.openUserProfile === 'function') window.openUserProfile(uid, name);
+            else if (typeof openUserProfile === 'function') openUserProfile(uid, name);
+        };
+    }
+    if (n) {
+        n.textContent = ChatState.currentPrivateChat.otherName;
+        n.style.cursor = 'pointer';
+        n.onclick = function() {
+            if (typeof window.openUserProfile === 'function') window.openUserProfile(uid, name);
+            else if (typeof openUserProfile === 'function') openUserProfile(uid, name);
+        };
+    }
     if (st) st.textContent = 'نشط';
     if (m) m.classList.add('open');
     const min = document.getElementById('minimized-chat-avatar'); if (min) min.classList.remove('show');
@@ -1255,7 +1601,7 @@ function startNotificationsListener() {
             lastKnownKey = s.key;
 
             if (n.type === 'mention') {
-                playBirdSound();
+                playBirdSoundThrottled();
                 showToast('fa-bell', '🔔 ' + n.fromName + ' أشار إليك');
                 ChatState.unreadCount++;
                 updateNotifBadge();
@@ -1286,6 +1632,7 @@ function loadNotifications() {
                 if (n.read) return;
                 if (n.fromUid === user.uid) return;
             }
+            if (n.fromUid === user.uid && n.type !== 'friend_accepted') return;
             if (n.read && n.type !== 'friend_request') return;
             arr.push(n);
         });
@@ -1384,7 +1731,8 @@ function buildNotificationElement(n) {
         } else if (n.type === 'private' && n.fromUid) {
             openPrivateChatWith(n.fromUid, n.fromName, n.fromAvatar);
         } else if ((n.type === 'like' || n.type === 'poke' || n.type === 'friend_request' || n.type === 'friend_accepted') && n.fromUid) {
-            openUserProfile(n.fromUid, n.fromName);
+            if (typeof window.openUserProfile === 'function') window.openUserProfile(n.fromUid, n.fromName);
+            else if (typeof openUserProfile === 'function') openUserProfile(n.fromUid, n.fromName);
         }
         closeAllPanels();
     });
@@ -1756,7 +2104,6 @@ function refreshAvatarsInMessages(newFrame) {
     });
 }
 
-/* ⭐ v3.16: refreshNameStyles — مع cinema */
 function refreshNameStylesInMessages(userData) {
     const u = getCurrentUser(); if (!u || !u.uid) return;
     document.querySelectorAll('[data-sender-uid="' + u.uid + '"]').forEach(msgEl => {
@@ -1765,7 +2112,6 @@ function refreshNameStylesInMessages(userData) {
         un.textContent = userData.name || u.name || 'مجهول';
         un.setAttribute('data-name', userData.name || u.name || '');
 
-        // إعادة تعيين
         if (window.NameEffects && typeof window.NameEffects.clear === 'function') {
             window.NameEffects.clear(un);
         }
@@ -1856,5 +2202,9 @@ window.applyRoomFont = applyRoomFont;
 window.buildRoomsList = buildRoomsList;
 window.clearPrivateNotifsFrom = _clearPrivateNotifsFrom;
 window.applySidebarStyle = applySidebarStyle;
+/* ⭐ v3.18: exports جديدة */
+window.startForcedTransferListener = startForcedTransferListener;
+window.startJailListener = startJailListener;
+window.startMutesListener = startMutesListener;
 
-console.log('✅ chat.js v3.16 loaded — cinema styles in chat');
+console.log('✅ chat.js v3.18 loaded — forced transfer + jail + mutes listeners');
